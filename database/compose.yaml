@@ -1,0 +1,14 @@
+# Synthetic loopback database only; start explicitly after Docker daemon is available.
+services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "127.0.0.1:55439:5432"
+    environment:
+      POSTGRES_USER: lab_migration
+      POSTGRES_PASSWORD: ${LOCAL_MIGRATION_PASSWORD:?Set local migration password}
+      POSTGRES_DB: lab_m2_test_identity
+    volumes:
+      - lab_data:/var/lib/postgresql/data
+volumes:
+  lab_data:

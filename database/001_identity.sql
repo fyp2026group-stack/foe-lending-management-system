@@ -1,0 +1,12 @@
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS lab;
+CREATE TABLE lab.batches(id uuid PRIMARY KEY, name text NOT NULL UNIQUE CHECK(length(name) BETWEEN 1 AND 120));
+CREATE TABLE lab.laboratories(id uuid PRIMARY KEY, name text NOT NULL UNIQUE CHECK(length(name) BETWEEN 1 AND 120));
+CREATE TABLE lab.users(id uuid PRIMARY KEY, email text NOT NULL UNIQUE CHECK(email=lower(email)), display_name text NOT NULL, password_hash text NOT NULL, disabled boolean NOT NULL DEFAULT false, batch_id uuid REFERENCES lab.batches(id), registration_number text UNIQUE);
+CREATE TABLE lab.user_roles(user_id uuid REFERENCES lab.users(id), role text CHECK(role IN ('STUDENT','LECTURER','TECHNICAL_OFFICER','ADMIN')), PRIMARY KEY(user_id,role));
+CREATE TABLE lab.staff_labs(user_id uuid REFERENCES lab.users(id), laboratory_id uuid REFERENCES lab.laboratories(id), PRIMARY KEY(user_id,laboratory_id));
+CREATE TABLE lab.sessions(token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES lab.users(id), csrf_hash text NOT NULL, expires_at timestamptz NOT NULL, revoked boolean NOT NULL DEFAULT false);
+CREATE INDEX ON lab.sessions(user_id);
+CREATE TABLE lab.audit(id uuid PRIMARY KEY, actor_id uuid REFERENCES lab.users(id), action text NOT NULL, target_id uuid, occurred_at timestamptz NOT NULL DEFAULT clock_timestamp());
+CREATE TABLE lab.login_limits(key text PRIMARY KEY, attempts integer NOT NULL, until_at timestamptz NOT NULL);
+COMMIT;

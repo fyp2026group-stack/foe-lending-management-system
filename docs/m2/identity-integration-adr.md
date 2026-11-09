@@ -1,0 +1,13 @@
+# Synthetic local identity integration
+
+Scope is one synthetic department only. ADMIN identity management does not confer academic/stock authority or represent real departmental authorization. No production acceptance.
+
+Runtime direct identity DML remains a bounded development exception: exact table grants, no ownership/DDL, audit INSERT only. A compromised runtime can bypass application authorization and fabricate audit INSERTs. Protected-function enforcement remains required; independent Security assessment pending, not presumed approved. Migration credentials must never be supplied to application runtime.
+
+Session absolute8hours plus idle30minutes checked in DB time. Authenticated requests refresh last_seen metadata; GET does not perform business transitions. Global100 login attempts/15minutes precedes per-account10; no trusted proxy/address input is available in this Request surface, so address-specific control remains unimplemented. Global limit protects random-account floods but introduces shared denial-of-service risk. No claim of complete abuse protection. Audit has no runtime UPDATE/DELETE/TRUNCATE grants; independent durable denial audit still incomplete.
+
+Setup (not executed): set LOCAL_MIGRATION_PASSWORD locally, then docker compose -f database/compose.yaml up -d when daemon is available. This explicitly downloads postgres17 if uncached; obtain applicable network approval. Image supplies bootstrap superuser lab_migration ONLY inside local container; no host privilege changes. It is not a production migration-role model. Set MIGRATION_DATABASE_URL loopback and LOCAL_RUNTIME_PASSWORD20+, run node scripts/provision-runtime.mjs, then node scripts/database.mjs migrate. Set DATABASE_URL using lab_runtime, never bootstrap credentials. Seed with SYNTHETIC_ADMIN_PASSWORD12-128 locally and node scripts/database.mjs seed; all new fixture accounts use that synthetic password. Password never written/printed. Existing fixtures unchanged on rerun. Seed creates all roles/multi-role plus cohort/lab/staff assignments.
+
+Migration runner applies all pending migration files atomically with checksum tracking and advisory serialization. Fresh database required if initial untracked migrations were previously manually applied; no destructive reset/adoption is automated. Existing migration file changes fail checksum review. Database unavailable: no SQL/setup/seed/API/privilege/concurrency execution claimed.
+
+Actual local checks: typecheck passed after correcting validation narrowing; lint passed; password test passed1 using --test-isolation=none (no process escalation needed). Earlier combined command's exit0 reflected final test, not initial typecheck; separate successful typecheck is authoritative.
