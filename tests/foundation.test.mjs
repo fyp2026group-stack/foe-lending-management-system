@@ -44,7 +44,7 @@ test('production page renders the synthetic preview and skip-link destination', 
   assert.equal(response.headers.get('x-powered-by'), null);
   const html = await response.text();
   assert.match(html, /Synthetic demonstration/);
-  assert.match(html, /Example Lab A/);
+  assert.match(html, /Example laboratories/);
   assert.match(html, /href="#main"/);
   assert.match(html, /id="main"/);
   assert.doesNotMatch(html, /<form\b/i);
@@ -67,7 +67,7 @@ test('all four previews render as non-operational synthetic layouts', async () =
     const html = await response.text();
     assert.match(html, /Synthetic layout preview/);
     assert.match(html, /all workflow actions unavailable/);
-    assert.match(html, /<caption>/);
+    assert.match(html, /<caption\b/);
     assert.doesNotMatch(html, /<form\b/i);
     assert.doesNotMatch(html, /(?:src|href)="https?:\/\//i);
   }
