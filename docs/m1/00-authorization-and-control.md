@@ -1,5 +1,7 @@
 # M1 authorization and execution control
 
+Current foundation authorization: on 2026-11-09 the owner explicitly accepted limited M1 risk from unverifiable settings and authorized foundation-only coding under current workspace restrictions. This supersedes the earlier full-verification coding gate below for M1 only. Ask/human approval, project-only writes, synthetic data and prohibited operational/live/external behavior remain mandatory. See documents26–30 for implementation and evidence. Historical permission-gate text below is retained as the earlier disposition, not the current foundation blocker.
+
 Owner authorization: 2026-11-09, 10:32 Sri Lanka time, in Orbit's conversation.
 Status: M1 design and coordination authorized; acceptance pending. M2 not authorized.
 
