@@ -1,0 +1,501 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "M1 Intent Creation Draft",
+    "version": "0.0.1",
+    "description": "Curated from Backend report 96b7c48f-777a-4a19-8938-9f15e71db043. Supplied excerpts only; no teammate tools/tests. Not OpenAPI validated. SEC findings OPEN; B05 blocked; policies deferred. Caps proposed engineering constraints. Full B04/UI outstanding."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/intents": {
+      "post": {
+        "operationId": "createIntent",
+        "x-authorization": "Server-derived active actor/lab; current operation capability and per-line lab/record scope. Own submission only; current decision assignment/person conflicts; relevant-lab TO differs from borrower. Return exact original custody; PR22 blocked. No delegation/admin bypass.",
+        "x-lifecycle": "Atomically commit pending intent, one immutable slot, creation audit, unique actor+create-intent+key binding. Same creation input/key recovers original under current authorization; changed input conflicts. Distinct execution namespace. No physical authority or blind repeat from creation.",
+        "x-digests": "Versioned canonical creation digest excludes future intent/slot IDs; execution digest binds server IDs and same immutable semantic payload. Canonical interoperability remains review-pending.",
+        "x-integrity": "Check exact lineage/revision/approval/terms/allocation/item/lab. Carry historical fulfilment/cancellation. Exact reservationConsumed<=quantity and compatible reservation; unreserved use policy-gated. Existing issue checks guard version and creates NEW custody generation. Materialize zero-net conversion and issue atomic. Return exact original generation/outstanding. Consumables no asset/due/return.",
+        "x-policy-dependencies": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P09",
+          "P10",
+          "P11",
+          "P12",
+          "P15",
+          "P20",
+          "PR22",
+          "PR25",
+          "PR26",
+          "PR27"
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/U"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "description": "Validated session-bound token and origin."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/S"
+                  },
+                  {
+                    "$ref": "#/components/schemas/D"
+                  },
+                  {
+                    "$ref": "#/components/schemas/I"
+                  },
+                  {
+                    "$ref": "#/components/schemas/M"
+                  },
+                  {
+                    "$ref": "#/components/schemas/C"
+                  },
+                  {
+                    "$ref": "#/components/schemas/T"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "operation",
+                  "mapping": {
+                    "submission": "#/components/schemas/S",
+                    "decision": "#/components/schemas/D",
+                    "existingIssue": "#/components/schemas/I",
+                    "materializeIssue": "#/components/schemas/M",
+                    "consume": "#/components/schemas/C",
+                    "return": "#/components/schemas/T"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created or recovered authorized intent",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/R"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-lab-session",
+        "description": "Opaque revocable DB session; Secure HttpOnly Path=/; lifetime/MFA/SameSite unresolved."
+      }
+    },
+    "responses": {
+      "E": {
+        "description": "401 unauthenticated;403 denied/concealed404;409 conflict/in-progress/stale/policy;422 invalid;429 limit;503 unavailable/unknown commit. Recover original identity; never blindly repeat physical action.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "const": "no-store"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/E"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "U": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      },
+      "N": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2147483647
+      },
+      "Q": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "B": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entitlementId",
+          "revisionId",
+          "lineId",
+          "approvalId",
+          "termsId",
+          "allocationId",
+          "expectedVersion"
+        ],
+        "properties": {
+          "entitlementId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "revisionId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "lineId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "approvalId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "termsId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "allocationId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/N"
+          }
+        }
+      },
+      "S": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "requestId",
+          "revisionId",
+          "expectedVersion"
+        ],
+        "properties": {
+          "operation": {
+            "const": "submission"
+          },
+          "requestId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "revisionId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/N"
+          }
+        }
+      },
+      "D": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "assignmentId",
+          "entitlementId",
+          "revisionId",
+          "lineId",
+          "expectedVersion",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "operation": {
+            "const": "decision"
+          },
+          "assignmentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "entitlementId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "revisionId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "lineId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/N"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "I": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "binding",
+          "assetId",
+          "inventoryGuardVersion",
+          "quantity",
+          "reservationConsumed"
+        ],
+        "properties": {
+          "operation": {
+            "const": "existingIssue"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/B"
+          },
+          "assetId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "inventoryGuardVersion": {
+            "$ref": "#/components/schemas/N"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          },
+          "reservationConsumed": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "M": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "binding",
+          "poolId",
+          "inventoryGuardVersion",
+          "quantity",
+          "reservationConsumed"
+        ],
+        "properties": {
+          "operation": {
+            "const": "materializeIssue"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/B"
+          },
+          "poolId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "inventoryGuardVersion": {
+            "$ref": "#/components/schemas/N"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          },
+          "reservationConsumed": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "C": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "binding",
+          "bucketId",
+          "inventoryGuardVersion",
+          "quantity",
+          "reservationConsumed"
+        ],
+        "properties": {
+          "operation": {
+            "const": "consume"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/B"
+          },
+          "bucketId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "inventoryGuardVersion": {
+            "$ref": "#/components/schemas/N"
+          },
+          "quantity": {
+            "$ref": "#/components/schemas/Q"
+          },
+          "reservationConsumed": {
+            "$ref": "#/components/schemas/N"
+          }
+        }
+      },
+      "T": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "loanLineId",
+          "assetId",
+          "custodyGenerationId",
+          "expectedVersion",
+          "quantity",
+          "condition"
+        ],
+        "properties": {
+          "operation": {
+            "const": "return"
+          },
+          "loanLineId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "assetId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "custodyGenerationId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/N"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "R": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "slotId",
+          "state",
+          "correlationId"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "slotId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "committed",
+              "rejected"
+            ]
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      },
+      "E": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "correlationId"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "UNAUTHENTICATED",
+              "DENIED",
+              "NOT_FOUND",
+              "IDENTITY_CONFLICT",
+              "IN_PROGRESS",
+              "STALE_VERSION",
+              "POLICY_UNRESOLVED",
+              "INVALID",
+              "LIMITED",
+              "UNAVAILABLE",
+              "COMMIT_UNKNOWN"
+            ]
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      }
+    }
+  }
+}

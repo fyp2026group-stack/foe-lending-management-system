@@ -1,0 +1,786 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "M1 core contract subset",
+    "version": "0.0.3-draft",
+    "description": "Backend draft curated by Orbit; design only, no validation or runtime tests. Policies deferred; SEC01–09 open. Not full B04 coverage. 1000-character text bound proposed engineering cap, not approved university policy. Result lacks full UI receipt DTO; read/list/catalogue/intent issuance and broader workflows outstanding."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "x-authorization": "Server-derived active actor/current capability and lab/record/field scope; default deny; no delegated borrowing.",
+  "x-policy-dependencies": [
+    "P15",
+    "PR26"
+  ],
+  "x-replay": "Server-authorized permanent intent differs actor+command+transport key; canonical versioned payload; same intent changed payload conflicts; transactional claim no lease; unknown commit original authorized lookup; no-effect retry only controlled evidence, not absence. Tombstone retention/privacy unresolved.",
+  "x-review": "08-security-rereview.md proposed epoch and inventory-first lock protocol; no implementation proof.",
+  "paths": {
+    "/requests/{requestId}/submissions": {
+      "post": {
+        "operationId": "submit",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Session-bound token plus validated origin."
+          }
+        ],
+        "x-authorization": "Own request only; active borrower; explicit policy and eligible lecturer; immutable revision.",
+        "x-policy-dependencies": [
+          "P04",
+          "P07",
+          "P09",
+          "PR27"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft authorized Result",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe401/403 or concealed404/409/422/429/503; never sensitive details.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "requestId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/approval-assignments/{assignmentId}/decisions": {
+      "post": {
+        "operationId": "decide",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Session-bound token plus validated origin."
+          }
+        ],
+        "x-authorization": "Current academic assignment/stage/lab/record; actor person differs borrower; no admin bypass.",
+        "x-policy-dependencies": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P09"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft authorized Result",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe401/403 or concealed404/409/422/429/503; never sensitive details.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/handovers": {
+      "post": {
+        "operationId": "handover",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Session-bound token plus validated origin."
+          }
+        ],
+        "x-authorization": "Current relevant-lab TO differs borrower; borrower active; terms/revision/live hold/asset guards; DB-time expiry equality denies.",
+        "x-policy-dependencies": [
+          "P05",
+          "P06",
+          "P07",
+          "P10",
+          "P11",
+          "P12",
+          "PR25"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft authorized Result",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe401/403 or concealed404/409/422/429/503; never sensitive details.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/return-receipts": {
+      "post": {
+        "operationId": "receiveReturn",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Session-bound token plus validated origin."
+          }
+        ],
+        "x-authorization": "Current receiving lab/custody capability; outstanding returnable only; receipt directly inspection; PR22 self/disabled behavior blocked.",
+        "x-policy-dependencies": [
+          "P20",
+          "PR22",
+          "PR25"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft authorized Result",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe401/403 or concealed404/409/422/429/503; never sensitive details.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commands/{intentId}": {
+      "parameters": [
+        {
+          "name": "intentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "commandStatus",
+        "x-authorization": "Current capability/lab/record/result-field scope. No mutation; absence never authorizes repeating physical effect.",
+        "responses": {
+          "200": {
+            "description": "Draft authorized Status",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Draft authorized Error",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-lab-session",
+        "description": "Proposed revocable opaque DB session; Secure HttpOnly Path=/; SameSite/lifetimes and P15 unresolved."
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "Version": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "Submission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revisionId"
+        ],
+        "properties": {
+          "revisionId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "Decision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revisionId",
+          "lineId",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "revisionId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "lineId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "assetId",
+          "quantity"
+        ],
+        "properties": {
+          "kind": {
+            "const": "returnable"
+          },
+          "assetId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          }
+        }
+      },
+      "Consumable": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "itemId",
+          "quantity"
+        ],
+        "properties": {
+          "kind": {
+            "const": "consumable"
+          },
+          "itemId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "Return": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issueId",
+          "assetId",
+          "quantity",
+          "condition"
+        ],
+        "properties": {
+          "issueId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "assetId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          },
+          "condition": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "Result": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "version",
+          "correlationId"
+        ],
+        "properties": {
+          "eventId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "correlationId"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "UNAUTHENTICATED",
+              "DENIED",
+              "NOT_FOUND",
+              "IN_PROGRESS",
+              "IDENTITY_CONFLICT",
+              "STALE_VERSION",
+              "POLICY_UNRESOLVED",
+              "INVALID",
+              "LIMITED",
+              "UNAVAILABLE"
+            ]
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "Handover": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revisionId",
+          "lineId",
+          "approvedTermsId",
+          "stock"
+        ],
+        "properties": {
+          "revisionId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "lineId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "approvedTermsId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "stock": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Asset"
+              },
+              {
+                "$ref": "#/components/schemas/Consumable"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "returnable": "#/components/schemas/Asset",
+                "consumable": "#/components/schemas/Consumable"
+              }
+            }
+          }
+        }
+      },
+      "SubmissionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "expectedVersion",
+          "data"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Submission"
+          }
+        }
+      },
+      "DecisionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "expectedVersion",
+          "data"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Decision"
+          }
+        }
+      },
+      "HandoverCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "expectedVersion",
+          "data"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Handover"
+          }
+        }
+      },
+      "ReturnCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "expectedVersion",
+          "data"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "expectedVersion": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Return"
+          }
+        }
+      },
+      "Status": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "correlationId"
+            ],
+            "properties": {
+              "state": {
+                "const": "pending"
+              },
+              "correlationId": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "result",
+              "correlationId"
+            ],
+            "properties": {
+              "state": {
+                "const": "committed"
+              },
+              "result": {
+                "$ref": "#/components/schemas/Result"
+              },
+              "correlationId": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "error",
+              "correlationId"
+            ],
+            "properties": {
+              "state": {
+                "const": "rejected"
+              },
+              "error": {
+                "$ref": "#/components/schemas/Error"
+              },
+              "correlationId": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

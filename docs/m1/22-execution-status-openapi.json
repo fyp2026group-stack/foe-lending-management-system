@@ -1,0 +1,657 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "M1 execution subset",
+    "version": "0.0.3",
+    "description": "Curated from Backend report 648f2b21-fa25-4d03-b827-9b5450f24836. Proposed; no validator/tests. SEC OPEN; policies deferred; B05 blocked. UI reads/creation schema updates outstanding. Orbit narrows POST200 to committed schema; GET200 retains status union."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "x-authorization": "Stable server-derived person owns intent; no delegation/admin bypass; current capability/lab/record/field checks even on replay.",
+  "x-semantics": "Stored immutable semantics authoritative; slot belongs to intent; operation/route targets match. Closed ID-only bodies supersede older semantic bodies. Request fingerprint separate from captured plan digest; original creation recovery never rebuilds plan. Captured required versions rechecked without rebase; return original loan/custody, no later approval head. Genuine reserved subset consumed=quantity>0; unreserved unavailable. One intent/slot/effect. Stale/authority/policy/infra denials not terminal rejection. Detailed canonical/version contracts remain pending.",
+  "paths": {
+    "/requests/{requestId}/submissions": {
+      "parameters": [
+        {
+          "name": "requestId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "executeSubmission",
+        "x-authorization": "Own request; stored submission request equals path.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/K"
+          },
+          {
+            "$ref": "#/components/parameters/C"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed original outcome or currently authorized committed replay only",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/D"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    },
+    "/approval-assignments/{assignmentId}/decisions": {
+      "parameters": [
+        {
+          "name": "assignmentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "executeDecision",
+        "x-authorization": "Stored decision assignment equals path; current stage/person conflicts.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/K"
+          },
+          {
+            "$ref": "#/components/parameters/C"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed original outcome or currently authorized committed replay only",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/D"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    },
+    "/handovers": {
+      "post": {
+        "operationId": "executeHandover",
+        "x-authorization": "Stored existingIssue/materializeIssue/consume only; current relevant-lab TO differs from active borrower, approved terms/entitlement/reservation/source guards.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/K"
+          },
+          {
+            "$ref": "#/components/parameters/C"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed original outcome or currently authorized committed replay only",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/D"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    },
+    "/return-receipts": {
+      "post": {
+        "operationId": "executeReturn",
+        "x-authorization": "Stored return only; original loan/issue/asset/custody generation and outstanding; current receiving authority, PR22 deferred; atomic inspection entry.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/K"
+          },
+          {
+            "$ref": "#/components/parameters/C"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed original outcome or currently authorized committed replay only",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/D"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    },
+    "/commands/{intentId}": {
+      "parameters": [
+        {
+          "name": "intentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readCommandStatus",
+        "x-authorization": "Current owner/capability/lab/record/field authority; conceal inaccessible identity. GET never claims/retries/repairs. Pending/absence never permits repeated world action.",
+        "responses": {
+          "200": {
+            "description": "Authorized durable status",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E"
+          },
+          "403": {
+            "$ref": "#/components/responses/E"
+          },
+          "404": {
+            "$ref": "#/components/responses/E"
+          },
+          "409": {
+            "$ref": "#/components/responses/E"
+          },
+          "422": {
+            "$ref": "#/components/responses/E"
+          },
+          "429": {
+            "$ref": "#/components/responses/E"
+          },
+          "503": {
+            "$ref": "#/components/responses/E"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-lab-session",
+        "description": "Opaque revocable DB session; Secure HttpOnly; parameters unresolved."
+      }
+    },
+    "parameters": {
+      "K": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/U"
+        },
+        "description": "Actor+execute+operation+target namespace distinct creation."
+      },
+      "C": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Validated session-bound token plus origin."
+      }
+    },
+    "responses": {
+      "E": {
+        "description": "401 session;403 denied/concealed404;409 identity/stale/in-progress/policy;422 invalid;429 limited;503 unavailable/unknown commit. SEMANTIC_REJECTED maps409 only after durable rejection. No blind physical retry.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "const": "no-store"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "U": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "correlationId"
+        ],
+        "properties": {
+          "code": {
+            "enum": [
+              "UNAUTHENTICATED",
+              "DENIED",
+              "NOT_FOUND",
+              "IDENTITY_CONFLICT",
+              "STALE_VERSION",
+              "IN_PROGRESS",
+              "POLICY_UNRESOLVED",
+              "INVALID",
+              "LIMITED",
+              "UNAVAILABLE",
+              "COMMIT_UNKNOWN",
+              "SEMANTIC_REJECTED"
+            ]
+          },
+          "correlationId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      },
+      "P": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "slotId",
+          "state"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "slotId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "state": {
+            "const": "pending"
+          }
+        }
+      },
+      "J": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "slotId",
+          "state",
+          "error"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "slotId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "state": {
+            "const": "rejected"
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "S": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "revisionId"
+        ],
+        "properties": {
+          "operation": {
+            "const": "submission"
+          },
+          "revisionId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      },
+      "A": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "decisionId"
+        ],
+        "properties": {
+          "operation": {
+            "const": "decision"
+          },
+          "decisionId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      },
+      "I": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "loanLineId",
+          "assetId",
+          "custodyGenerationId",
+          "quantity"
+        ],
+        "properties": {
+          "operation": {
+            "enum": [
+              "existingIssue",
+              "materializeIssue"
+            ]
+          },
+          "loanLineId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "assetId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "custodyGenerationId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "quantity": {
+            "type": "integer",
+            "const": 1
+          }
+        }
+      },
+      "C": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "quantity"
+        ],
+        "properties": {
+          "operation": {
+            "const": "consume"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "T": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "receiptId",
+          "inspectionId"
+        ],
+        "properties": {
+          "operation": {
+            "const": "return"
+          },
+          "receiptId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "inspectionId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      },
+      "D": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "slotId",
+          "state",
+          "eventId",
+          "result"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "slotId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "state": {
+            "const": "committed"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/S"
+              },
+              {
+                "$ref": "#/components/schemas/A"
+              },
+              {
+                "$ref": "#/components/schemas/I"
+              },
+              {
+                "$ref": "#/components/schemas/C"
+              },
+              {
+                "$ref": "#/components/schemas/T"
+              }
+            ]
+          }
+        }
+      },
+      "Status": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/P"
+          },
+          {
+            "$ref": "#/components/schemas/D"
+          },
+          {
+            "$ref": "#/components/schemas/J"
+          }
+        ]
+      },
+      "Body": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "intentId",
+          "slotId"
+        ],
+        "properties": {
+          "intentId": {
+            "$ref": "#/components/schemas/U"
+          },
+          "slotId": {
+            "$ref": "#/components/schemas/U"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# B02 — Authentication alternatives and compatibility gate
+
+Status: design draft; independent review pending. Backend supplied an excerpt-based draft without file access or execution. Orbit reconciled this document against the previously read Phase 1/review documents. No provider, package version or institutional policy selected. All institutional policy choices remain deferred.
+
+P15: OIDC first if institution supports it; no self-service role elevation; privileged MFA. Local fallback needs separately approved password/recovery policy. Owner authorizes comparison only, without connecting to any real identity provider.
+
+| Alternative | Design obligations | Decision gate |
+|---|---|---|
+| Institutional OIDC client plus revocable opaque database application sessions | Validate issuer/audience/signature/state/nonce and code flow with PKCE as applicable; link stable provider subject through a trusted procedure; verify privileged MFA and freshness; app-owned current capabilities remain independent of identity claims | P15 institutional support/provisioning, P02 capability separation and PR26 bootstrap/grant governance; no live connection authorized |
+| Local authentication, only if separately accepted | Vetted password hashing, safe recovery, credential storage, abuse controls, MFA, trusted provisioning, session revocation and operational support | Not an approved automatic fallback; explicit institutional decision and independent security review required |
+| Defer login and use synthetic design fixtures | Invented identities describe contract examples only; no login or authorization bypass endpoints in scaffold | Suitable for M1 foundation, not proof of authentication or an operational protected feature |
+
+All options require session idle/absolute lifetime decisions, logout/revocation, disabled-account behavior, trusted account linking, no email-only takeover and no client role claims as authority. P14 governs personal-data retention. PR22 covers officer receipt of existing custody for disabled borrowers; that is distinct from allowing a disabled user to initiate requests.
+
+Node, Next.js, React, TypeScript, PostgreSQL, Prisma and authentication adapter versions/support are UNVERIFIED. Later authorized verification must check maintained compatible releases, peer/runtime constraints, transaction API and pool behavior, reviewed SQL preservation, opaque DB session support and advisories against primary sources before installation. No current compatibility claim is made here.
+
+Package-manager choice: follow an existing approved convention if one exists; otherwise choose a supported manager with deterministic lockfile and reproducible installation. Test-tool choice: strict TS/framework compatibility, deterministic synthetic fixtures and later real-PostgreSQL grant/lock/concurrency support. Tool selection remains pending. No credentials, IdP connection, install or test execution occurred.

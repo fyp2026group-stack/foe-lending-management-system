@@ -1,0 +1,228 @@
+{
+  "description": "Schema fragment curated by Orbit from Backend babffe80-5fb5-49e1-b455-db21f2524e6d. Not standalone OpenAPI; references require earlier common schemas. No validation/tests. SEC OPEN; policies deferred; B05 blocked. Preserve original custody, fixed genuine reservations, atomic inspection persistence, zero-net materialization and original-key recovery. Full assembly pending.",
+  "schemas": {
+    "ExistingIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "binding",
+        "sourceBucketId",
+        "sourceVersion",
+        "assetId",
+        "inventoryGuardVersion",
+        "quantity",
+        "reservationConsumed"
+      ],
+      "properties": {
+        "operation": {
+          "const": "existingIssue"
+        },
+        "binding": {
+          "$ref": "#/components/schemas/Binding"
+        },
+        "sourceBucketId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "sourceVersion": {
+          "$ref": "#/components/schemas/SourceVersion"
+        },
+        "assetId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "inventoryGuardVersion": {
+          "$ref": "#/components/schemas/InventoryVersion"
+        },
+        "quantity": {
+          "type": "integer",
+          "const": 1
+        },
+        "reservationConsumed": {
+          "type": "integer",
+          "const": 1
+        }
+      }
+    },
+    "MaterializeIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "binding",
+        "sourceBucketId",
+        "sourceVersion",
+        "poolId",
+        "poolGuardVersion",
+        "quantity",
+        "reservationConsumed"
+      ],
+      "properties": {
+        "operation": {
+          "const": "materializeIssue"
+        },
+        "binding": {
+          "$ref": "#/components/schemas/Binding"
+        },
+        "sourceBucketId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "sourceVersion": {
+          "$ref": "#/components/schemas/SourceVersion"
+        },
+        "poolId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "poolGuardVersion": {
+          "$ref": "#/components/schemas/Version",
+          "description": "Pool eligibility only: identity/ownership/freeze/closure; independent reserved materializations do not advance it. Check current attributable quantity under guards."
+        },
+        "quantity": {
+          "type": "integer",
+          "const": 1
+        },
+        "reservationConsumed": {
+          "type": "integer",
+          "const": 1
+        }
+      }
+    },
+    "Consume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "binding",
+        "sourceBucketId",
+        "sourceVersion",
+        "quantity",
+        "reservationConsumed"
+      ],
+      "properties": {
+        "operation": {
+          "const": "consume"
+        },
+        "binding": {
+          "$ref": "#/components/schemas/Binding"
+        },
+        "sourceBucketId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "sourceVersion": {
+          "$ref": "#/components/schemas/SourceVersion"
+        },
+        "quantity": {
+          "$ref": "#/components/schemas/Quantity"
+        },
+        "reservationConsumed": {
+          "$ref": "#/components/schemas/Quantity"
+        }
+      },
+      "description": "Guard enforces quantity=reservationConsumed>0<=allocationOutstanding, compatible original source, current terms and cumulative entitlement. No unreserved branch."
+    },
+    "Return": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "loanLineId",
+        "originalIssueEventId",
+        "assetId",
+        "custodyGenerationId",
+        "loanLineVersion",
+        "custodyGuardVersion",
+        "quantity",
+        "condition"
+      ],
+      "properties": {
+        "operation": {
+          "const": "return"
+        },
+        "loanLineId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "originalIssueEventId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "assetId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "custodyGenerationId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "loanLineVersion": {
+          "$ref": "#/components/schemas/Version",
+          "description": "Original return eligibility changes; later approval heads excluded."
+        },
+        "custodyGuardVersion": {
+          "$ref": "#/components/schemas/Version",
+          "description": "Original asset custody/state/ownership; supplied immutable generation must still match."
+        },
+        "quantity": {
+          "type": "integer",
+          "const": 1
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "Created": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intentId",
+        "slotId",
+        "state",
+        "correlationId"
+      ],
+      "properties": {
+        "intentId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "slotId": {
+          "$ref": "#/components/schemas/UUID"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "committed",
+            "rejected"
+          ]
+        },
+        "correlationId": {
+          "$ref": "#/components/schemas/UUID"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "correlationId"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "UNAUTHENTICATED",
+            "DENIED",
+            "NOT_FOUND",
+            "IDENTITY_CONFLICT",
+            "STALE_VERSION",
+            "IN_PROGRESS",
+            "POLICY_UNRESOLVED",
+            "INVALID",
+            "LIMITED",
+            "UNAVAILABLE",
+            "COMMIT_UNKNOWN"
+          ]
+        },
+        "correlationId": {
+          "$ref": "#/components/schemas/UUID"
+        }
+      }
+    }
+  }
+}
