@@ -52,7 +52,7 @@ test('production page renders the synthetic preview and skip-link destination', 
 });
 
 test('operational command routes are unavailable', async () => {
-  for (const route of ['/api/v1/handovers', '/api/v1/return-receipts', '/api/v1/intents']) {
+  for (const route of ['/api/v1/handovers', '/api/v1/return-receipts', '/api/v1/intents', '/api/v1/requests/example/submissions', '/api/v1/approval-assignments/example/decisions']) {
     const response = await fetch(`${baseUrl}${route}`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
     });
