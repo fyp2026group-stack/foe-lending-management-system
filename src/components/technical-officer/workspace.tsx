@@ -1096,19 +1096,10 @@ function InventoryArea({
 
   return (
     <>
-      <div className="officer-queue-metrics">
-        <Metric label="Catalogue items" value={rows?.length} />
-        {(['available', 'reserved', 'borrowed'] as const).map((key) => (
-          <Metric
-            key={key}
-            label={key.charAt(0).toUpperCase() + key.slice(1) + ' units'}
-            value={
-              rows?.every((i) => typeof i[key] === 'number')
-                ? rows.reduce((n, i) => n + (i[key] ?? 0), 0)
-                : undefined
-            }
-          />
-        ))}
+      <div className="officer-queue-metrics inventory-catalogue-metrics">
+        <Metric label="Equipment types" value={rows?.length} />
+        <Metric label="Returnable types" value={rows?.filter(i => i.kind === 'RETURNABLE').length} />
+        <Metric label="Consumable types" value={rows?.filter(i => i.kind === 'CONSUMABLE').length} />
       </div>
       {[locations.error, categories.error, policies.error, summary.error]
         .filter(Boolean)
@@ -1124,7 +1115,7 @@ function InventoryArea({
             <FileSpreadsheet className="size-4"/>Import Excel
           </Button>
           <Button variant="outline" onClick={() => setStockOpen(true)}>
-            <SlidersHorizontal className="size-4"/>Manage units & corrections
+            <SlidersHorizontal className="size-4"/>Identify units / corrections
           </Button>
         </div>
       </div>
@@ -1136,7 +1127,7 @@ function InventoryArea({
           setLab('all');
         }}
         title="Inventory catalogue"
-        description="Separate item-level states; returnable equipment and consumables retain their own units."
+        description="Browse equipment and inspect available quantities, identified units, and locations."
         records={{ ...items, data: rows ? { items: rows } : undefined }}
         id={(i) => i.id}
         tools={
@@ -1209,15 +1200,15 @@ function InventoryArea({
       <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
         session={session} labs={labs} locations={locations.data?.items ?? []} onSaved={refresh}/>
       <ReviewSheet open={stockOpen} onOpenChange={setStockOpen}
-        title="Manage units & stock corrections"
-        description="Identify a particular returnable unit or report a verified quantity discrepancy."
-        variant="equipment">
+        title="Identify units & correct stock"
+        description="Identify an existing unit or request a separately approved quantity correction."
+        variant="stock">
         <OfficerStockActions session={session} items={items.data?.items ?? []}
           labs={labs} locations={locations.data?.items ?? []} revision={revision} onSaved={refresh}/>
       </ReviewSheet>
       <ReviewSheet open={importOpen} onOpenChange={setImportOpen}
-        title="Import items from Excel"
-        description="Upload, validate and review a spreadsheet receipt before updating quantities.">
+        title="Import equipment from Excel"
+        description="Review receipts before adding any equipment quantities.">
         <ImportPanel session={session} onSaved={refresh}/>
       </ReviewSheet>
       <ReviewSheet
@@ -1231,9 +1222,13 @@ function InventoryArea({
       >
         {detail && (
           <>
-            <p>
-              Approval policy:{' '}
-              {policies.data?.items.find((p) => p.itemId === detail.id)?.policy ?? 'Unavailable'}
+            <p className="equipment-approval-note">
+              Borrowing approval: {(() => {
+                const policy = policies.data?.items.find(p => p.itemId === detail.id)?.policy;
+                return !policy || policy === 'UNCONFIGURED'
+                  ? 'Not configured — contact the HOD before issuing'
+                  : policy.replaceAll('_', ' ').toLowerCase();
+              })()}
             </p>
             <ItemDetail item={detail} revision={revision} labId={lab === 'all' ? '' : lab} />
           </>

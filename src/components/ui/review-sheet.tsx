@@ -117,7 +117,7 @@ export function ReviewSheet({
   description: string;
   children: ReactNode;
   footer?: ReactNode;
-  variant?: 'default' | 'equipment' | 'receipt';
+  variant?: 'default' | 'equipment' | 'receipt' | 'stock';
 }) {
   const [locks, setLocks] = useState<Set<string>>(() => new Set());
   const update = useCallback(
@@ -138,13 +138,14 @@ export function ReviewSheet({
       }}
     >
       <DialogContent
-        className={variant === 'equipment' ? 'review-sheet equipment-detail-dialog' : variant === 'receipt' ? 'review-sheet inventory-receipt-dialog' : 'review-sheet'}
+        className={variant === 'equipment' ? 'review-sheet equipment-detail-dialog' : variant === 'receipt' ? 'review-sheet inventory-receipt-dialog' : variant === 'stock' ? 'review-sheet stock-control-dialog' : 'review-sheet'}
         onEscapeKeyDown={(event) => { if (locks.size) event.preventDefault(); }}
         onPointerDownOutside={(event) => { if (locks.size) event.preventDefault(); }}
       >
         <DialogHeader>
           {variant === 'equipment' && <p className="dialog-eyebrow">INVENTORY / EQUIPMENT DETAILS</p>}
           {variant === 'receipt' && <p className="dialog-eyebrow">INVENTORY / NEW RECEIPT</p>}
+          {variant === 'stock' && <p className="dialog-eyebrow">INVENTORY / STOCK CONTROL</p>}
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>

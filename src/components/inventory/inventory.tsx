@@ -307,38 +307,53 @@ function PhysicalItemDetail({
     'locations' + (labId ? '?labId=' + encodeURIComponent(labId) : ''), revision
   );
   const positive = stock.data?.items.filter((row) => row.quantity > 0) ?? [];
+  // Identified and quantity-only units can occupy separate internal stock rows.
+  // Group by laboratory, location, and state for a correct human-readable total.
+  const balances = Array.from(
+    positive.reduce((map, row) => {
+      const key = JSON.stringify([row.labId, row.locationId, row.state]);
+      const previous = map.get(key);
+      if (previous) previous.quantity += row.quantity;
+      else map.set(key, {
+        key, labId: row.labId, locationId: row.locationId,
+        state: row.state, quantity: row.quantity,
+      });
+      return map;
+    }, new Map<string, {
+      key: string; labId: string; locationId: string; state: string; quantity: number
+    }>()).values()
+  );
   return (
     <>
       <section className="equipment-detail-section" aria-labelledby="equipment-stock-heading">
         <div className="equipment-section-heading">
           <MapPin className="size-4" aria-hidden="true" />
-          <h2 id="equipment-stock-heading">Stock by location and state</h2>
+          <h2 id="equipment-stock-heading">Equipment by location</h2>
         </div>
         {[stock.error, assets.error, movements.error, locations.error]
           .filter(Boolean).map((error, index) => <ErrorNotice key={index} message={error!} />)}
         {!stock.data && !stock.error && <p role="status" className="equipment-loading">Loading stock balances…</p>}
-        {positive.length > 0 && (
-          <div className="equipment-stock-table" role="region" aria-label="Stock balances by location">
+        {balances.length > 0 && (
+          <div className="equipment-stock-table" role="region" aria-label="Equipment quantities by location">
             <table>
-              <thead><tr><th scope="col">State</th><th scope="col">Location</th><th scope="col">Quantity</th><th scope="col">Record version</th></tr></thead>
-              <tbody>{positive.map((row) => (
-                <tr key={row.id}>
-                  <td><Badge variant="secondary">{stockLabel(row.state)}</Badge></td>
+              <thead><tr><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Quantity</th></tr></thead>
+              <tbody>{balances.map((row) => (
+                <tr key={row.key}>
                   <td>{locations.data?.items.find((location) => location.id === row.locationId)?.name ?? 'Stock location'}</td>
+                  <td><Badge variant="secondary">{stockLabel(row.state)}</Badge></td>
                   <td className="equipment-quantity">{row.quantity} {item.uom ?? 'units'}</td>
-                  <td className="equipment-version">v{row.version}</td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
-        {stock.data && !positive.length && <p className="equipment-empty-inline">No current stock in this scope.</p>}
+        {stock.data && !balances.length && <p className="equipment-empty-inline">No current stock in this scope.</p>}
       </section>
       {item.kind !== 'CONSUMABLE' && (
         <section className="equipment-detail-section" aria-labelledby="equipment-assets-heading">
           <div className="equipment-section-heading">
             <Boxes className="size-4" aria-hidden="true" />
-            <h2 id="equipment-assets-heading">Physical assets</h2>
+            <h2 id="equipment-assets-heading">Identified equipment units</h2>
           </div>
           {!assets.data && !assets.error && <p role="status" className="equipment-loading">Loading physical assets…</p>}
           {assets.data && !assets.data.items.length && (
@@ -353,7 +368,7 @@ function PhysicalItemDetail({
               {assets.data.items.map((asset) => (
                 <article key={asset.id} className="equipment-asset-row">
                   <div><strong>{asset.serial || 'Serial number not recorded'}</strong>
-                    <span className="asset-reference">Asset ID: {asset.id}</span></div>
+                    <span className="asset-reference">Internal reference: {asset.id}</span></div>
                   <Badge variant="secondary">{asset.state ? stockLabel(asset.state) : 'State unavailable'}</Badge>
                 </article>
               ))}
@@ -364,7 +379,7 @@ function PhysicalItemDetail({
       <section className="equipment-detail-section" aria-labelledby="equipment-movements-heading">
         <div className="equipment-section-heading">
           <History className="size-4" aria-hidden="true" />
-          <h2 id="equipment-movements-heading">Movement history</h2>
+          <h2 id="equipment-movements-heading">Equipment history</h2>
         </div>
         {!movements.data && !movements.error && <p role="status" className="equipment-loading">Loading movement history…</p>}
         {movements.data && !movements.data.items.length && (
@@ -1031,21 +1046,9 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
     }
   }
   return (
-    <section className="border bg-white rounded-md p-4">
-      <h2>Receipt import workflow</h2>
-      <p className="muted">Controlled, auditable inventory receipt imports</p>
-      <ol className="officer-flow" aria-label="Receipt import steps">
-        {['Upload CSV/XLSX', 'Validate', 'Preview', 'Commit'].map((step, index) => (
-          <li
-            key={step}
-            aria-current={
-              preview ? (index === 2 ? 'step' : undefined) : index === 0 ? 'step' : undefined
-            }
-          >
-            {index + 1}. {step}
-          </li>
-        ))}
-      </ol>
+    <section className="inventory-import-panel">
+      <h2>Import equipment receipts</h2>
+      <p className="muted">Upload a CSV or Excel file, check the contents, and confirm the stock updates.</p>
       {issues.length > 0 && (
         <div
           className="table-region"
@@ -1076,10 +1079,12 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
           </Table>
         </div>
       )}
-      <p>
-        CSV or XLSX, up to 100 rows. Exact columns: itemId, labId, locationId, quantity, provenance.
-        Server validates and stores the preview; commit revalidates every row atomically.
-      </p>
+      <p className="import-help">Import up to 100 equipment receipt rows from CSV or Excel (.xlsx). No stock is added until you review and confirm.</p>
+      <details className="import-format-help">
+        <summary>Required spreadsheet columns</summary>
+        <p>Use <code>itemId</code>, <code>labId</code>, <code>locationId</code>, <code>quantity</code> and <code>provenance</code> (unique receipt reference).
+        IDs must refer to existing authorized records. The server checks each row before accepting the import.</p>
+      </details>
       {error && <ErrorNotice message={error} />}
       <p role="status">{success}</p>
       <form onSubmit={validate} className="grid gap-4 my-4">
@@ -1168,7 +1173,7 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
         </>
       )}
       <section className="mt-6 border-t pt-4">
-        <h2>My staged imports</h2>
+        <h2>Saved imports</h2>
         <Button
           type="button"
           variant="outline"
@@ -1196,10 +1201,7 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
             </Button>
           </div>
         ))}
-        <p className="muted">
-          Reopen fetches the saved rows under your current permissions. Review those rows before
-          committing the existing stage. Committed stages are read only.
-        </p>
+        <p className="muted">Review previously uploaded imports. Completed imports cannot be applied twice.</p>
       </section>
     </section>
   );
