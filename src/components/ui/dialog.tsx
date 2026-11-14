@@ -48,10 +48,11 @@ function DialogContent({
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
+      <div data-slot="dialog-viewport" className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border bg-background p-6 shadow-xl duration-200 outline-none sm:max-w-lg',
+          'pointer-events-auto relative z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] gap-4 rounded-xl border bg-background p-6 shadow-xl outline-none sm:max-w-lg',
           className
         )}
         {...props}
@@ -67,6 +68,7 @@ function DialogContent({
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
+      </div>
     </DialogPortal>
   );
 }

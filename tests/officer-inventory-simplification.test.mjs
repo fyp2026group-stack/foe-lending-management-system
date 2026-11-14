@@ -12,7 +12,13 @@ assert.ok(s.includes('<ImportPanel session={session} onSaved={refresh}/>'));
 });
 test('equipment dialogs are centred with independently scrolling content',()=>{
 const s=file('src/app/workspace.css');
-for(const part of ['transform:translate(-50%,-50%)','translate:none','overscroll-behavior:contain','animation:none !important'])assert.ok(s.includes(part));
+const dialog=file('src/components/ui/dialog.tsx');
+const alert=file('src/components/ui/alert-dialog.tsx');
+for(const part of ['position:relative;top:auto;left:auto;translate:none;transform:none','overscroll-behavior:contain','animation:none !important'])assert.ok(s.includes(part));
+assert.ok(dialog.includes('data-slot="dialog-viewport"'));
+assert.ok(alert.includes('data-slot="alert-dialog-viewport"'));
+assert.ok(!dialog.includes('translate-x-[-50%]'));
+assert.ok(!alert.includes('translate-x-[-50%]'));
 });
 test('quantity receipt and physical handover identification are distinct',()=>{
 const a=file('src/components/inventory/inventory.tsx');

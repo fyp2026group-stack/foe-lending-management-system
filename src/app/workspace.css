@@ -4418,9 +4418,12 @@ body [data-slot="dialog-content"].review-sheet {
   .equipment-stock-table { margin-inline: -5px; }
   .equipment-stock-table table { min-width: 510px; }
 }
-@media (prefers-reduced-motion: no-preference) {
-  body [data-slot="dialog-content"], body [data-slot="alert-dialog-content"] { animation: foe-dialog-appear 165ms cubic-bezier(.2,.7,.35,1) both; }
-  @keyframes foe-dialog-appear { from { opacity: .4; transform: translate(-50%, -49%) scale(.99); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+/* The Radix portal's viewport centers dialogs without any translate/transform
+   composition. Animation cannot displace the content from this viewport. */
+body [data-slot="dialog-viewport"],
+body [data-slot="alert-dialog-viewport"] {
+  overscroll-behavior: contain;
+  isolation: isolate;
 }
 @media (prefers-reduced-motion: reduce) {
   body [data-slot="dialog-content"], body [data-slot="alert-dialog-content"] { animation: none !important; }
@@ -4434,12 +4437,12 @@ body [data-slot="dialog-content"].review-sheet {
 .officer-inventory-actions {display:flex;gap:9px;flex-wrap:wrap}
 .inventory-form-guidance {font-size:12px;line-height:1.6;color:#566273;background:#f7f8fa;border-left:3px solid #8c1823;padding:12px 14px;border-radius:6px}
 @media(max-width:680px){.officer-inventory-actions{width:100%}.officer-inventory-actions [data-slot="button"]{flex:1}}
-/* A separate transform animation and Radix transforms had displaced tall dialogs.
-   Fix position at viewport center, and scroll content rather than the whole dialog. */
+/* Content is centered by the dedicated portal viewport. Never translate it
+   again: CSS translate + transform compounded into the upper-left layout bug. */
 body [data-slot="dialog-content"].review-sheet {
- position:fixed;top:50%;left:50%;translate:none;transform:translate(-50%,-50%);
+ position:relative;top:auto;left:auto;translate:none;transform:none;
  width:min(940px,calc(100vw - 30px));max-height:min(90dvh,940px);
- display:flex;flex-direction:column;overflow:hidden;animation:none
+ display:flex;flex-direction:column;overflow:hidden;animation:none;
 }
 body [data-slot="dialog-content"].review-sheet > [data-slot="dialog-header"],
 body [data-slot="dialog-content"].review-sheet > .review-sheet-footer{flex:none}
