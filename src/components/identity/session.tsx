@@ -66,7 +66,8 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
-import { api, ApiError, readSession, displayRoles, type Session } from './api';
+import { api, ApiError, readSession, displayRoles, roleLabels, type Role, type Session } from './api';
+import { selectWorkspaceRole } from './workspace-role';
 
 type IconName =
   | 'dashboard'
@@ -525,8 +526,40 @@ function Brand() {
     </Link>
   );
 }
+
+function RoleSwitcher({
+  roles,
+  active,
+  select,
+}: {
+  roles: string[];
+  active: Role;
+  select: (role: Role) => void;
+}) {
+  if (roles.length < 2) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="workspace-role-trigger" aria-label="Switch workspace">
+          {roleLabels[active]}
+          <ChevronDown size={14} aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Switch authorized workspace</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {roles.filter((role): role is Role => role in roleLabels).map((role) => (
+          <DropdownMenuItem key={role} onSelect={() => select(role)}>
+            {roleLabels[role]}{active === role ? ' · Current' : ''}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 export function Authenticated({ children }: { children: (session: Session) => ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [preferredRole, setPreferredRole] = useState<Role | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -534,7 +567,13 @@ export function Authenticated({ children }: { children: (session: Session) => Re
     const controller = new AbortController();
     api<Session>('/api/auth/me', { signal: controller.signal })
       .then(readSession)
-      .then(setSession)
+      .then((value) => {
+        // This is a presentation preference only. PostgreSQL remains the authority.
+        let remembered: string | null = null;
+        try { remembered = sessionStorage.getItem('lab-workspace:' + value.user.id); } catch {}
+        setPreferredRole(selectWorkspaceRole(value.user.roles, remembered));
+        setSession(value);
+      })
       .catch((error) => {
         if (!controller.signal.aborted)
           setError(error instanceof Error ? error.message : 'Unable to load session.');
@@ -578,6 +617,19 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         )}
       </main>
     );
+  const activeRole = selectWorkspaceRole(session.user.roles, preferredRole);
+  const viewSession: Session = {
+    ...session,
+    // Component-level role presentation only; API requests retain the real session
+    // and the server always checks the full assigned-role set.
+    user: { ...session.user, roles: [activeRole] },
+  };
+  const chooseRole = (role: Role) => {
+    if (!session.user.roles.includes(role)) return;
+    setPreferredRole(role);
+    try { sessionStorage.setItem('lab-workspace:' + session.user.id, role); } catch {}
+    router.replace('/workspace');
+  };
   const initials = session.user.displayName
     .split(/\s+/)
     .slice(0, 2)
@@ -585,31 +637,32 @@ export function Authenticated({ children }: { children: (session: Session) => Re
     .join('')
     .toUpperCase();
   if (
-    !session.user.roles.includes('ADMIN') &&
-    (isStudent(session.user.roles) ||
-      session.user.roles.includes('TECHNICAL_OFFICER') ||
-      session.user.roles.includes('LECTURER'))
+    !viewSession.user.roles.includes('ADMIN') &&
+    (isStudent(viewSession.user.roles) ||
+      viewSession.user.roles.includes('TECHNICAL_OFFICER') ||
+      viewSession.user.roles.includes('LECTURER'))
   )
     return (
-      <StudentLayout session={session} initials={initials} busy={busy} logout={logout}>
+      <StudentLayout session={viewSession} initials={initials} busy={busy} logout={logout}
+        availableRoles={session.user.roles} onRoleChange={chooseRole}>
         {error && <ErrorNotice message={error} />}
-        {children(session)}
+        {children(viewSession)}
       </StudentLayout>
     );
   return (
     <SidebarProvider
       className={
-        session.user.roles.includes('ADMIN')
+        viewSession.user.roles.includes('ADMIN')
           ? 'workspace admin-shell'
-          : isStudent(session.user.roles)
+          : isStudent(viewSession.user.roles)
             ? 'workspace student-shell'
             : 'workspace'
       }
       style={
         {
-          '--sidebar-width': session.user.roles.includes('ADMIN')
+          '--sidebar-width': viewSession.user.roles.includes('ADMIN')
             ? '250px'
-            : isStudent(session.user.roles)
+            : isStudent(viewSession.user.roles)
               ? '16.5rem'
               : '15.5rem',
         } as React.CSSProperties
@@ -619,11 +672,11 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <SidebarHeader>
           <Brand />
           <p className="workspace-label">
-            {isStudent(session.user.roles) ? 'Laboratory Equipment Lending' : 'Laboratory services'}
+            {isStudent(viewSession.user.roles) ? 'Laboratory Equipment Lending' : 'Laboratory services'}
           </p>
         </SidebarHeader>
         <SidebarContent>
-          <Navigation session={session} />
+          <Navigation session={viewSession} />
         </SidebarContent>
         <SidebarFooter>
           <span className="muted text-xs">Faculty of Engineering</span>
@@ -638,7 +691,7 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <header className="topbar">
           <div className="topbar-left">
             <SidebarTrigger />
-            <WorkspaceBreadcrumb student={isStudent(session.user.roles)} />
+            <WorkspaceBreadcrumb student={isStudent(viewSession.user.roles)} />
           </div>
           <div className="account-menu">
             <span className="avatar" aria-hidden="true">
@@ -646,8 +699,9 @@ export function Authenticated({ children }: { children: (session: Session) => Re
             </span>
             <span className="account-copy">
               <strong>{session.user.displayName}</strong>
-              <small>{displayRoles(session.user.roles)}</small>
+              <small>{roleLabels[activeRole]}</small>
             </span>
+            <RoleSwitcher roles={session.user.roles} active={activeRole} select={chooseRole} />
             <Button
               variant="ghost"
               size="icon"
@@ -662,7 +716,7 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <div className="page-frame">
           {error && <ErrorNotice message={error} />}
           <main id="main" tabIndex={-1}>
-            {children(session)}
+            {children(viewSession)}
           </main>
           <footer>Faculty of Engineering / Laboratory inventory and equipment lending</footer>
         </div>
@@ -677,11 +731,15 @@ function StudentLayout({
   busy,
   logout,
   children,
+  availableRoles,
+  onRoleChange,
 }: {
   session: Session;
   initials: string;
   busy: boolean;
   logout: () => Promise<void>;
+  availableRoles: string[];
+  onRoleChange: (role: Role) => void;
   children: ReactNode;
 }) {
   return (
@@ -753,9 +811,20 @@ function StudentLayout({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{session.user.displayName}</DropdownMenuLabel>
+                {availableRoles.length > 1 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Switch workspace</DropdownMenuLabel>
+                    {availableRoles.filter((role): role is Role => role in roleLabels).map((role) => (
+                      <DropdownMenuItem key={role} onSelect={() => onRoleChange(role)}>
+                        {roleLabels[role]}{session.user.roles.includes(role) ? ' · Current' : ''}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/borrowing?view=policies">Help / Policies</Link>
+                  <Link href={session.user.roles.includes('ADMIN') ? '/admin/policies' : '/borrowing?view=policies'}>Help / Policies</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled={busy} onSelect={() => void logout()}>
