@@ -477,6 +477,7 @@ export function StockOperations({
   onSaved,
   revision,
   inspectionWorkflow = false,
+  reviewOnly = false,
 }: {
   session: Session;
   items: Item[];
@@ -485,6 +486,7 @@ export function StockOperations({
   onSaved: () => void;
   revision: number;
   inspectionWorkflow?: boolean;
+  reviewOnly?: boolean;
 }) {
   const itemLookup = useInventoryLookup<Item>('items', revision);
   const items = itemLookup.data?.items ?? catalogueItems;
@@ -619,6 +621,7 @@ export function StockOperations({
       </>
       {itemLookup.error && <ErrorNotice message={itemLookup.error} />}{' '}
       {stock.error && <ErrorNotice message={stock.error} />}
+      {!reviewOnly && (
       <section className="records p-4">
         <h2>Stock by location</h2>
         <label htmlFor="cell-location">Filter loaded stock by location</label>
@@ -693,6 +696,7 @@ export function StockOperations({
           ) : null}
         </>
       </section>
+      )}
       {technical && (
         <>
           <Button className="justify-self-start" onClick={() => setReceiptOpen(true)}>

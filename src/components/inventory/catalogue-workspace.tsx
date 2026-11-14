@@ -28,10 +28,12 @@ const initialFilters = { q: '', kind: '', categoryId: '', labId: '', status: '',
 export function CatalogueWorkspace({
   session,
   oversight = false,
+  adjustmentsOnly = false,
   initialTab = 'catalogue',
 }: {
   session: Session;
   oversight?: boolean;
+  adjustmentsOnly?: boolean;
   initialTab?: 'catalogue' | 'stock operations';
 }) {
   const admin = session.user.roles.includes('ADMIN');
@@ -118,6 +120,29 @@ export function CatalogueWorkspace({
   const currentDetail = detail
     ? (items.data?.items.find((item) => item.id === detail.id) ?? detail)
     : null;
+  // Stock Adjustments is its own authorized destination, not a hidden inventory tab.
+  // Keep the approval form and independent-review rules without duplicating catalogue navigation.
+  if (adjustmentsOnly) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Department / inventory"
+          title="Stock Adjustments"
+          description="Review proposed inventory corrections. The person who proposed an adjustment cannot approve it."
+        />
+        {errors.map((error, index) => <ErrorNotice key={index} message={error} />)}
+        <StockOperations
+          session={session}
+          items={items.data?.items ?? []}
+          labs={labs}
+          locations={locations.data?.items ?? []}
+          onSaved={reload}
+          revision={revision}
+          reviewOnly
+        />
+      </>
+    );
+  }
   return (
     <>
       <PageHeader
@@ -131,8 +156,6 @@ export function CatalogueWorkspace({
         actions={
           admin && oversight && tab === 'catalogue' ? (
             <Button onClick={() => setCreating(true)}>Add equipment type</Button>
-          ) : admin && !oversight ? (
-            <Button onClick={() => setTab('definitions')}>Manage catalogue</Button>
           ) : undefined
         }
       />

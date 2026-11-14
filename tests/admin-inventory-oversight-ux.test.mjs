@@ -9,10 +9,12 @@ test('HOD oversight removes duplicate header, tab and row action destinations',(
   assert.ok(s.includes("{ value: 'catalogue', label: 'Equipment' }"));
   assert.ok(s.includes("{ value: 'definitions', label: 'Categories & locations' }"));
   assert.ok(s.includes('Add equipment type'));
+  assert.ok(!s.includes('>Manage catalogue</Button>'));
   assert.ok(s.includes('admin && !oversight'));
   assert.ok(s.includes("{oversight ? 'View details' : 'Review'}"));
   assert.ok(s.includes("mode={oversight ? 'categoriesAndLocations' : 'all'}"));
-  assert.ok(!a.includes('<AdminSectionNav active={view} section="inventory" />\n        <CatalogueWorkspace session={session} oversight />'));
+  assert.ok(!a.includes('section="inventory"'));
+  assert.ok(a.includes('<CatalogueWorkspace session={session} adjustmentsOnly />'));
 });
 test('HOD overview shows equipment-type counts, not misleading mixed unit totals',()=>{
   const s=read('src/components/inventory/catalogue-workspace.tsx');

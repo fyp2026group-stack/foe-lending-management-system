@@ -86,9 +86,7 @@ export function AdminWorkspace({
   if (view === 'adjustments')
     return (
       <div className="admin-page">
-        <AdminSectionNav active={view} section="inventory" />
-        <p className="admin-note">Stock adjustment proposers cannot approve their own proposals; current authority and balances are revalidated when approving.</p>
-        <CatalogueWorkspace session={session} oversight initialTab="stock operations" />
+        <CatalogueWorkspace session={session} adjustmentsOnly />
       </div>
     );
   if (view === 'policies')
@@ -103,13 +101,11 @@ export function AdminWorkspace({
 
 function AdminSectionNav({ active, section }: {
   active: AdminView;
-  section: 'administration' | 'inventory';
+  section: 'administration';
 }) {
-  const views: AdminView[] = section === 'inventory'
-    ? ['inventory', 'adjustments']
-    : ['users', 'batches', 'laboratories', 'policies'];
+  const views: AdminView[] = ['users', 'batches', 'laboratories', 'policies'];
   return (
-    <nav className="admin-context-nav" aria-label={section === 'inventory' ? 'Inventory oversight sections' : 'Administration sections'}>
+    <nav className="admin-context-nav" aria-label="Administration sections">
       {views.map((view) => (
         <Button key={view} asChild size="sm" variant={active === view ? 'default' : 'ghost'}>
           <Link href={adminHref(view)} aria-current={active === view ? 'page' : undefined}>
