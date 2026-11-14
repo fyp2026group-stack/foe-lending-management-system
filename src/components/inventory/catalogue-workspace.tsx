@@ -44,7 +44,7 @@ export function CatalogueWorkspace({
   const [sort, setSort] = useState<CatalogueSort>('name');
   const [descending, setDescending] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState<string>(initialTab);
   const [detail, setDetail] = useState<Item | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
   const origin = useRef<HTMLButtonElement | null>(null);
