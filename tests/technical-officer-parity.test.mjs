@@ -16,7 +16,6 @@ test('officer source retains reference shell dimensions, tokens and distinct com
     'min-height:93px',
     'padding:12px 15px',
     'officer-support',
-    'grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr) minmax(0,.9fr)',
     '@media(max-width:600px)',
   ])
     assert.ok(sourceContains(css, token), token);

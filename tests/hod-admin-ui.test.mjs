@@ -69,10 +69,12 @@ test('reports integrate all mandatory server filters and real CSV/XLSX exports',
     'kind',
   ])
     assert.ok(sourceContains(source, filter), filter);
-  assert.ok(sourceContains(source, 'format:${format}') || sourceContains(source, 'format=${format}'));
-  assert.ok(sourceContains(source, '"csv"|"xlsx"'));
-  assert.ok(sourceContains(source, 'scope:"operations"') || sourceContains(source, 'value="operations"'));
-  assert.ok(sourceContains(source, 'value="security"'));
+  const exports = readFileSync(new URL('../src/components/hod-admin/workspace.tsx', import.meta.url), 'utf8');
+  assert.ok(sourceContains(exports, '&format=${format}'));
+  assert.ok(sourceContains(exports, "format: 'csv' | 'xlsx'"));
+  assert.ok(sourceContains(exports, "'csv' | 'xlsx'"));
+  assert.ok(sourceContains(exports, "value='operations'"));
+  assert.ok(sourceContains(exports, 'value="security"'));
 });
 
 test('admin shell follows reference dimensions and compact responsive composition', () => {
