@@ -135,9 +135,27 @@ test('owned workspace uses full-page review, versioned approval and borrowing te
     new URL('../src/components/lending/workflow.tsx', import.meta.url),
     'utf8'
   );
-  assert.match(workspace, /expectedVersion:line.version/);
+  assert.match(workspace, /expectedVersion:selected.version/);
+  assert.match(workspace, /path="order-decisions"/);
   assert.match(workspace, /predecessorId/);
   assert.match(workspace, /Expected Return Date/);
   assert.doesNotMatch(workspace, /ReviewPanel/);
   assert.doesNotMatch(workflow, /Loans and overdue|Loan status|Loan reference|equipment custody/);
+});
+
+test('borrowing wizard has three stages and one final submit, with no stock location selector', () => {
+  const wizard = readFileSync(new URL('../src/components/lending/request-builder.tsx', import.meta.url), 'utf8');
+  assert.match(wizard, /Select equipment/);
+  assert.match(wizard, /Request details/);
+  assert.match(wizard, /Review & submit/);
+  assert.match(wizard, /Submit request/);
+  assert.doesNotMatch(wizard, /Save draft and review|Stock location|Select laboratory/);
+  assert.match(wizard, /issue\('submit',draftSubmitPayload/);
+});
+test('order approval migration gates handovers and reserves entire orders', () => {
+  const sql = readFileSync(new URL('../database/039_lending_order_approvals.sql', import.meta.url), 'utf8');
+  assert.match(sql, /awaitingOrderApproval/);
+  assert.match(sql, /ORDER_APPROVAL_REQUIRED/);
+  assert.match(sql, /order-decisions/);
+  assert.match(sql, /request_id=request_row.id/);
 });
