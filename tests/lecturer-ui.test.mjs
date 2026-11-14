@@ -135,7 +135,7 @@ test('lecturer routes use the dedicated workspace rather than inventory administ
     new URL('../src/components/lending/workflow.tsx', import.meta.url),
     'utf8'
   );
-  const dashboard = readFileSync(new URL('../src/app/workspace/page.tsx', import.meta.url), 'utf8');
+  const dashboard = readFileSync(new URL('../src/components/workspace-home.tsx', import.meta.url), 'utf8');
   assert.ok(inventory.includes('<LecturerWorkspace session={session} view="equipment"'));
   assert.ok(sourceContains(lending, '<LecturerWorkspace'));
   assert.ok(sourceContains(dashboard, '<LecturerWorkspace session={session}'));

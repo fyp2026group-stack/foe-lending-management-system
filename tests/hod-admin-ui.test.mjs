@@ -105,7 +105,7 @@ test('admin routes prioritize the HOD workspace while preserving official brandi
     new URL('../src/app/admin/[resource]/page.tsx', import.meta.url),
     'utf8'
   );
-  const workspace = readFileSync(new URL('../src/app/workspace/page.tsx', import.meta.url), 'utf8');
+  const workspace = readFileSync(new URL('../src/components/workspace-home.tsx', import.meta.url), 'utf8');
   const shell = readFileSync(
     new URL('../src/components/identity/session.tsx', import.meta.url),
     'utf8'

@@ -22,6 +22,7 @@ test('role checks are server-authoritative and precede protected page renders', 
     ['src/app/admin/[resource]/page.tsx', "['ADMIN']"],
     ['src/app/operations/page.tsx', "['TECHNICAL_OFFICER']"],
     ['src/app/inventory/page.tsx', 'requirePageRole()'],
+    ['src/app/workspace/page.tsx', 'requirePageRole()'],
     ['src/app/borrowing/page.tsx', 'requirePageRole()'],
   ]) {
     const page = contents(path);
