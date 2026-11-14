@@ -51,7 +51,10 @@ test('empty composition contains no table chrome and exposes contextual reset/ac
     new URL('../src/components/inventory/inventory.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(sourceContains(stock, '.length>0?<div className="table-region"'));
-  assert.ok(sourceContains(stock, 'setReceiptOpen(true)} action="Record stock receipt"'));
+  assert.ok(sourceContains(stock, 'stock.data.items.filter('));
+  assert.ok(sourceContains(stock, '.length > 0 ? ('));
+  assert.ok(sourceContains(stock, 'className="table-region"'));
+  assert.ok(sourceContains(stock, 'setReceiptOpen(true)'));
+  assert.ok(sourceContains(stock, 'Record stock receipt'));
   assert.ok(sourceContains(stock, 'stages.data?.items.length===0&&<OfficerEmpty'));
 });
