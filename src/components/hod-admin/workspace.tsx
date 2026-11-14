@@ -31,6 +31,7 @@ import {
 import { ReviewSheet } from '@/components/ui/review-sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { adminHref, adminLabels, type AdminView } from './model';
+import { ReportFilters } from './report-filters';
 import { formatReportValue } from './report-format';
 
 type ReportName = 'borrowing' | 'overdue' | 'inventory' | 'approvals' | 'audit';
@@ -393,6 +394,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
               setOffset(0);
             }}
             audit={audit}
+            report={report}
           />
           {(error || exportError) && <ErrorNotice message={error ?? exportError} />}{' '}
           {!current && !error ? (
@@ -449,71 +451,6 @@ function Reports({ audit = false }: { audit?: boolean }) {
         </CardContent>
       </Card>
     </AdminPage>
-  );
-}
-
-function ReportFilters({
-  filters,
-  setFilters,
-  audit,
-}: {
-  filters: Record<string, string>;
-  setFilters: (filters: Record<string, string>) => void;
-  audit: boolean;
-}) {
-  const set = (name: string, value: string) => setFilters({ ...filters, [name]: value });
-  const primary = audit ? ['status', 'from', 'to'] : ['status', 'stage', 'kind', 'from', 'to'];
-  const advanced = audit
-    ? ['labId', 'borrowerId']
-    : ['batchId', 'labId', 'categoryId', 'itemId', 'borrowerId', 'lecturerId', 'officerId'];
-  const label = (name: string) =>
-    ({
-      status: 'Status / event type',
-      stage: 'Approval stage',
-      kind: 'Equipment type',
-      from: 'From date',
-      to: 'To date',
-      batchId: 'Academic batch',
-      labId: 'Laboratory',
-      categoryId: 'Category',
-      itemId: 'Equipment',
-      borrowerId: 'Borrower / registration',
-      lecturerId: 'Lecturer',
-      officerId: 'Technical officer',
-    })[name] ?? name;
-  return (
-    <>
-      <div className="admin-filterbar">
-        {primary.map((name) => (
-          <label key={name}>
-            {label(name)}
-            <Input
-              type={name === 'from' || name === 'to' ? 'date' : 'text'}
-              value={filters[name] ?? ''}
-              onChange={(e) => set(name, e.target.value)}
-            />
-          </label>
-        ))}
-        <Button variant="outline" onClick={() => setFilters({})}>
-          Clear
-        </Button>
-      </div>
-      <details className="admin-advanced-filters">
-        <summary>Advanced report filters</summary>
-        <div>
-          {advanced.map((name) => (
-            <label key={name}>
-              {label(name)}
-              <Input
-                value={filters[name] ?? ''}
-                onChange={(e) => set(name, e.target.value)}
-                placeholder="Authorized record reference"
-              />
-            </label>
-          ))}
-        </div>
-      </details>
-    </>
   );
 }
 

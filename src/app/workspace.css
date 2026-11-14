@@ -4140,3 +4140,16 @@ body:has(.officer-shell)
     grid-template-columns: 1fr;
   }
 }
+
+/* Report controls: compact, discoverable, and based on authorized record names. */
+.admin-report-filter-form { min-width: 0; }
+.admin-report-filter-form .admin-filterbar { align-items: end; }
+.admin-filter-field, .admin-record-picker { min-width: 0; display: grid; gap: 6px; }
+.admin-filter-label { color: #475569; font-size: 12px; font-weight: 650; }
+.admin-record-picker-trigger { width: 100%; justify-content: space-between; gap: 8px; font-weight: 500; color: #334155; }
+.admin-record-picker-menu { width: min(350px, calc(100vw - 30px)); padding: 10px; }
+.admin-record-options { max-height: 260px; overflow-y: auto; padding-top: 6px; overscroll-behavior: contain; }
+.admin-record-option { display: flex; gap: 9px; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; text-align: left; border-radius: 8px; padding: 7px 9px; font-size: 12px; }
+.admin-record-option:hover, .admin-record-option:focus-visible { background: #f7e9eb; color: #841826; outline: none; }
+.admin-record-option span { overflow-wrap: anywhere; }
+.admin-report-filter-form .admin-advanced-filters > div { align-items: end; }

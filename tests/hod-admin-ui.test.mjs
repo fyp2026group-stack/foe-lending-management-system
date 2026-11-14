@@ -51,7 +51,7 @@ test('HOD/Admin workspace uses real authorized APIs and preserves conflict bound
 
 test('reports integrate all mandatory server filters and real CSV/XLSX exports', () => {
   const source = readFileSync(
-    new URL('../src/components/hod-admin/workspace.tsx', import.meta.url),
+    new URL('../src/components/hod-admin/report-filters.tsx', import.meta.url),
     'utf8'
   );
   for (const filter of [
