@@ -132,6 +132,32 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       for (const resource of ['users', 'batches', 'laboratories'])
         assert.equal((await request(`admin/${resource}`, { actor: admin })).status, 200);
     });
+    await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
+      const page = (route, actor) => fetch(cfg.origin + route, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+        headers: actor ? { Cookie: actor.cookie } : {},
+      });
+      const anonymous = await page('/admin/users');
+      assert.ok([307, 308].includes(anonymous.status), 'anonymous admin URL must redirect');
+      assert.equal(new URL(anonymous.headers.get('location'), cfg.origin).pathname, '/login');
+      const noWorkspace = await page('/workspace');
+      assert.ok([307, 308].includes(noWorkspace.status), 'anonymous workspace must redirect');
+      for (const actor of [actors.student, actors.lecturer, actors.officer]) {
+        assert.equal((await page('/admin/users', actor)).status, 404, 'admin URL must not render');
+        assert.equal((await page('/admin/reports', actor)).status, 404);
+      }
+      assert.equal((await page('/operations?view=handovers', actors.student)).status, 404);
+      assert.equal((await page('/operations?view=returns', actors.lecturer)).status, 404);
+      assert.equal((await page('/operations?view=handovers', actors.officer)).status, 200);
+      assert.equal((await page('/borrowing?view=approvals', actors.student)).status, 404);
+      assert.equal((await page('/borrowing?view=collection', actors.student)).status, 404);
+      assert.equal((await page('/borrowing?view=approvals', actors.lecturer)).status, 200);
+      assert.equal((await page('/inventory', actors.student)).status, 200);
+      assert.equal((await page('/admin/users', admin)).status, 200);
+      assert.equal((await page('/design-system', admin)).status, 404);
+    });
+
     await t.test('origin and CSRF protect administrative writes', async () => {
       const body = { name: `Rejected ${run}` };
       assert.equal(
