@@ -14,15 +14,12 @@ function configuration() {
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const cookieSecret = process.env.GOOGLE_OAUTH_COOKIE_SECRET;
   const origin = process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000';
-  const domains = (process.env.GOOGLE_STUDENT_DOMAINS ?? '')
-    .split(',').map((domain) => domain.trim().toLowerCase()).filter(Boolean);
-  if (!clientId || !clientSecret || !cookieSecret || cookieSecret.length < 32 ||
-      !domains.length || !domains.every((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d))) {
+  if (!clientId || !clientSecret || !cookieSecret || cookieSecret.length < 32) {
     throw new Error('GOOGLE_STUDENT_OAUTH_NOT_CONFIGURED');
   }
   if (process.env.NODE_ENV === 'production' && !origin.startsWith('https://'))
     throw new Error('GOOGLE_OAUTH_HTTPS_REQUIRED');
-  return { clientId, clientSecret, cookieSecret, origin, domains };
+  return { clientId, clientSecret, cookieSecret, origin };
 }
 function equal(a: string, b: string) {
   const left = Buffer.from(a), right = Buffer.from(b);
@@ -85,14 +82,15 @@ export function signupIdentity(request: Request): GoogleIdentity | null {
 export function signupTicket(identity: GoogleIdentity) {
   return oauthCookie(signupCookie, seal(identity, 'signup', 900), 900);
 }
-function universityIdentity(claims: Record<string, unknown>): GoogleIdentity {
-  const { domains } = configuration();
+function verifiedGoogleIdentity(claims: Record<string, unknown>): GoogleIdentity {
   const email = typeof claims.email === 'string' ? claims.email.toLowerCase().trim() : '';
-  const domain = email.split('@')[1];
-  if (claims.email_verified !== true || !email || !domain ||
-      !domains.includes(domain) || claims.hd !== domain ||
+  // Allow any verified Google account, including gmail.com. The stable Google
+  // sub proves account ownership, not university enrollment or student numbers.
+  if (claims.email_verified !== true ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      email.length > 254 ||
       typeof claims.sub !== 'string' || claims.sub.length < 10) {
-    throw new Error('GOOGLE_UNIVERSITY_ACCOUNT_REQUIRED');
+    throw new Error('GOOGLE_VERIFIED_ACCOUNT_REQUIRED');
   }
   return { sub: claims.sub, email, name: typeof claims.name === 'string' ? claims.name.slice(0,120) : '' };
 }
@@ -120,7 +118,7 @@ async function verifyGoogleIdToken(idToken: string, expectedNonce: string) {
       typeof payload.nonce !== 'string' || !equal(payload.nonce,expectedNonce)) {
     throw new Error('GOOGLE_ID_TOKEN_REJECTED');
   }
-  return universityIdentity(payload);
+  return verifiedGoogleIdentity(payload);
 }
 export async function finishGoogle(request: Request) {
   const params = new URL(request.url).searchParams;

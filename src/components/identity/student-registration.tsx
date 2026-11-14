@@ -14,7 +14,7 @@ type Option = { id: string; name: string };
 type Registration = { email: string; name: string; batches: Option[] };
 const messages: Record<string, string> = {
   DUPLICATE_STUDENT_RECORD: 'This student index or registration number is already in use. Contact the laboratory administrator.',
-  EXISTING_ACCOUNT_CONTACT_ADMIN: 'An account already uses this university email. Contact an administrator to link your Google sign-in securely.',
+  EXISTING_ACCOUNT_CONTACT_ADMIN: 'An account already uses this Google account email. Contact an administrator to link your Google sign-in securely.',
   ALREADY_REGISTERED: 'This Google account has already been registered. Sign in again.',
   INVALID_BATCH: 'Choose an active academic batch.',
   INVALID_STUDENT_PROFILE: 'Check the required profile fields and try again.',
@@ -32,7 +32,7 @@ export function StudentRegistration() {
     fetch('/api/google/profile', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
       .then(async response => {
         if (response.status === 401) { router.replace('/login?google=expired'); return null; }
-        if (!response.ok) throw new Error('Unable to load university registration options.');
+        if (!response.ok) throw new Error('Unable to load registration options.');
         return response.json() as Promise<Registration>;
       })
       .then(result => { if (!controller.signal.aborted && result) setReady(result); })
@@ -53,7 +53,8 @@ export function StudentRegistration() {
       batchId,
       department: String(fields.get('department') ?? '').trim(),
       phone: String(fields.get('phone') ?? '').trim(),
-      universityEmail: ready.email,
+      googleEmail: ready.email,
+      universityEmail: String(fields.get('universityEmail') ?? '').trim(),
       personalEmail: String(fields.get('personalEmail') ?? '').trim(),
     };
     try {
@@ -88,16 +89,16 @@ export function StudentRegistration() {
             <p className="text-xs font-semibold tracking-widest text-[#861727]">FIRST-TIME ACCOUNT SETUP</p>
             <CardTitle className="text-2xl tracking-tight">Complete your student profile</CardTitle>
             <CardDescription>
-              Use your verified university Google account. These details help identify you for equipment borrowing.
+              Use your verified Google account. These details help identify you for equipment borrowing.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            {loading ? <p role="status">Checking university sign-in…</p> : null}
+            {loading ? <p role="status">Checking Google sign-in…</p> : null}
             {error && <Alert variant="destructive" className="mb-5"><AlertDescription>{error}</AlertDescription></Alert>}
             {ready && (
               <form id="student-registration" onSubmit={submit} className="grid gap-5">
                 <div className="rounded-lg border bg-muted/30 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Verified university email</p>
+                  <p className="text-xs text-muted-foreground">Verified Google email</p>
                   <p className="mt-1 text-sm font-semibold">{ready.email}</p>
                   <p className="mt-1 text-xs text-muted-foreground">This address comes from your verified Google account and cannot be edited here.</p>
                 </div>
@@ -120,6 +121,13 @@ export function StudentRegistration() {
                 </div>
                 <label className="grid gap-2 text-sm font-medium">Full name *
                   <Input name="fullName" required minLength={3} maxLength={120} defaultValue={ready.name} autoComplete="name" />
+                </label>
+                <label className="grid gap-2 text-sm font-medium">University email (optional, not verified)
+                  <Input name="universityEmail" type="email" maxLength={254}
+                    placeholder="Your university email, if issued" />
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Your Google sign-in does not verify your university email or your student registration details.
+                  </span>
                 </label>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-medium">Phone number *

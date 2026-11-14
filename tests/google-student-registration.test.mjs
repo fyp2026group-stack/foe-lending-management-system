@@ -7,7 +7,7 @@ test('Google student enrollment has server identity verification and protected p
   const profile = readFileSync(new URL('../src/app/api/google/profile/route.ts', import.meta.url),'utf8');
   const sql = readFileSync(new URL('../database/052_google_student_registration.sql', import.meta.url),'utf8');
   const manifest = readFileSync(new URL('../scripts/database.mjs', import.meta.url),'utf8');
-  for (const p of ["code_challenge_method: 'S256'",'claims.email_verified !== true','claims.hd !== domain','payload.aud !== clientId','equal(payload.nonce,expectedNonce)']) {
+  for (const p of ["code_challenge_method: 'S256'",'claims.email_verified !== true','GOOGLE_VERIFIED_ACCOUNT_REQUIRED','payload.aud !== clientId','equal(payload.nonce,expectedNonce)']) {
     assert.ok(oauth.includes(p),p);
   }
   assert.ok(profile.includes('expectedOrigin(request)'));
@@ -18,7 +18,7 @@ test('Google student enrollment has server identity verification and protected p
 });
 test('new signup does not expose Google bearer tokens in its form', () => {
   const ui = readFileSync(new URL('../src/components/identity/student-registration.tsx', import.meta.url),'utf8');
-  assert.ok(ui.includes('universityEmail: ready.email'));
+  assert.ok(ui.includes('googleEmail: ready.email'));
   assert.ok(ui.includes("fetch('/api/google/profile'"));
   assert.ok(!ui.includes('id_token') && !ui.includes('client_secret'));
 });
