@@ -42,7 +42,12 @@ test('HOD/Admin workspace uses real authorized APIs and preserves conflict bound
     assert.ok(sourceContains(source, token), token);
   assert.ok(sourceContains(source, 'request.borrowerId===session.user.id?[]'));
   assert.ok(sourceContains(source, 'line.stage==="HOD"&&line.hodId===session.user.id'));
-  assert.ok(sourceContains(source, 'proposers cannot approve their own proposals'));
+  const inventoryOps = readFileSync(
+    new URL('../src/components/inventory/inventory.tsx', import.meta.url), 'utf8'
+  );
+  // Approval safeguards now live in the dedicated Stock Adjustments flow.
+  assert.ok(sourceContains(inventoryOps, 'row.proposer === session.user.id'));
+  assert.ok(sourceContains(inventoryOps, 'Review independent approval'));
   assert.ok(
     sourceContains(source, 'administrator authority never bypasses approval or handover conflicts')
   );
