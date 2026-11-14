@@ -1,0 +1,15 @@
+# Basic lending API
+
+CP2 draft/save/submit, cancellation, linked correction, versioned decisions and paginated reads are specified in [cp2-lending-api-contract.md](cp2-lending-api-contract.md). This document retains the compatible legacy operations; the CP2 addendum supersedes its statement that cancellation and revision workflows are absent.
+
+Base /api/lending; session cookie, Origin and X-CSRF-Token on POST. All writes commandId UUID; replay original result only under current authority; no current approval implies physical issue. Private no-store. GET responses {items}. Read/write field names below exact; stored rows snake_case.
+
+GET policies; POST policies {commandId,itemId,policy:NONE|LECTURER|HOD|BOTH,hodId?}: ADMIN configures explicit item policy; HOD/BOTH requires current ADMIN as named academic approver (development-only explicit grant, not every admin). Missing policy blocks request. GET lecturers -> active LECTURER IDs/display_name excluding self. GET requests -> own borrower or current assigned approver or assigned TO lab lines. GET loans -> own or assigned TO lab. GET allocations -> assigned TO scoped unissued reservations.
+
+POST requests {commandId,purpose,collectAt,returnAt,lecturerId?,lines:[{itemId,labId,locationId,quantity}]}: own borrowing only, max20 lines, qty1..1000; returnable qty<=20. UTC ISO dates; return later than collection. Snapshot policy/approvers/dates per line. Student selects current lecturer if required; all borrowers do so for lecturer policy in development. Consumables have no loan due date. NONE approval attempts reservation immediately; other policies reserve on final approval. Insufficient stock keeps approved line unreserved; explicit reserve retry available. Approval never issues.
+
+POST decisions {commandId,lineId,decision:APPROVE|REJECT,remarks}: current exact stage actor, not borrower; BOTH lecturer then HOD; distinct actors. Whole-line decisions only, mixed request status derived from lines. POST reserve {commandId,lineId}: approved line, borrower or assigned TO; all-or-nothing reservation per line.
+
+POST issues {commandId,allocationId,quantity,serial?}: assigned TO != borrower, borrower active; explicit handover. Returnable quantity1: existing reserved asset selected by allocation, or anonymous unit materialized permanently; serial optional. Consumable quantity<=outstanding reservation; becomes consumed. Returns {loanId,movementId,assetId?}. POST returns {commandId,loanId,condition}: assigned TO != borrower; returnable outstanding only, quantity1, closes directly into inspection. New command cannot duplicate receipt. M3 inspection stock transition subsequently clears stock; no return reopens loan. GET history -> scoped lending audit events. No delegated borrowing, cancellation/extensions/loss/transfer workflows in this basic subset.
+
+Policies are explicit synthetic development choices; institutional approval/eligibility/limits remain pending. Idempotency is permanent event identity within actor/command scope, plus allocation/custody bounds across new keys. No physical exactly-once claim for invented new evidence.

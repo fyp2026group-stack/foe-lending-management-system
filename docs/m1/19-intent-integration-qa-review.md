@@ -2,15 +2,15 @@
 
 2026-11-09. QA report ab003d02-d077-4e7e-9bcb-9027bd48861e assessed supplied summaries only. Zero tools, no saved-file inspection, validators or tests. B04 acceptance blocked; SEC findings OPEN; B05 restrictions unresolved.
 
-| Gap | Required contract resolution |
-|---|---|
-| Allocation | Define whether allocation is reservation or independent authority. Required allocationId with zero reservation consumption cannot imply dummy reservations. Explicitly gate unsupported unreserved branch. |
+| Gap                      | Required contract resolution                                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allocation               | Define whether allocation is reservation or independent authority. Required allocationId with zero reservation consumption cannot imply dummy reservations. Explicitly gate unsupported unreserved branch.                                                |
 | Execution correspondence | Map all six immutable intent variants to execution. Older handover lacks entitlement, reservation consumption, inventory version and materialization distinction. Choose stored-input execution or exact repeated-input equality; no silent substitution. |
-| Return identity | Bind loanLineId to original issue event and immutable custody generation. Earlier issueId/assetId cannot dynamically resolve newest custody. |
-| Versions | Name request/assignment, entitlement-head, allocation, inventory and custody version checks at creation and execution; stale input cannot silently rebase. |
-| Quantity/stock | Cross-field consumed<=quantity, compatible reservation, concrete bucket/pool identity and stock selection need guarded enforcement. Creation-fixed selection cannot change at execution. |
-| Digest | Specify schema/canonical version, actor/operation/target namespace, absent/null and integer encoding; execution IDs must not change stored business input. |
-| Replay/result | Exact intent/slot/result linkage; one execution effect. Lost creation response recovers original authorized record, never automatically mints a replacement. |
+| Return identity          | Bind loanLineId to original issue event and immutable custody generation. Earlier issueId/assetId cannot dynamically resolve newest custody.                                                                                                              |
+| Versions                 | Name request/assignment, entitlement-head, allocation, inventory and custody version checks at creation and execution; stale input cannot silently rebase.                                                                                                |
+| Quantity/stock           | Cross-field consumed<=quantity, compatible reservation, concrete bucket/pool identity and stock selection need guarded enforcement. Creation-fixed selection cannot change at execution.                                                                  |
+| Digest                   | Specify schema/canonical version, actor/operation/target namespace, absent/null and integer encoding; execution IDs must not change stored business input.                                                                                                |
+| Replay/result            | Exact intent/slot/result linkage; one execution effect. Lost creation response recovers original authorized record, never automatically mints a replacement.                                                                                              |
 
 Orbit's proposed simplification for Backend review: execution references the immutable stored input through intentId/slotId and asserts operation/route target correspondence; reject additional semantic payload. Keep unreserved issue explicitly unavailable until its policy and allocation schema are reviewed, rather than fabricate reservation identities. This is a design proposal, not closure or institutional policy.
 

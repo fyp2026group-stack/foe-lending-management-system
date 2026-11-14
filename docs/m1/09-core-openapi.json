@@ -16,10 +16,7 @@
     }
   ],
   "x-authorization": "Server-derived active actor/current capability and lab/record/field scope; default deny; no delegated borrowing.",
-  "x-policy-dependencies": [
-    "P15",
-    "PR26"
-  ],
+  "x-policy-dependencies": ["P15", "PR26"],
   "x-replay": "Server-authorized permanent intent differs actor+command+transport key; canonical versioned payload; same intent changed payload conflicts; transactional claim no lease; unknown commit original authorized lookup; no-effect retry only controlled evidence, not absence. Tombstone retention/privacy unresolved.",
   "x-review": "08-security-rereview.md proposed epoch and inventory-first lock protocol; no implementation proof.",
   "paths": {
@@ -48,12 +45,7 @@
           }
         ],
         "x-authorization": "Own request only; active borrower; explicit policy and eligible lecturer; immutable revision.",
-        "x-policy-dependencies": [
-          "P04",
-          "P07",
-          "P09",
-          "PR27"
-        ],
+        "x-policy-dependencies": ["P04", "P07", "P09", "PR27"],
         "requestBody": {
           "required": true,
           "content": {
@@ -140,13 +132,7 @@
           }
         ],
         "x-authorization": "Current academic assignment/stage/lab/record; actor person differs borrower; no admin bypass.",
-        "x-policy-dependencies": [
-          "P01",
-          "P02",
-          "P03",
-          "P04",
-          "P09"
-        ],
+        "x-policy-dependencies": ["P01", "P02", "P03", "P04", "P09"],
         "requestBody": {
           "required": true,
           "content": {
@@ -233,15 +219,7 @@
           }
         ],
         "x-authorization": "Current relevant-lab TO differs borrower; borrower active; terms/revision/live hold/asset guards; DB-time expiry equality denies.",
-        "x-policy-dependencies": [
-          "P05",
-          "P06",
-          "P07",
-          "P10",
-          "P11",
-          "P12",
-          "PR25"
-        ],
+        "x-policy-dependencies": ["P05", "P06", "P07", "P10", "P11", "P12", "PR25"],
         "requestBody": {
           "required": true,
           "content": {
@@ -317,11 +295,7 @@
           }
         ],
         "x-authorization": "Current receiving lab/custody capability; outstanding returnable only; receipt directly inspection; PR22 self/disabled behavior blocked.",
-        "x-policy-dependencies": [
-          "P20",
-          "PR22",
-          "PR25"
-        ],
+        "x-policy-dependencies": ["P20", "PR22", "PR25"],
         "requestBody": {
           "required": true,
           "content": {
@@ -449,9 +423,7 @@
       "Submission": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "revisionId"
-        ],
+        "required": ["revisionId"],
         "properties": {
           "revisionId": {
             "$ref": "#/components/schemas/Id"
@@ -461,12 +433,7 @@
       "Decision": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "revisionId",
-          "lineId",
-          "decision",
-          "reason"
-        ],
+        "required": ["revisionId", "lineId", "decision", "reason"],
         "properties": {
           "revisionId": {
             "$ref": "#/components/schemas/Id"
@@ -475,10 +442,7 @@
             "$ref": "#/components/schemas/Id"
           },
           "decision": {
-            "enum": [
-              "approve",
-              "reject"
-            ]
+            "enum": ["approve", "reject"]
           },
           "reason": {
             "type": "string",
@@ -490,11 +454,7 @@
       "Asset": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "kind",
-          "assetId",
-          "quantity"
-        ],
+        "required": ["kind", "assetId", "quantity"],
         "properties": {
           "kind": {
             "const": "returnable"
@@ -511,11 +471,7 @@
       "Consumable": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "kind",
-          "itemId",
-          "quantity"
-        ],
+        "required": ["kind", "itemId", "quantity"],
         "properties": {
           "kind": {
             "const": "consumable"
@@ -532,12 +488,7 @@
       "Return": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "issueId",
-          "assetId",
-          "quantity",
-          "condition"
-        ],
+        "required": ["issueId", "assetId", "quantity", "condition"],
         "properties": {
           "issueId": {
             "$ref": "#/components/schemas/Id"
@@ -559,11 +510,7 @@
       "Result": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "eventId",
-          "version",
-          "correlationId"
-        ],
+        "required": ["eventId", "version", "correlationId"],
         "properties": {
           "eventId": {
             "$ref": "#/components/schemas/Id"
@@ -579,10 +526,7 @@
       "Error": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "code",
-          "correlationId"
-        ],
+        "required": ["code", "correlationId"],
         "properties": {
           "code": {
             "enum": [
@@ -606,12 +550,7 @@
       "Handover": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "revisionId",
-          "lineId",
-          "approvedTermsId",
-          "stock"
-        ],
+        "required": ["revisionId", "lineId", "approvedTermsId", "stock"],
         "properties": {
           "revisionId": {
             "$ref": "#/components/schemas/Id"
@@ -644,11 +583,7 @@
       "SubmissionCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "expectedVersion",
-          "data"
-        ],
+        "required": ["intentId", "expectedVersion", "data"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/Id"
@@ -664,11 +599,7 @@
       "DecisionCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "expectedVersion",
-          "data"
-        ],
+        "required": ["intentId", "expectedVersion", "data"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/Id"
@@ -684,11 +615,7 @@
       "HandoverCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "expectedVersion",
-          "data"
-        ],
+        "required": ["intentId", "expectedVersion", "data"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/Id"
@@ -704,11 +631,7 @@
       "ReturnCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "expectedVersion",
-          "data"
-        ],
+        "required": ["intentId", "expectedVersion", "data"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/Id"
@@ -726,10 +649,7 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "state",
-              "correlationId"
-            ],
+            "required": ["state", "correlationId"],
             "properties": {
               "state": {
                 "const": "pending"
@@ -742,11 +662,7 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "state",
-              "result",
-              "correlationId"
-            ],
+            "required": ["state", "result", "correlationId"],
             "properties": {
               "state": {
                 "const": "committed"
@@ -762,11 +678,7 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "state",
-              "error",
-              "correlationId"
-            ],
+            "required": ["state", "error", "correlationId"],
             "properties": {
               "state": {
                 "const": "rejected"

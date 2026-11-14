@@ -17,15 +17,15 @@ One deployable app reduces operational complexity and distributed transaction ri
 
 ## Technology decisions
 
-| Proposal | Decision and reason |
-|---|---|
-| Next.js, React, TypeScript | Accept provisionally, maintained compatible releases selected before M1; strict types and server-only DAL. Boundaries prevent server-rendered private data leakage. |
-| Tailwind, shadcn/ui | Accept; small coherent component set, reviewed generated component code; accessibility still requires verification. |
-| PostgreSQL | Accept; transactional authoritative ledger, constraints, locks, scoped roles and SQL procedures. |
-| Prisma | Accept conditionally as typed data/migration tool; handwritten reviewed SQL required for grants, triggers, partial uniqueness, locking and transition procedures. ORM alone is not an integrity boundary. Validate compatible transaction API before implementation. |
-| Auth.js / SSO | Evaluate maintained Auth.js release/adapter and session semantics at M1; institution OIDC preferred. Use revocable DB-backed app sessions and current server grants; do not depend on stale role JWT claims. No live IdP connection in Phase 1. |
-| Docker | Accept for reproducible local/staging artifacts after authorization; non-root runtime, pinned bases, no mounted Docker socket. Deployment remains separate approval. |
-| Responsive PWA | Accept manifest/installable shell; defer offline protected pages and writes. Service worker caches public static assets only; never cache session, student records or exports. |
+| Proposal                   | Decision and reason                                                                                                                                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js, React, TypeScript | Accept provisionally, maintained compatible releases selected before M1; strict types and server-only DAL. Boundaries prevent server-rendered private data leakage.                                                                                                  |
+| Tailwind, shadcn/ui        | Accept; small coherent component set, reviewed generated component code; accessibility still requires verification.                                                                                                                                                  |
+| PostgreSQL                 | Accept; transactional authoritative ledger, constraints, locks, scoped roles and SQL procedures.                                                                                                                                                                     |
+| Prisma                     | Accept conditionally as typed data/migration tool; handwritten reviewed SQL required for grants, triggers, partial uniqueness, locking and transition procedures. ORM alone is not an integrity boundary. Validate compatible transaction API before implementation. |
+| Auth.js / SSO              | Evaluate maintained Auth.js release/adapter and session semantics at M1; institution OIDC preferred. Use revocable DB-backed app sessions and current server grants; do not depend on stale role JWT claims. No live IdP connection in Phase 1.                      |
+| Docker                     | Accept for reproducible local/staging artifacts after authorization; non-root runtime, pinned bases, no mounted Docker socket. Deployment remains separate approval.                                                                                                 |
+| Responsive PWA             | Accept manifest/installable shell; defer offline protected pages and writes. Service worker caches public static assets only; never cache session, student records or exports.                                                                                       |
 
 Versions are deliberately unpinned in planning. Before installation: compatibility ADR for Node LTS, Next/React, Prisma/Postgres, auth adapter and security support; no unsupported release selected merely because it is newest.
 

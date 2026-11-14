@@ -1,0 +1,11 @@
+BEGIN;
+ALTER TABLE lab.lend_policies OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_requests OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_lines OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_decisions OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_allocations OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_loans OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_returns OWNER TO lab_identity_functions;
+ALTER TABLE lab.lend_commands OWNER TO lab_identity_functions;
+REVOKE ALL ON ALL TABLES IN SCHEMA lab FROM PUBLIC,lab_runtime;
+COMMIT;

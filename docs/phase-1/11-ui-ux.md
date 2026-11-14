@@ -4,24 +4,24 @@ Minimal university operations interface: neutral surfaces, one accent, system fo
 
 ## Pages
 
-| Page | Primary content/actions | Scope |
-|---|---|---|
-| Login/session expired | SSO/local chosen path, safe recovery/error | Public; no internal account disclosure |
-| My overview | Own pending actions, upcoming returns, overdue | Every borrower |
-| Catalogue/item detail | Search, category/lab availability, add quantity | Active users |
-| Request builder | Multi-line cart, dates/purpose, line approval labels, eligible lecturer | Own draft |
-| Request detail/history | Per-line decisions, quantities, comments/version history, cancellation | Relevant participants |
-| My borrowing/loan detail | Due dates, assets, partial returns, extension request | Own |
-| Approval inbox/detail | Scoped queues; reasoned approve/reject, conflict notice | Assigned academic approvers |
-| TO collection desk | Ready lines, identity scan/search future, actual quantities, asset/serial capture, final confirmation | Assigned TO |
-| Return/inspection desk | Outstanding assets, physical receipt, condition, maintenance clearing | Assigned TO |
-| Inventory/assets | Item/lab balances, asset history, serial corrections | Inventory operators |
-| Movement/import/transfer | Staged preview, validation, separate approval and receipt | Authorized operators |
-| HOD dashboard | Stock and lending KPIs, overdue, approval backlog, charts | Admin/academic scope |
-| Reports | Batch/lab/category/date filters, borrower/activity views, CSV/XLSX | Authorized scope |
-| Administration | Users, batches, role/assignment grants, policy revisions | Admin |
-| Audit/history | Structured events, filters, access history | Audit capability |
-| Access denied/not found/errors | Safe message, correlation ID, recovery navigation | All |
+| Page                           | Primary content/actions                                                                               | Scope                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Login/session expired          | SSO/local chosen path, safe recovery/error                                                            | Public; no internal account disclosure |
+| My overview                    | Own pending actions, upcoming returns, overdue                                                        | Every borrower                         |
+| Catalogue/item detail          | Search, category/lab availability, add quantity                                                       | Active users                           |
+| Request builder                | Multi-line cart, dates/purpose, line approval labels, eligible lecturer                               | Own draft                              |
+| Request detail/history         | Per-line decisions, quantities, comments/version history, cancellation                                | Relevant participants                  |
+| My borrowing/loan detail       | Due dates, assets, partial returns, extension request                                                 | Own                                    |
+| Approval inbox/detail          | Scoped queues; reasoned approve/reject, conflict notice                                               | Assigned academic approvers            |
+| TO collection desk             | Ready lines, identity scan/search future, actual quantities, asset/serial capture, final confirmation | Assigned TO                            |
+| Return/inspection desk         | Outstanding assets, physical receipt, condition, maintenance clearing                                 | Assigned TO                            |
+| Inventory/assets               | Item/lab balances, asset history, serial corrections                                                  | Inventory operators                    |
+| Movement/import/transfer       | Staged preview, validation, separate approval and receipt                                             | Authorized operators                   |
+| HOD dashboard                  | Stock and lending KPIs, overdue, approval backlog, charts                                             | Admin/academic scope                   |
+| Reports                        | Batch/lab/category/date filters, borrower/activity views, CSV/XLSX                                    | Authorized scope                       |
+| Administration                 | Users, batches, role/assignment grants, policy revisions                                              | Admin                                  |
+| Audit/history                  | Structured events, filters, access history                                                            | Audit capability                       |
+| Access denied/not found/errors | Safe message, correlation ID, recovery navigation                                                     | All                                    |
 
 ## Layout and accessibility
 

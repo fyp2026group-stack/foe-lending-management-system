@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react';
 
 export function Panel({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
-  return <section className="panel"><h2>{title}</h2>{children}</section>;
+  return (
+    <section className="panel">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
 }

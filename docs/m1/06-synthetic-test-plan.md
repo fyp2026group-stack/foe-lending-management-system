@@ -26,39 +26,39 @@ For every operation and response field vary role combinations, current/historica
 
 All rows: M1 design only; later feature execution NOT RUN. SEC references are open design dependencies. Policy-dependent expected results stay BLOCKED until their branch is accepted.
 
-| ID | Expected scenario/oracle | SEC dependency / later milestone |
-|---|---|---|
-| T01 | Invalid/revoked/disabled session cannot initiate protected actions; logout revokes | 02/06; M2 |
-| T02 | Every protected action/field has role x own/other x lab x revoked allow/deny cases | 01/04; M2+ |
-| T03 | If OIDC chosen, invalid/replayed issuer/audience/state/nonce/PKCE denied; no role elevation | 02; M2 |
-| T04 |10 anonymous units -> identify/issue2 -> return1: total10, stable IDs/optional serial/history | 03/04/05; M3/M5 |
-| T05 |1 final unit/20 contenders: exactly1 winning allocation, no negative/duplicate custody | 03/04; M3/M4 |
-| T06 | Transfer/partial receipt/import crash+retry balances both labs, no early destination credit | 03–07; M3 |
-| T07 | Mixed none/lecturer/HOD/both lines snapshot correct explicit policy/revision/stages | 01/05/08; M4 |
-| T08 | Multi-role borrower cannot self-approve/issue or bypass missing substitute | 01/05; M4/M5 |
-| T09 | Approval creates0 loans; independent physical handover posts exactly once | 01/03/05/06; M5 |
-| T10 | Partial issue/cancel/expiry affects only eligible unissued remainder and conserves totals | 03/05/06; M4/M5 |
-| T11 | Partial/damaged/duplicate receipt/loss/recovery/extension preserves custody/terms | 03/05/07; M5 |
-| T12 | Author-only append correction; spoofed predecessor/direct runtime UPDATE/DELETE/TRUNCATE denied | 01/04/09; M2 |
-| T13 | Restricted body/history/count/export denied; separate durable privileged audit | 01/07/09; M2+ |
-| T14 | Scoped filters/cohort snapshots/actor attribution/pagination/export totals match oracle; formulas safe | 01/08/09; M6 |
-| T15 | Injection/XSS/CSRF/SSRF/mass assignment/rate boundaries and ASVS evidence | 01–09; M2–M7 |
-| T16 | Four core flows responsive/keyboard/screen reader with equivalent authorized actions | 01/08/09; M4–M7 |
-| T17 | Agreed workload/hardware thresholds, latency/error denominator and invariant checks | 03/08; M7 |
-| T18 | Isolated backup restore reconciles ledger/identity/grants against approved RPO/RTO | 04/07; M7 |
-| T19 | No protected SW cache, offline mutations refused, logout/revocation privacy | 02/06/09; M2–M7 |
-| A01 | Proposed distinct dual-stage actor rule denies same second actor, valid substitute branch | 01/05; M4 |
-| A02 | Quantity/date revision after approval retains old decisions, invalidates their reuse | 03/05; M4 |
-| A03 | Partial/damaged/lost transit reconciles ownership/dispositions | 03–07; M3 |
-| A04 | New transport key/cache expiry/lost commit response cannot duplicate same event | 02/06; M3–M5 |
-| A05 | At expiry issue loses; simultaneous partial issue/cancel conserves remainder | 03/05/06; M4/M5 |
-| A06 | NULL bucket/cross-table custody/direct SQL cannot bypass invariants | 03/04/05; M3 |
-| A07 | Revoked grants deny new decisions; PR22 disabled-borrower recovery/substitute branch explicit | 01/02/05; M2/M5 |
-| A08 | Separate authors reply; cannot correct others; counts/history/export visibility preserved | 01/09; M2 |
-| A09 | No self-extension; immutable old/new dates; loss/recovery closes once | 01/03/05; M5 |
-| A10 | Selected/assigned/actual lecturer, issue/return TO and historic cohort/scope distinguished | 01/05/07; M6 |
-| A11 | Trusted bootstrap/linking/recovery, no self-elevation or client-role grants | 01/02/04; M2 |
-| A12 | Revoked download/cache, audit outages and bounded XLSX/parser expansion fail safely | 06–09; M3/M6/M7 |
+| ID  | Expected scenario/oracle                                                                               | SEC dependency / later milestone |
+| --- | ------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| T01 | Invalid/revoked/disabled session cannot initiate protected actions; logout revokes                     | 02/06; M2                        |
+| T02 | Every protected action/field has role x own/other x lab x revoked allow/deny cases                     | 01/04; M2+                       |
+| T03 | If OIDC chosen, invalid/replayed issuer/audience/state/nonce/PKCE denied; no role elevation            | 02; M2                           |
+| T04 | 10 anonymous units -> identify/issue2 -> return1: total10, stable IDs/optional serial/history          | 03/04/05; M3/M5                  |
+| T05 | 1 final unit/20 contenders: exactly1 winning allocation, no negative/duplicate custody                 | 03/04; M3/M4                     |
+| T06 | Transfer/partial receipt/import crash+retry balances both labs, no early destination credit            | 03–07; M3                        |
+| T07 | Mixed none/lecturer/HOD/both lines snapshot correct explicit policy/revision/stages                    | 01/05/08; M4                     |
+| T08 | Multi-role borrower cannot self-approve/issue or bypass missing substitute                             | 01/05; M4/M5                     |
+| T09 | Approval creates0 loans; independent physical handover posts exactly once                              | 01/03/05/06; M5                  |
+| T10 | Partial issue/cancel/expiry affects only eligible unissued remainder and conserves totals              | 03/05/06; M4/M5                  |
+| T11 | Partial/damaged/duplicate receipt/loss/recovery/extension preserves custody/terms                      | 03/05/07; M5                     |
+| T12 | Author-only append correction; spoofed predecessor/direct runtime UPDATE/DELETE/TRUNCATE denied        | 01/04/09; M2                     |
+| T13 | Restricted body/history/count/export denied; separate durable privileged audit                         | 01/07/09; M2+                    |
+| T14 | Scoped filters/cohort snapshots/actor attribution/pagination/export totals match oracle; formulas safe | 01/08/09; M6                     |
+| T15 | Injection/XSS/CSRF/SSRF/mass assignment/rate boundaries and ASVS evidence                              | 01–09; M2–M7                     |
+| T16 | Four core flows responsive/keyboard/screen reader with equivalent authorized actions                   | 01/08/09; M4–M7                  |
+| T17 | Agreed workload/hardware thresholds, latency/error denominator and invariant checks                    | 03/08; M7                        |
+| T18 | Isolated backup restore reconciles ledger/identity/grants against approved RPO/RTO                     | 04/07; M7                        |
+| T19 | No protected SW cache, offline mutations refused, logout/revocation privacy                            | 02/06/09; M2–M7                  |
+| A01 | Proposed distinct dual-stage actor rule denies same second actor, valid substitute branch              | 01/05; M4                        |
+| A02 | Quantity/date revision after approval retains old decisions, invalidates their reuse                   | 03/05; M4                        |
+| A03 | Partial/damaged/lost transit reconciles ownership/dispositions                                         | 03–07; M3                        |
+| A04 | New transport key/cache expiry/lost commit response cannot duplicate same event                        | 02/06; M3–M5                     |
+| A05 | At expiry issue loses; simultaneous partial issue/cancel conserves remainder                           | 03/05/06; M4/M5                  |
+| A06 | NULL bucket/cross-table custody/direct SQL cannot bypass invariants                                    | 03/04/05; M3                     |
+| A07 | Revoked grants deny new decisions; PR22 disabled-borrower recovery/substitute branch explicit          | 01/02/05; M2/M5                  |
+| A08 | Separate authors reply; cannot correct others; counts/history/export visibility preserved              | 01/09; M2                        |
+| A09 | No self-extension; immutable old/new dates; loss/recovery closes once                                  | 01/03/05; M5                     |
+| A10 | Selected/assigned/actual lecturer, issue/return TO and historic cohort/scope distinguished             | 01/05/07; M6                     |
+| A11 | Trusted bootstrap/linking/recovery, no self-elevation or client-role grants                            | 01/02/04; M2                     |
+| A12 | Revoked download/cache, audit outages and bounded XLSX/parser expansion fail safely                    | 06–09; M3/M6/M7                  |
 
 ## Later authorized procedures
 

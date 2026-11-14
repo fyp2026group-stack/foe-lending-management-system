@@ -8,27 +8,27 @@ In scope: identity, catalogue, quantities/assets, per-line approval, reservation
 
 ## Functional requirements
 
-| ID | Requirement and observable result |
-|---|---|
-| AUTH-01 | Login/logout; disabled users cannot initiate protected operations; logout invalidates server session. |
-| AUTH-02 | Server verifies role, lab assignment, relationship and current state for each read/mutation/export; default deny. |
-| AUTH-03 | HOD/Admin manages users, role memberships, academic batches, unique student registration numbers and effective lecturer/TO lab assignments; record changes audited. |
-| AUTH-04 | Support institutional OIDC SSO when approved/available; authentication identity cannot grant administrative roles from untrusted claims. |
-| INV-01 | Catalogue includes name, category, returnable/consumable kind, unit of measure, active flag, location balances and versioned item/category approval policy. |
-| INV-02 | Multiple physical units and unidentified initial stock are supported; optional serial captured during handover, permanent unique internal asset ID for each identified unit. |
-| INV-03 | Available, reserved, borrowed, overdue, maintenance, lost and retired are represented where applicable; consumables use issued/consumed accounting without fictional returns. |
-| INV-04 | Controlled stock receipt/adjustment/transfer/import with reason, actor, timestamp and immutable movement history; negative and duplicate stock prohibited. |
-| REQ-01 | Every role drafts and submits multi-line requests with quantity, laboratory, purpose, proposed collection/due dates and eligible selected lecturer where required. |
-| REQ-02 | Snapshot item-over-category policy per line: none, lecturer, HOD, both; capture actors, decisions, remarks and timestamps. |
-| REQ-03 | No self-approval, self-handover or unauthorized proxy; conflicts do not disappear through role switching or assignment changes. |
-| REQ-04 | Approval does not issue equipment. Authorized TO confirms physical quantity/assets and borrower identity at handover in a transaction. |
-| REQ-05 | Per-line partial decisions/fulfilment supported; header summarizes mixed states without losing individual outcomes. |
-| LOAN-01 | Partial returns, inspection/damage, late returns, lost items, overdue views and immutable borrower/asset history; extensions are approved changes, not edits to historical due dates. |
-| COM-01 | Relevant participants can append plain-text comments and linked correction versions; no ordinary edit/delete; every version stores author ID, role snapshot, time, content and predecessor. |
-| COM-02 | Scope reads to record access and comment visibility; sensitive staff notes use explicit restricted threads. Separate audit for sensitive changes. |
-| REP-01 | HOD dashboard: availability, active borrowers/loans, pending/rejected requests, overdue/outstanding items and date-range trends. |
-| REP-02 | Batch-, lab-, category-, lecturer- and TO-wise reports with authorized scope, date filters, search, sorting and pagination. |
-| REP-03 | CSV/XLSX exports honor the same scope/filters, minimize personal data and neutralize spreadsheet formulas. |
+| ID      | Requirement and observable result                                                                                                                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-01 | Login/logout; disabled users cannot initiate protected operations; logout invalidates server session.                                                                                       |
+| AUTH-02 | Server verifies role, lab assignment, relationship and current state for each read/mutation/export; default deny.                                                                           |
+| AUTH-03 | HOD/Admin manages users, role memberships, academic batches, unique student registration numbers and effective lecturer/TO lab assignments; record changes audited.                         |
+| AUTH-04 | Support institutional OIDC SSO when approved/available; authentication identity cannot grant administrative roles from untrusted claims.                                                    |
+| INV-01  | Catalogue includes name, category, returnable/consumable kind, unit of measure, active flag, location balances and versioned item/category approval policy.                                 |
+| INV-02  | Multiple physical units and unidentified initial stock are supported; optional serial captured during handover, permanent unique internal asset ID for each identified unit.                |
+| INV-03  | Available, reserved, borrowed, overdue, maintenance, lost and retired are represented where applicable; consumables use issued/consumed accounting without fictional returns.               |
+| INV-04  | Controlled stock receipt/adjustment/transfer/import with reason, actor, timestamp and immutable movement history; negative and duplicate stock prohibited.                                  |
+| REQ-01  | Every role drafts and submits multi-line requests with quantity, laboratory, purpose, proposed collection/due dates and eligible selected lecturer where required.                          |
+| REQ-02  | Snapshot item-over-category policy per line: none, lecturer, HOD, both; capture actors, decisions, remarks and timestamps.                                                                  |
+| REQ-03  | No self-approval, self-handover or unauthorized proxy; conflicts do not disappear through role switching or assignment changes.                                                             |
+| REQ-04  | Approval does not issue equipment. Authorized TO confirms physical quantity/assets and borrower identity at handover in a transaction.                                                      |
+| REQ-05  | Per-line partial decisions/fulfilment supported; header summarizes mixed states without losing individual outcomes.                                                                         |
+| LOAN-01 | Partial returns, inspection/damage, late returns, lost items, overdue views and immutable borrower/asset history; extensions are approved changes, not edits to historical due dates.       |
+| COM-01  | Relevant participants can append plain-text comments and linked correction versions; no ordinary edit/delete; every version stores author ID, role snapshot, time, content and predecessor. |
+| COM-02  | Scope reads to record access and comment visibility; sensitive staff notes use explicit restricted threads. Separate audit for sensitive changes.                                           |
+| REP-01  | HOD dashboard: availability, active borrowers/loans, pending/rejected requests, overdue/outstanding items and date-range trends.                                                            |
+| REP-02  | Batch-, lab-, category-, lecturer- and TO-wise reports with authorized scope, date filters, search, sorting and pagination.                                                                 |
+| REP-03  | CSV/XLSX exports honor the same scope/filters, minimize personal data and neutralize spreadsheet formulas.                                                                                  |
 
 ## Data and validation
 

@@ -10,12 +10,12 @@ Desktop (1280px reference): 240px sidebar, compact top bar showing current lab a
 
 Mobile (360px reference): one column, compact header and labelled navigation drawer. My overview, Catalogue, Requests, Borrowing and relevant staff workspaces are directly reachable. Staff queue filters become a labelled sheet; cards replace action-heavy tables. Keep the record identity and lab visible during review. Sticky bottom primary action must not cover content, keyboard, errors or focused elements. At 768px adapt to content; avoid assuming every tablet supports hover.
 
-| Workspace | Pages / actions | Important distinction |
-|---|---|---|
-| My work (all roles) | Overview, catalogue, request builder/history, borrowing, extension request | Staff still borrow through the same personal workflow |
-| Approvals (eligible actors) | Lecturer/HOD queue, line detail, reasoned decision | Show stage and acting capability; never a handover action |
-| Laboratory operations | Collection, returns, inspection, assets, movements/imports/transfers | Current lab, physical event and actual quantity always visible |
-| Oversight | Scoped dashboard/reports, audit, administration | Academic approval, inventory control and user administration capabilities remain separate |
+| Workspace                   | Pages / actions                                                            | Important distinction                                                                     |
+| --------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| My work (all roles)         | Overview, catalogue, request builder/history, borrowing, extension request | Staff still borrow through the same personal workflow                                     |
+| Approvals (eligible actors) | Lecturer/HOD queue, line detail, reasoned decision                         | Show stage and acting capability; never a handover action                                 |
+| Laboratory operations       | Collection, returns, inspection, assets, movements/imports/transfers       | Current lab, physical event and actual quantity always visible                            |
+| Oversight                   | Scoped dashboard/reports, audit, administration                            | Academic approval, inventory control and user administration capabilities remain separate |
 
 Role/workspace selection is a navigation aid; it cannot change immutable identity or bypass person-conflict rules. Hide irrelevant navigation while showing safe explanations when a previously valid action becomes unavailable.
 

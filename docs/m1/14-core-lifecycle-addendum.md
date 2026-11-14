@@ -18,16 +18,16 @@ No separate lease or committed executing claim. Execution rollback leaves the or
 
 Each slot has exactly one typed child, checked at creation commit; discriminator, target and effect bindings are immutable. Parent tuples require matching composite UNIQUE keys. Runtime cannot directly write protected intent/slot/event records. Proposed guarded interfaces: create_intent, execute_intent, reject_intent.
 
-| Variant | Required binding |
-|---|---|
-| SUBMIT | Composite request/revision FK; guarded owner and submit-eligible revision checks; authorization for every affected line lab |
-| DECIDE | Assignment/revision/line/stage/lab composite FK; guarded current assignee, stage and person-conflict checks |
-| HANDOVER_EXISTING | Line/item/lab and terms/revision/line/item/lab FKs; asset/item FK; matching allocation tuple |
-| HANDOVER_MATERIALIZE | Same line/terms/allocation binding; anonymous source bucket/item/lab FK; quantity one |
-| CONSUME | Same line/terms/allocation binding; consumable kind; no asset, due date or return |
-| RETURN | Loan line/asset/item/lab composite FK; quantity one; exact current custody instance |
-| LOSS_RESOLVE | Exact loan/custody/item/lab tuple and bounded quantity |
-| LOSS_RECOVER | Exact loss resolution/item/lab tuple and identified asset where applicable |
+| Variant              | Required binding                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| SUBMIT               | Composite request/revision FK; guarded owner and submit-eligible revision checks; authorization for every affected line lab |
+| DECIDE               | Assignment/revision/line/stage/lab composite FK; guarded current assignee, stage and person-conflict checks                 |
+| HANDOVER_EXISTING    | Line/item/lab and terms/revision/line/item/lab FKs; asset/item FK; matching allocation tuple                                |
+| HANDOVER_MATERIALIZE | Same line/terms/allocation binding; anonymous source bucket/item/lab FK; quantity one                                       |
+| CONSUME              | Same line/terms/allocation binding; consumable kind; no asset, due date or return                                           |
+| RETURN               | Loan line/asset/item/lab composite FK; quantity one; exact current custody instance                                         |
+| LOSS_RESOLVE         | Exact loan/custody/item/lab tuple and bounded quantity                                                                      |
+| LOSS_RECOVER         | Exact loss resolution/item/lab tuple and identified asset where applicable                                                  |
 
 Terms must bind the complete valid approval chain; a single approving-decision FK is insufficient. Guards enforce current revision, operation compatibility, immutable slot hash and all cross-table relationships. Event identity is unique per intent/slot. Each line/effect retains its own lab; a group cannot broaden scope.
 

@@ -12,14 +12,14 @@ This bounded subset requires genuine current reservation allocations for issue/m
 
 Replace ambiguous expectedVersion with explicit stored expectations:
 
-| Operation | Version vector |
-|---|---|
-| Submission | Request and every affected entitlement head |
-| Decision | Request, assignment, entitlement head |
+| Operation      | Version vector                                                              |
+| -------------- | --------------------------------------------------------------------------- |
+| Submission     | Request and every affected entitlement head                                 |
+| Decision       | Request, assignment, entitlement head                                       |
 | Existing issue | Request, entitlement head, allocation, asset inventory guard, source bucket |
-| Materialize | Request, entitlement head, allocation, pool guard, source bucket |
-| Consume | Request, entitlement head, allocation, bucket guard, source bucket |
-| Return | Original loan line and custody guard |
+| Materialize    | Request, entitlement head, allocation, pool guard, source bucket            |
+| Consume        | Request, entitlement head, allocation, bucket guard, source bucket          |
+| Return         | Original loan line and custody guard                                        |
 
 Creation checks applicable expectations; execution checks them again under ordered guards plus current authority, policies, terms, expiry and integrity. Mismatch gives attempt-level STALE_VERSION, no silent rebase or permanent rejection. Immutable revision/approval/terms/generation IDs are separate bindings.
 

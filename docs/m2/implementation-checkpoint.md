@@ -4,7 +4,7 @@ Status: functional API/database slice verified for synthetic loopback scope; ful
 
 Implemented identity PostgreSQL integration; four roles/multiple membership; batches/registration; labs/staff assignments; local salted scrypt login/logout; opaque revocable sessions with idle/absolute expiry; current server-side authorization; audited admin management; synthetic role fixtures; professional identity screens.
 
-Changed source: src/lib/server/*; src/app/api/[...path]/route.ts; src/app/login/page.tsx; src/app/workspace/page.tsx; src/app/admin/[resource]/page.tsx; src/components/identity/*; database/*; scripts/*; tests/m2*; package.json/lock (pg); .env.example; generated AGENTS.md and Next type references. Existing previews retained.
+Changed source: src/lib/server/_; src/app/api/[...path]/route.ts; src/app/login/page.tsx; src/app/workspace/page.tsx; src/app/admin/[resource]/page.tsx; src/components/identity/_; database/_; scripts/_; tests/m2*; package.json/lock (pg); .env.example; generated AGENTS.md and Next type references. Existing previews retained.
 
 Routes compiled: /login, /workspace, /admin/users, /admin/batches, /admin/laboratories, /api/auth/login|me|logout and /api/admin/users|batches|laboratories. Real HTTP tests exercised API routes, not rendered pages. The suite starts and stops its own app; a continuously running demonstration server is not claimed.
 

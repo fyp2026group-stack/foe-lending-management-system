@@ -171,12 +171,7 @@
     "Created": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "intentId",
-        "slotId",
-        "state",
-        "correlationId"
-      ],
+      "required": ["intentId", "slotId", "state", "correlationId"],
       "properties": {
         "intentId": {
           "$ref": "#/components/schemas/UUID"
@@ -185,11 +180,7 @@
           "$ref": "#/components/schemas/UUID"
         },
         "state": {
-          "enum": [
-            "pending",
-            "committed",
-            "rejected"
-          ]
+          "enum": ["pending", "committed", "rejected"]
         },
         "correlationId": {
           "$ref": "#/components/schemas/UUID"
@@ -199,10 +190,7 @@
     "Error": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "code",
-        "correlationId"
-      ],
+      "required": ["code", "correlationId"],
       "properties": {
         "code": {
           "enum": [

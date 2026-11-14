@@ -7,7 +7,9 @@ test('lint discovers invalid nested TypeScript on Windows and preserves exclusio
   const [result] = await lint.lintText('export const probe: any = 1;\n', {
     filePath: 'src/components/nested/lint-probe.ts',
   });
-  assert.ok(result.messages.some(message => message.ruleId === '@typescript-eslint/no-explicit-any'));
+  assert.ok(
+    result.messages.some((message) => message.ruleId === '@typescript-eslint/no-explicit-any')
+  );
   for (const file of ['.next/probe.ts', '.cache/probe.ts', 'coverage/probe.ts', 'next-env.d.ts']) {
     assert.equal(await lint.isPathIgnored(file), true, file);
   }

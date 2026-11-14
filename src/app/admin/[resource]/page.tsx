@@ -1,4 +1,13 @@
 import { notFound } from 'next/navigation';
-import { AdminManagement } from '@/components/identity/admin-management';
-import type { Resource } from '@/components/identity/api';
-export default async function AdminPage({params}:{params:Promise<{resource:string}>}){const {resource}=await params;if(!['users','batches','laboratories'].includes(resource))notFound();return <AdminManagement resource={resource as Resource}/>;}
+import { Authenticated } from '@/components/identity/session';
+import { AdminWorkspace } from '@/components/hod-admin/workspace';
+import { adminViews, type AdminView } from '@/components/hod-admin/model';
+export default async function AdminPage({ params }: { params: Promise<{ resource: string }> }) {
+  const { resource } = await params;
+  if (!adminViews.includes(resource as AdminView)) notFound();
+  return (
+    <Authenticated>
+      {(session) => <AdminWorkspace session={session} view={resource as AdminView} />}
+    </Authenticated>
+  );
+}

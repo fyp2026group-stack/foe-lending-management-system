@@ -4,16 +4,16 @@
 
 Observed installed runtime: Node24.19.0, npm11.17.0.
 
-| Candidate | Registry version |
-|---|---|
-| next / eslint-config-next | 16.4.5 |
-| react / react-dom | 19.3.1 |
-| typescript | 7.0.2 |
-| tailwindcss / @tailwindcss/postcss | 4.3.5 |
-| postcss | 8.5.32 |
-| eslint | 10.14.0 |
-| @types/react / @types/react-dom | 19.3.0 |
-| @types/node | 24.19.2 candidate matching runtime major |
+| Candidate                          | Registry version                         |
+| ---------------------------------- | ---------------------------------------- |
+| next / eslint-config-next          | 16.4.5                                   |
+| react / react-dom                  | 19.3.1                                   |
+| typescript                         | 7.0.2                                    |
+| tailwindcss / @tailwindcss/postcss | 4.3.5                                    |
+| postcss                            | 8.5.32                                   |
+| eslint                             | 10.14.0                                  |
+| @types/react / @types/react-dom    | 19.3.0                                   |
+| @types/node                        | 24.19.2 candidate matching runtime major |
 
 Commands: npm view <package> version engines peerDependencies dist.integrity --json --cache .cache/npm (one package per query; all exit0). Initial multi-package npm view syntax returned Next metadata only; subsequent individual queries corrected coverage. npm view @types/node@24 version --json --cache .cache/npm returned major24 versions through24.19.2, exit0; latest-major26 types are not selected.
 

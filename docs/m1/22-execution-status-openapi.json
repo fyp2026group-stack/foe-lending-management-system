@@ -408,10 +408,7 @@
       "Error": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "code",
-          "correlationId"
-        ],
+        "required": ["code", "correlationId"],
         "properties": {
           "code": {
             "enum": [
@@ -437,11 +434,7 @@
       "P": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "slotId",
-          "state"
-        ],
+        "required": ["intentId", "slotId", "state"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/U"
@@ -457,12 +450,7 @@
       "J": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "slotId",
-          "state",
-          "error"
-        ],
+        "required": ["intentId", "slotId", "state", "error"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/U"
@@ -481,10 +469,7 @@
       "S": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "operation",
-          "revisionId"
-        ],
+        "required": ["operation", "revisionId"],
         "properties": {
           "operation": {
             "const": "submission"
@@ -497,10 +482,7 @@
       "A": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "operation",
-          "decisionId"
-        ],
+        "required": ["operation", "decisionId"],
         "properties": {
           "operation": {
             "const": "decision"
@@ -513,19 +495,10 @@
       "I": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "operation",
-          "loanLineId",
-          "assetId",
-          "custodyGenerationId",
-          "quantity"
-        ],
+        "required": ["operation", "loanLineId", "assetId", "custodyGenerationId", "quantity"],
         "properties": {
           "operation": {
-            "enum": [
-              "existingIssue",
-              "materializeIssue"
-            ]
+            "enum": ["existingIssue", "materializeIssue"]
           },
           "loanLineId": {
             "$ref": "#/components/schemas/U"
@@ -545,10 +518,7 @@
       "C": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "operation",
-          "quantity"
-        ],
+        "required": ["operation", "quantity"],
         "properties": {
           "operation": {
             "const": "consume"
@@ -562,11 +532,7 @@
       "T": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "operation",
-          "receiptId",
-          "inspectionId"
-        ],
+        "required": ["operation", "receiptId", "inspectionId"],
         "properties": {
           "operation": {
             "const": "return"
@@ -582,13 +548,7 @@
       "D": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "slotId",
-          "state",
-          "eventId",
-          "result"
-        ],
+        "required": ["intentId", "slotId", "state", "eventId", "result"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/U"
@@ -639,10 +599,7 @@
       "Body": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "intentId",
-          "slotId"
-        ],
+        "required": ["intentId", "slotId"],
         "properties": {
           "intentId": {
             "$ref": "#/components/schemas/U"

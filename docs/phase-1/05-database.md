@@ -32,29 +32,29 @@ erDiagram
 
 ## Entities and key constraints
 
-| Entity | Principal columns and constraints |
-|---|---|
-| User / AuthIdentity / Session | immutable user ID; display name, active; unique provider+subject; hashed opaque session token, expiry/revokedAt; no plaintext tokens in logs |
-| UserRole / CapabilityGrant | user, role, capability/scope, effective dates; grant provenance; prevent unreviewed role elevation |
-| Batch / StudentProfile | batch code unique; registrationNo normalized unique; user unique; current batch FK; profile history records cohort changes |
-| Lab / LabAssignment | lab code unique; user, function lecturer/TO, validity; approval eligibility derived from current assignments plus explicit substitute grants |
-| Category / Item | category parent optional; item kind, unit, active; restrict changing kind once movement exists |
-| PolicyVersion | exactly one item OR category FK (XOR check), revision unique per owner, mode, effective time, creator; immutable; optional student selector rule |
-| StockBucket | unique item+lab+lot/state/identity-pool key; nonnegative quantity; version for optimistic checks; quantities updated only by controlled procedures |
-| Asset / AssetIdentityEvent | item, immutable unique assetCode, current lab, state, optional manufacturer/normalized serial; serial correction appends identity event; one asset represents one unit |
-| Request | borrower, created/submitted times, purpose; state summary derived; immutable submitted identity; version |
-| RequestLine | request, item, lab, positive qty; policy snapshot + policyVersion; selected lecturer; requested dates; decision/reservation/fulfilment summaries |
-| ApprovalStep / Decision | line, stage/order, assigned approver and capability snapshot; append-only decision with author/role/time/remarks; one effective terminal decision per stage revision; no borrower actor |
-| Reservation / Allocation | line, positive qty, expiry, state; allocation either anonymous bucket quantity or specific asset, never both; current active allocations bounded by stock |
-| Loan / LoanLine | borrower, issuing TO, physical handover time; line references requestLine; quantity, dueAt, borrower batch snapshot, kind; asset FK nullable only for consumables; asset-backed lines qty=1 |
-| ReturnEvent / Inspection | loanLine, positive received qty, receiving TO, time, condition; cumulative returned <= issued; inspection disposition and separate clearing actor where needed |
-| StockMovement / MovementEntry | command, item, lab, asset optional, reason, actor/time; balanced entries between explicit state/location pools; append-only; unique command key |
-| Transfer / Adjustment | proposal, source/destination, quantities, reason, proposer, independent decision; posted movement reference unique |
-| RecordContext | typed record association with concrete nullable FKs and exactly-one-parent check; avoids unenforced arbitrary object IDs |
-| CommentThread / CommentVersion | context, visibility, original author; version number, predecessor FK, actor, role snapshot, time, text; unique predecessor/thread version prevents branches |
-| AuditEvent | actor/role, event type, target context, safe before/after, correlation, timestamp; immutable and separate from comments |
-| IdempotencyRecord | actor+command+key unique; payload digest, result reference/status; expiry policy cannot permit duplicate physical commands |
-| ImportBatch / ImportRow | uploader, source digest, validation/preview decisions, row key, commit result; unique batch+row; staged until approved commit |
+| Entity                         | Principal columns and constraints                                                                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User / AuthIdentity / Session  | immutable user ID; display name, active; unique provider+subject; hashed opaque session token, expiry/revokedAt; no plaintext tokens in logs                                                |
+| UserRole / CapabilityGrant     | user, role, capability/scope, effective dates; grant provenance; prevent unreviewed role elevation                                                                                          |
+| Batch / StudentProfile         | batch code unique; registrationNo normalized unique; user unique; current batch FK; profile history records cohort changes                                                                  |
+| Lab / LabAssignment            | lab code unique; user, function lecturer/TO, validity; approval eligibility derived from current assignments plus explicit substitute grants                                                |
+| Category / Item                | category parent optional; item kind, unit, active; restrict changing kind once movement exists                                                                                              |
+| PolicyVersion                  | exactly one item OR category FK (XOR check), revision unique per owner, mode, effective time, creator; immutable; optional student selector rule                                            |
+| StockBucket                    | unique item+lab+lot/state/identity-pool key; nonnegative quantity; version for optimistic checks; quantities updated only by controlled procedures                                          |
+| Asset / AssetIdentityEvent     | item, immutable unique assetCode, current lab, state, optional manufacturer/normalized serial; serial correction appends identity event; one asset represents one unit                      |
+| Request                        | borrower, created/submitted times, purpose; state summary derived; immutable submitted identity; version                                                                                    |
+| RequestLine                    | request, item, lab, positive qty; policy snapshot + policyVersion; selected lecturer; requested dates; decision/reservation/fulfilment summaries                                            |
+| ApprovalStep / Decision        | line, stage/order, assigned approver and capability snapshot; append-only decision with author/role/time/remarks; one effective terminal decision per stage revision; no borrower actor     |
+| Reservation / Allocation       | line, positive qty, expiry, state; allocation either anonymous bucket quantity or specific asset, never both; current active allocations bounded by stock                                   |
+| Loan / LoanLine                | borrower, issuing TO, physical handover time; line references requestLine; quantity, dueAt, borrower batch snapshot, kind; asset FK nullable only for consumables; asset-backed lines qty=1 |
+| ReturnEvent / Inspection       | loanLine, positive received qty, receiving TO, time, condition; cumulative returned <= issued; inspection disposition and separate clearing actor where needed                              |
+| StockMovement / MovementEntry  | command, item, lab, asset optional, reason, actor/time; balanced entries between explicit state/location pools; append-only; unique command key                                             |
+| Transfer / Adjustment          | proposal, source/destination, quantities, reason, proposer, independent decision; posted movement reference unique                                                                          |
+| RecordContext                  | typed record association with concrete nullable FKs and exactly-one-parent check; avoids unenforced arbitrary object IDs                                                                    |
+| CommentThread / CommentVersion | context, visibility, original author; version number, predecessor FK, actor, role snapshot, time, text; unique predecessor/thread version prevents branches                                 |
+| AuditEvent                     | actor/role, event type, target context, safe before/after, correlation, timestamp; immutable and separate from comments                                                                     |
+| IdempotencyRecord              | actor+command+key unique; payload digest, result reference/status; expiry policy cannot permit duplicate physical commands                                                                  |
+| ImportBatch / ImportRow        | uploader, source digest, validation/preview decisions, row key, commit result; unique batch+row; staged until approved commit                                                               |
 
 ## Integrity and indexing
 

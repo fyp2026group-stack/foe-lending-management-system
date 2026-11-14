@@ -13,28 +13,46 @@ before(async () => {
     reservation.listen(0, '127.0.0.1', resolve);
   });
   const port = reservation.address().port;
-  await new Promise(resolve => reservation.close(resolve));
+  await new Promise((resolve) => reservation.close(resolve));
   baseUrl = `http://127.0.0.1:${port}`;
-  child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)], {
-    env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true,
-  });
+  child = spawn(
+    process.execPath,
+    ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)],
+    {
+      env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    }
+  );
   await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error(`Local server did not become ready: ${output}`)), 25000);
-    const receive = chunk => {
+    const timeout = setTimeout(
+      () => reject(new Error(`Local server did not become ready: ${output}`)),
+      25000
+    );
+    const receive = (chunk) => {
       output += chunk.toString();
-      if (/Ready in/.test(output)) { clearTimeout(timeout); resolve(); }
+      if (/Ready in/.test(output)) {
+        clearTimeout(timeout);
+        resolve();
+      }
     };
     child.stdout.on('data', receive);
     child.stderr.on('data', receive);
-    child.once('error', error => { clearTimeout(timeout); reject(error); });
-    child.once('exit', code => { clearTimeout(timeout); reject(new Error(`Local server exited ${code}: ${output}`)); });
+    child.once('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once('exit', (code) => {
+      clearTimeout(timeout);
+      reject(new Error(`Local server exited ${code}: ${output}`));
+    });
   });
 });
 
-after(() => { child?.kill(); });
+after(() => {
+  child?.kill();
+});
 
 test('production page renders the synthetic preview and skip-link destination', async () => {
   const response = await fetch(baseUrl);
@@ -52,9 +70,17 @@ test('production page renders the synthetic preview and skip-link destination', 
 });
 
 test('operational command routes are unavailable', async () => {
-  for (const route of ['/api/v1/handovers', '/api/v1/return-receipts', '/api/v1/intents', '/api/v1/requests/example/submissions', '/api/v1/approval-assignments/example/decisions']) {
+  for (const route of [
+    '/api/v1/handovers',
+    '/api/v1/return-receipts',
+    '/api/v1/intents',
+    '/api/v1/requests/example/submissions',
+    '/api/v1/approval-assignments/example/decisions',
+  ]) {
     const response = await fetch(`${baseUrl}${route}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
     });
     assert.ok([404, 405].includes(response.status), `${route}: ${response.status}`);
   }

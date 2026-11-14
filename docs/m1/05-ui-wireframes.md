@@ -13,6 +13,7 @@ Catalogue/My requests require active own borrower; no public catalogue/delegated
 ## 1 Request builder/detail
 
 Desktop:
+
 ```text
 [Sidebar] [Lab context]                             [Identity]
 New request                   [Save draft] [Review request]
@@ -27,6 +28,7 @@ Detail: mixed counts / each line decisions, held, issued, cancelled
 ```
 
 Mobile:
+
 ```text
 [Menu] [Lab] [Identity]
 New request: Items > Details > Review
@@ -41,6 +43,7 @@ Annotation: submission does not reserve stock or guarantee future booking. Whole
 ## 2 Academic approval
 
 Desktop:
+
 ```text
 [Sidebar] Approval queue [Lab/stage/filter scope] [Identity]
 Request | Revision | Borrower | Lab | Stage | Updated
@@ -50,6 +53,7 @@ Request | Revision | Borrower | Lab | Stage | Updated
 ```
 
 Mobile:
+
 ```text
 [Menu] Approval queue [Scope] [Filters]
 [Request/revision/lab/stage card] -> Detail
@@ -63,6 +67,7 @@ Annotation: actor cannot approve own borrowing through any role. Distinct two-st
 ## 3 Physical collection
 
 Desktop:
+
 ```text
 [Sidebar] Collection [Request/revision] [Lab] [Issuing officer]
 1 Identify borrower -> 2 Select actual units -> 3 Review
@@ -74,6 +79,7 @@ Asset [permanent internal ID] Serial [optional]
 ```
 
 Mobile:
+
 ```text
 [Menu] Collection [Lab/issuing officer]
 1/3 Borrower identity -> 2/3 Unit cards -> 3/3 Review
@@ -87,6 +93,7 @@ Annotation: current relevant lab TO != borrower. Approval is not handover. Perma
 ## 4 Physical return/inspection
 
 Desktop:
+
 ```text
 [Sidebar] Return [Loan/event] [Lab] [Receiving officer]
 Asset/line | Issued | Received | Loss resolved | Outstanding
@@ -97,6 +104,7 @@ Separate action: clearance / maintenance / governed loss or recovery
 ```
 
 Mobile:
+
 ```text
 [Menu] Return [Loan reference/outstanding]
 [Unit card: receive now / condition]

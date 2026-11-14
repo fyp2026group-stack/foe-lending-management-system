@@ -19,15 +19,15 @@ Date: 2026-11-09. Workspace: C:\Projects\LabInventorySystem.
 
 Implementation commits: 3dd1365 initial foundation; 11b8ef75fdf05742720b287316be26dfe8370e4b scoped advisory correction and expanded tests. Final report commit adds documentation only.
 
-| Check | Observed result | Evidence |
-|---|---|---|
-| Build | PASS, exit0; overview and four previews statically generated | build-reviewed.log; final-verification.log |
-| Typecheck | PASS, exit0 | typecheck-reviewed.log |
-| Lint | PASS, exit0, no warnings | lint-reviewed.log |
-| HTTP/configuration tests | PASS,4/4, exit0 | test-reviewed.log; final-verification.log |
-| Clean install from exact lockfile | PASS in project-local .verification; scripts disabled | isolated-clean-install.log |
-| npm install audit | 0 vulnerabilities reported at execution,360 audited | isolated-clean-install.log; workspace-install-recovery.log |
-| Git whitespace check | PASS before implementation commits | git diff --cached --check exit0 |
+| Check                             | Observed result                                              | Evidence                                                   |
+| --------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| Build                             | PASS, exit0; overview and four previews statically generated | build-reviewed.log; final-verification.log                 |
+| Typecheck                         | PASS, exit0                                                  | typecheck-reviewed.log                                     |
+| Lint                              | PASS, exit0, no warnings                                     | lint-reviewed.log                                          |
+| HTTP/configuration tests          | PASS,4/4, exit0                                              | test-reviewed.log; final-verification.log                  |
+| Clean install from exact lockfile | PASS in project-local .verification; scripts disabled        | isolated-clean-install.log                                 |
+| npm install audit                 | 0 vulnerabilities reported at execution,360 audited          | isolated-clean-install.log; workspace-install-recovery.log |
+| Git whitespace check              | PASS before implementation commits                           | git diff --cached --check exit0                            |
 
 Final verification recorded reviewed commit and SHA256 hashes, then ran build followed immediately by the tests with NEXT_TELEMETRY_DISABLED=1, exit0. This ties Orbit's runtime evidence to the inspected implementation. The evidence log itself was the only untracked item at run start. PowerShell produced mixed encoding in the original log; final-verification-readable.log is a null-character-normalized reading copy. Preserve the original log and prior separate command logs.
 

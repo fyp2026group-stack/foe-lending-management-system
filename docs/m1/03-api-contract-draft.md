@@ -8,26 +8,26 @@ Base: `/api/v1`. Every operation authenticates server-derived actor, current cap
 
 All named capabilities below are proposed checks, not granted institutional powers. Deferred policies block activation. Existing explicit SRS invariants remain mandatory regardless of pending policy choices.
 
-| Resource/action | Current authority and guards | Principal policy dependencies |
-|---|---|---|
-| requests/{id}/submissions | Active own borrower; immutable revision; valid explicit policy/eligible lecturer/terms | P04/P07/P09/PR27 |
-| approval-assignments/{id}/decisions | Current assigned academic capability, correct stage/revision; actor != borrower; proposed distinct stage people | P01/P02/P03/P04/P09 |
-| reservations | Authorized allocator; final approval, eligible unissued remainder, stock under lock | P05/P06/P21 |
-| request-lines/{id}/cancellations | Own or explicitly authorized cancellation; unissued only; atomic hold release | P04/P05/P06 |
-| handovers | Different assigned lab TO, active borrower, approved terms/live hold, identity evidence/internal assets, academic batch snapshot | P07/P10/P11/P12/PR25 |
-| return-receipts | Receiving lab TO != borrower under proposed rule; physical outstanding quantity -> inspection | P20/PR22/PR25 |
-| issues/{id}/extensions; extensions/{id}/decisions | Borrower proposes; independently authorized academic actor decides immutable old/new terms | P07/PR23 |
-| inspections/{id}/decisions | Explicit clearance/disposition capability; valid unavailable pool, clearance independence unresolved | P20 |
-| maintenance-orders; maintenance-orders/{id}/completions | Assigned maintenance/disposition capability; valid source/destination pool | P20 |
-| loss-cases; loss-cases/{id}/resolutions; loss-cases/{id}/recoveries | Evidence/current custody; different approved loss authority; once-only closure/recovery bounds | P16/P20/PR25 |
-| retirements | Explicit inventory/disposition authority and approved decision | P16/P20 |
-| transfers; transfers/{id}/decisions; shipments/{id}/dispatches; shipments/{id}/receipts | Source proposer, independent approver, source dispatcher, destination receiving TO; exact line/quantity bounds | P16/PR24/PR25 |
-| adjustments; adjustments/{id}/decisions; adjustments/{id}/postings | Lab-scoped proposer, different approved controller, unique authorized posting | P16 |
-| imports; imports/{id}/validations; imports/{id}/commits | Bounded staged parse/preview followed by explicit authorized commit; no upload auto-posting | P16/P19 |
-| reconciliations; reconciliations/{id}/decisions; reconciliations/{id}/postings | Scoped evidence; independent approval for adjustments; unique posting | P16 |
-| exports | Current record/field/history scope; bounded filters; formula-neutralized CSV/XLSX | P14/P18/P19 |
-| stock-openings; stock-receipts; asset-identifications | Explicit inventory authority/provenance; opening not receipt twice; paired identity conversion | P11/P12/P16 |
-| threads/{id}/messages; messages/{id}/versions | Current context/thread visibility; only original message author corrects own latest head | P13/P14/P18 |
+| Resource/action                                                                         | Current authority and guards                                                                                                     | Principal policy dependencies |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| requests/{id}/submissions                                                               | Active own borrower; immutable revision; valid explicit policy/eligible lecturer/terms                                           | P04/P07/P09/PR27              |
+| approval-assignments/{id}/decisions                                                     | Current assigned academic capability, correct stage/revision; actor != borrower; proposed distinct stage people                  | P01/P02/P03/P04/P09           |
+| reservations                                                                            | Authorized allocator; final approval, eligible unissued remainder, stock under lock                                              | P05/P06/P21                   |
+| request-lines/{id}/cancellations                                                        | Own or explicitly authorized cancellation; unissued only; atomic hold release                                                    | P04/P05/P06                   |
+| handovers                                                                               | Different assigned lab TO, active borrower, approved terms/live hold, identity evidence/internal assets, academic batch snapshot | P07/P10/P11/P12/PR25          |
+| return-receipts                                                                         | Receiving lab TO != borrower under proposed rule; physical outstanding quantity -> inspection                                    | P20/PR22/PR25                 |
+| issues/{id}/extensions; extensions/{id}/decisions                                       | Borrower proposes; independently authorized academic actor decides immutable old/new terms                                       | P07/PR23                      |
+| inspections/{id}/decisions                                                              | Explicit clearance/disposition capability; valid unavailable pool, clearance independence unresolved                             | P20                           |
+| maintenance-orders; maintenance-orders/{id}/completions                                 | Assigned maintenance/disposition capability; valid source/destination pool                                                       | P20                           |
+| loss-cases; loss-cases/{id}/resolutions; loss-cases/{id}/recoveries                     | Evidence/current custody; different approved loss authority; once-only closure/recovery bounds                                   | P16/P20/PR25                  |
+| retirements                                                                             | Explicit inventory/disposition authority and approved decision                                                                   | P16/P20                       |
+| transfers; transfers/{id}/decisions; shipments/{id}/dispatches; shipments/{id}/receipts | Source proposer, independent approver, source dispatcher, destination receiving TO; exact line/quantity bounds                   | P16/PR24/PR25                 |
+| adjustments; adjustments/{id}/decisions; adjustments/{id}/postings                      | Lab-scoped proposer, different approved controller, unique authorized posting                                                    | P16                           |
+| imports; imports/{id}/validations; imports/{id}/commits                                 | Bounded staged parse/preview followed by explicit authorized commit; no upload auto-posting                                      | P16/P19                       |
+| reconciliations; reconciliations/{id}/decisions; reconciliations/{id}/postings          | Scoped evidence; independent approval for adjustments; unique posting                                                            | P16                           |
+| exports                                                                                 | Current record/field/history scope; bounded filters; formula-neutralized CSV/XLSX                                                | P14/P18/P19                   |
+| stock-openings; stock-receipts; asset-identifications                                   | Explicit inventory authority/provenance; opening not receipt twice; paired identity conversion                                   | P11/P12/P16                   |
+| threads/{id}/messages; messages/{id}/versions                                           | Current context/thread visibility; only original message author corrects own latest head                                         | P13/P14/P18                   |
 
 Consumption is the consumable handover posting, not a second independently callable posting of already issued stock. Session/link/bootstrap/MFA design depends on P15/PR26 (not P12); no login implementation is authorized. Scoped GET contracts require concrete DTOs, allowlisted sorts/filters and bounded pagination, with exact configurable limits still unresolved. Business-event recovery/status reads must authorize both record and result disclosure.
 

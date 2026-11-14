@@ -1,8 +1,8 @@
 ﻿{
-    "version":  "5.0.0",
-    "source":  "https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.json",
-    "retrieved":  "2026-11-08",
-    "sha256_utf8":  "bcdbec214d70abcfad9284a31d4f9e5134305831d628aad3aa85d7e26626cb35",
-    "requirement_count":  345,
-    "note":  "Pinned official v5.0.0 release source; every requirement ID checked against applicability register. No implementation verification performed."
+  "version": "5.0.0",
+  "source": "https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.json",
+  "retrieved": "2026-11-08",
+  "sha256_utf8": "bcdbec214d70abcfad9284a31d4f9e5134305831d628aad3aa85d7e26626cb35",
+  "requirement_count": 345,
+  "note": "Pinned official v5.0.0 release source; every requirement ID checked against applicability register. No implementation verification performed."
 }

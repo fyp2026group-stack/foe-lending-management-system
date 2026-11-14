@@ -8,14 +8,14 @@ Least-privilege resolution: keep four specialist roles unprovisioned. Do not sub
 
 ## Responsibility matrix
 
-| Area | Responsible owner | Independent reviewer | Accountable |
-|---|---|---|---|
-| Requirements, ADRs, integration | Lead | Domain user + relevant specialist | Lead |
-| API, transactions, migrations | Backend/DB | Security for protected changes; QA for invariants | Lead |
-| Pages, forms, accessibility | Frontend | QA; Security for data exposure/auth flows | Lead |
-| Threat model, authorization assessment | Security | Lead + QA, or external reviewer | Lead |
-| Test harness, regression evidence | QA | Domain owner of tested module | Lead |
-| Release readiness | Lead | Security + QA + user | User authorizes deployment |
+| Area                                   | Responsible owner | Independent reviewer                              | Accountable                |
+| -------------------------------------- | ----------------- | ------------------------------------------------- | -------------------------- |
+| Requirements, ADRs, integration        | Lead              | Domain user + relevant specialist                 | Lead                       |
+| API, transactions, migrations          | Backend/DB        | Security for protected changes; QA for invariants | Lead                       |
+| Pages, forms, accessibility            | Frontend          | QA; Security for data exposure/auth flows         | Lead                       |
+| Threat model, authorization assessment | Security          | Lead + QA, or external reviewer                   | Lead                       |
+| Test harness, regression evidence      | QA                | Domain owner of tested module                     | Lead                       |
+| Release readiness                      | Lead              | Security + QA + user                              | User authorizes deployment |
 
 All specialist positions in this table are proposed, not staffed. User is authority for university policies. Lead does not invent institutional approvals.
 

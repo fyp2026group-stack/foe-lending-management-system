@@ -1,0 +1,1321 @@
+/* Existing public and sign-in presentation, isolated from the authenticated workspace. */
+:root:not(:has(.workspace)) {
+  color-scheme: light;
+  --background: #fff;
+  --foreground: #182334;
+  --primary: #234f86;
+  --primary-foreground: #fff;
+  --secondary: #eef2f6;
+  --secondary-foreground: #26364b;
+  --muted: #f3f5f8;
+  --muted-foreground: #526175;
+  --accent: #eaf0f8;
+  --accent-foreground: #182334;
+  --destructive: #a52c2c;
+  --border: #d6dee8;
+  --input: #b7c3d1;
+  --ring: #234f86;
+  --radius: 6px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  background: #f5f7fa;
+}
+:where(body:not(:has(.workspace))) * {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+body:not(:has(.workspace)) {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+:where(body:not(:has(.workspace))) h1,
+:where(body:not(:has(.workspace))) h2,
+:where(body:not(:has(.workspace))) strong {
+  font-weight: 600;
+}
+:where(body:not(:has(.workspace))) h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  margin: 4px 0 8px;
+  letter-spacing: -0.02em;
+}
+:where(body:not(:has(.workspace))) h2 {
+  font-size: 16px;
+}
+:where(body:not(:has(.workspace))) p {
+  line-height: 1.6;
+}
+:where(body:not(:has(.workspace))) :focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+:where(body:not(:has(.workspace))) button:disabled {
+  cursor: not-allowed;
+}
+:where(body:not(:has(.workspace))) nav a,
+:where(body:not(:has(.workspace))) nav button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  align-items: center;
+  border-radius: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+:where(body:not(:has(.workspace))) nav a:hover,
+:where(body:not(:has(.workspace))) nav button:hover {
+  background: #f3f5f8;
+}
+:where(body:not(:has(.workspace))) nav [aria-current='page'] {
+  background: #eaf0f8;
+  color: #234f86;
+  font-weight: 600;
+  box-shadow: inset 3px 0 #234f86;
+}
+:where(body:not(:has(.workspace))) main {
+  max-width: 1440px;
+  padding: 24px 32px;
+  margin: auto;
+}
+:where(body:not(:has(.workspace))) .breadcrumb {
+  color: #526175;
+  font-size: 12px;
+  margin-bottom: 24px;
+}
+:where(body:not(:has(.workspace))) .breadcrumb a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:where(body:not(:has(.workspace))) .page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+:where(body:not(:has(.workspace))) .eyebrow {
+  font-size: 12px;
+  color: #526175;
+  margin: 0;
+}
+:where(body:not(:has(.workspace))) .intro {
+  color: #526175;
+  max-width: 80ch;
+  margin: 0;
+}
+:where(body:not(:has(.workspace))) .action-group {
+  display: grid;
+  gap: 4px;
+  flex-shrink: 0;
+}
+:where(body:not(:has(.workspace))) .action-group small {
+  font-size: 12px;
+  color: #526175;
+  text-align: right;
+}
+:where(body:not(:has(.workspace))) .notice {
+  border-left: 3px solid var(--primary);
+  background: #eaf0f8;
+  padding: 12px 16px;
+  margin: 24px 0;
+  font-size: 13px;
+}
+:where(body:not(:has(.workspace))) .records {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+:where(body:not(:has(.workspace))) .section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+:where(body:not(:has(.workspace))) .filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+:where(body:not(:has(.workspace))) .filter-bar > div:first-child {
+  flex: 1 1 220px;
+  max-width: 400px;
+}
+:where(body:not(:has(.workspace))) label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+:where(body:not(:has(.workspace))) select {
+  display: block;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  padding: 8px 32px 8px 12px;
+  min-height: 44px;
+  width: 100%;
+  background: #fff;
+  font-size: 14px;
+}
+:where(body:not(:has(.workspace))) [data-slot='input'] {
+  min-height: 44px;
+  background: white;
+}
+:where(body:not(:has(.workspace))) [data-slot='button'] {
+  min-height: 44px;
+  border-radius: 4px;
+}
+:where(body:not(:has(.workspace))) [data-slot='badge'] {
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 3px 8px;
+  white-space: normal;
+  text-align: left;
+}
+:where(body:not(:has(.workspace))) .table-region {
+  min-width: 0;
+  overflow-x: auto;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-container'] {
+  overflow-x: visible;
+}
+:where(body:not(:has(.workspace))) table {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+:where(body:not(:has(.workspace))) [data-slot='table'] {
+  min-width: 800px;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-head'] {
+  background: #f7f9fb;
+  color: #526175;
+  font-size: 12px;
+  height: 40px;
+  padding: 8px 16px;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-cell'] {
+  padding: 8px 16px;
+  height: 58px;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-caption'] {
+  caption-side: bottom;
+  padding: 12px 16px;
+  text-align: left;
+  margin: 0;
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .record-link {
+  color: #234f86;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+}
+:where(body:not(:has(.workspace))) .pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  color: #526175;
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+:where(body:not(:has(.workspace))) .context-note {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+:where(body:not(:has(.workspace))) .context-note p {
+  color: #526175;
+  max-width: 90ch;
+  margin-top: 8px;
+}
+:where(body:not(:has(.workspace))) .text-link {
+  color: #234f86;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+:where(body:not(:has(.workspace))) footer {
+  padding: 16px 32px;
+  color: #526175;
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  background: white;
+  color: #234f86;
+  padding: 16px;
+  z-index: 100;
+}
+:where(body:not(:has(.workspace))) .skip-link:focus {
+  top: 16px;
+}
+:where(body:not(:has(.workspace))) .mobile-menu {
+  display: none;
+}
+:where(body:not(:has(.workspace))) .detail-list > div {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+:where(body:not(:has(.workspace))) dt,
+:where(body:not(:has(.workspace))) .muted {
+  color: #526175;
+}
+:where(body:not(:has(.workspace))) dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+:where(body:not(:has(.workspace))) [data-slot='dialog-content'] {
+  max-height: 85dvh;
+  overflow-y: auto;
+  border-radius: 6px;
+}
+:where(body:not(:has(.workspace))) [data-slot='dialog-close'] {
+  min-width: 44px;
+  min-height: 44px;
+  top: 4px;
+  right: 4px;
+}
+:where(body:not(:has(.workspace))) [data-slot='dialog-title'] {
+  padding-right: 32px;
+}
+:where(body:not(:has(.workspace))) .reference-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+:where(body:not(:has(.workspace))) .reference-section p {
+  margin: 12px 0;
+}
+:where(body:not(:has(.workspace))) .reference-section [data-slot='input'] {
+  max-width: 360px;
+}
+:where(body:not(:has(.workspace))) .example-row,
+:where(body:not(:has(.workspace))) .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+:where(body:not(:has(.workspace))) .swatches span {
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+:where(body:not(:has(.workspace))) .swatches span:nth-child(2) {
+  background: #f5f7fa;
+}
+:where(body:not(:has(.workspace))) .swatches span:last-child {
+  background: #234f86;
+  color: white;
+}
+:where(body:not(:has(.workspace))) .state-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+:where(body:not(:has(.workspace))) .state-box {
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: #f7f9fb;
+  overflow-wrap: anywhere;
+}
+:where(body:not(:has(.workspace))) .state-box p {
+  color: #526175;
+  margin: 0;
+}
+@media (max-width: 1023px) {
+  :where(body:not(:has(.workspace))) main {
+    padding: 24px;
+  }
+  :where(body:not(:has(.workspace))) .page-heading {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .mobile-menu {
+    display: inline-flex;
+  }
+  :where(body:not(:has(.workspace))) main {
+    padding: 20px 16px;
+  }
+  :where(body:not(:has(.workspace))) .breadcrumb {
+    margin-bottom: 16px;
+  }
+  :where(body:not(:has(.workspace))) .action-group {
+    width: 100%;
+  }
+  :where(body:not(:has(.workspace))) .action-group small {
+    text-align: left;
+  }
+  :where(body:not(:has(.workspace))) .filter-bar > div {
+    width: 100%;
+    max-width: none !important;
+  }
+  :where(body:not(:has(.workspace))) .pagination > div {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  :where(body:not(:has(.workspace))) .state-grid {
+    grid-template-columns: 1fr;
+  }
+  :where(body:not(:has(.workspace))) footer {
+    padding: 16px;
+  }
+  :where(body:not(:has(.workspace))) .detail-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer {
+    height: 90dvh;
+  }
+}
+:root:not(:has(.workspace)) {
+  --canvas: #f4f6f9;
+  --navy: #132238;
+  --navy-soft: #1d304a;
+  --blue: #1f5b99;
+  --blue-soft: #eaf2fb;
+  --success: #147a52;
+  --warning: #a85f00;
+}
+body:not(:has(.workspace)) {
+  background: var(--canvas);
+  color: #1d2939;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+:where(body:not(:has(.workspace))) h1 {
+  font-size: clamp(1.55rem, 2vw, 1.9rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: #172033;
+}
+:where(body:not(:has(.workspace))) h2 {
+  color: #172033;
+  font-weight: 650;
+}
+:where(body:not(:has(.workspace))) .brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 8px;
+  background: #2b6baa;
+  color: white;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+}
+:where(body:not(:has(.workspace))) .brand-copy {
+  display: grid;
+  min-width: 0;
+  color: white;
+}
+:where(body:not(:has(.workspace))) .brand-copy strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+:where(body:not(:has(.workspace))) .brand-copy small {
+  color: #9fb0c5;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+:where(body:not(:has(.workspace))) .status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: #39b980;
+  box-shadow: 0 0 0 3px rgb(57 185 128 / 0.12);
+}
+:where(body:not(:has(.workspace))) .topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+:where(body:not(:has(.workspace))) .topbar-left > div:last-child {
+  display: grid;
+}
+:where(body:not(:has(.workspace))) .topbar-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: #1d2939;
+}
+:where(body:not(:has(.workspace))) .mobile-menu svg {
+  width: 18px;
+  height: 18px;
+}
+:where(body:not(:has(.workspace))) .eyebrow {
+  color: #56718f;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+:where(body:not(:has(.workspace))) .intro {
+  color: #5d6b7c;
+}
+:where(body:not(:has(.workspace))) .records,
+:where(body:not(:has(.workspace))) .reference-section,
+:where(body:not(:has(.workspace))) .border.bg-white {
+  border-color: #dfe5ec;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.035);
+}
+:where(body:not(:has(.workspace))) .records > h2:first-child {
+  margin-top: 0;
+}
+:where(body:not(:has(.workspace))) .section-heading {
+  min-height: 58px;
+  padding: 14px 18px;
+}
+:where(body:not(:has(.workspace))) .filter-bar {
+  background: #fafbfd;
+}
+:where(body:not(:has(.workspace))) [data-slot='button'] {
+  min-height: 40px;
+  border-radius: 5px;
+  font-weight: 600;
+  box-shadow: none;
+}
+:where(body:not(:has(.workspace))) [data-slot='input'],
+:where(body:not(:has(.workspace))) select {
+  min-height: 42px;
+  border-color: #bfc9d6;
+  border-radius: 5px;
+}
+:where(body:not(:has(.workspace))) [data-slot='input']:focus,
+:where(body:not(:has(.workspace))) select:focus {
+  border-color: #3474b6;
+  box-shadow: 0 0 0 3px rgb(52 116 182 / 0.12);
+  outline: none;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-head'] {
+  background: #f4f7fa;
+  color: #4c5d70;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+  font-size: 10px;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-row']:hover [data-slot='table-cell'] {
+  background: #f9fbfd;
+}
+:where(body:not(:has(.workspace))) [data-slot='table-cell'] {
+  color: #2b394a;
+}
+:where(body:not(:has(.workspace))) [data-slot='badge'] {
+  font-weight: 600;
+}
+:where(body:not(:has(.workspace))) .error-notice {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #efb9b9;
+  border-left: 4px solid #b42318;
+  border-radius: 6px;
+  background: #fff6f5;
+  color: #7a271a;
+}
+:where(body:not(:has(.workspace))) .error-notice p {
+  margin: 4px 0 0;
+}
+:where(body:not(:has(.workspace))) .error-notice .text-link {
+  color: #912018;
+}
+:where(body:not(:has(.workspace))) .session-loading {
+  max-width: 460px;
+  margin: 15vh auto;
+  padding: 40px;
+  text-align: center;
+}
+:where(body:not(:has(.workspace))) .loading-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 18px;
+  border-radius: 10px;
+  background: var(--navy);
+  color: white;
+  font-weight: 750;
+}
+:where(body:not(:has(.workspace))) .login-page {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+  margin: 0;
+  padding: 0;
+  background: white;
+}
+:where(body:not(:has(.workspace))) .login-intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100vh;
+  padding: 48px clamp(42px, 6vw, 88px);
+  background: linear-gradient(145deg, #122239 0%, #1b3554 58%, #214c78 100%);
+  color: white;
+}
+:where(body:not(:has(.workspace))) .login-intro h1 {
+  max-width: 680px;
+  color: white;
+  font-size: clamp(2.15rem, 4vw, 3.8rem);
+  line-height: 1.08;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+}
+:where(body:not(:has(.workspace))) .login-intro > div:nth-child(2) > p:last-child {
+  max-width: 650px;
+  color: #c4d2e1;
+  font-size: 16px;
+}
+:where(body:not(:has(.workspace))) .login-intro .eyebrow {
+  color: #80b7ea;
+}
+:where(body:not(:has(.workspace))) .login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 650;
+  font-size: 14px;
+}
+:where(body:not(:has(.workspace))) .login-capabilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin: 50px 0 0;
+}
+:where(body:not(:has(.workspace))) .login-capabilities div {
+  padding-top: 14px;
+  border-top: 1px solid rgb(255 255 255 / 0.18);
+}
+:where(body:not(:has(.workspace))) .login-capabilities dt {
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+:where(body:not(:has(.workspace))) .login-capabilities dd {
+  margin: 6px 0 0;
+  color: #aebfd1;
+  font-size: 11px;
+  line-height: 1.55;
+}
+:where(body:not(:has(.workspace))) .login-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px;
+  background: #f7f9fc;
+}
+:where(body:not(:has(.workspace))) .login-card {
+  width: min(100%, 430px);
+  padding: 34px;
+  border: 1px solid #dfe5ec;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 14px 40px rgb(16 24 40 / 0.09);
+}
+:where(body:not(:has(.workspace))) .login-card h2 {
+  margin: 7px 0 5px;
+  font-size: 22px;
+}
+:where(body:not(:has(.workspace))) .login-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+:where(body:not(:has(.workspace))) .login-error {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border-left: 3px solid #b42318;
+  background: #fff5f4;
+  color: #7a271a;
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .login-help {
+  margin: 22px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid #e5e9ef;
+  color: #697789;
+  font-size: 11px;
+}
+:where(body:not(:has(.workspace))) .login-footer {
+  margin: 22px 0 0;
+  color: #7b8796;
+  font-size: 10px;
+}
+
+@media (max-width: 1023px) {
+  :where(body:not(:has(.workspace))) .login-page {
+    grid-template-columns: 1fr 420px;
+  }
+  :where(body:not(:has(.workspace))) .login-intro {
+    padding: 40px;
+  }
+  :where(body:not(:has(.workspace))) .login-capabilities {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .mobile-menu {
+    display: inline-flex;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer {
+    top: 0 !important;
+    left: 0 !important;
+    width: min(88vw, 340px) !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    background: var(--navy) !important;
+    color: white;
+    align-content: start;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-title'] {
+    color: white;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-description'] {
+    color: #9fb0c5;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-close'] {
+    color: white;
+  }
+  :where(body:not(:has(.workspace))) .login-page {
+    grid-template-columns: 1fr;
+    background: #f7f9fc;
+  }
+  :where(body:not(:has(.workspace))) .login-intro {
+    min-height: auto;
+    padding: 24px;
+  }
+  :where(body:not(:has(.workspace))) .login-intro > div:nth-child(2),
+  :where(body:not(:has(.workspace))) .login-capabilities {
+    display: none;
+  }
+  :where(body:not(:has(.workspace))) .login-panel {
+    min-height: calc(100vh - 86px);
+    padding: 24px 16px;
+    justify-content: flex-start;
+  }
+  :where(body:not(:has(.workspace))) .login-card {
+    margin-top: 22px;
+    padding: 26px 22px;
+  }
+}
+:where(body:not(:has(.workspace))) .dashboard-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+:where(body:not(:has(.workspace))) .primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 15px;
+  border-radius: 5px;
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+:where(body:not(:has(.workspace))) .primary-link:hover {
+  background: #194d81;
+}
+:where(body:not(:has(.workspace))) .dashboard-section {
+  margin-top: 28px;
+}
+:where(body:not(:has(.workspace))) .section-title {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+:where(body:not(:has(.workspace))) .section-title h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+:where(body:not(:has(.workspace))) .section-title > span {
+  color: #6b7888;
+  font-size: 11px;
+}
+:where(body:not(:has(.workspace))) .operation-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+:where(body:not(:has(.workspace))) .operation-card {
+  min-height: 172px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 19px;
+  border: 1px solid #dfe5ec;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.035);
+}
+:where(body:not(:has(.workspace))) .operation-card h3 {
+  margin: 0 0 8px;
+  color: #1d2939;
+  font-size: 14px;
+  font-weight: 650;
+}
+:where(body:not(:has(.workspace))) .operation-card p {
+  margin: 0;
+  color: #667586;
+  font-size: 12px;
+  line-height: 1.55;
+}
+:where(body:not(:has(.workspace))) .operation-card a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 15px;
+  border-top: 1px solid #e6eaf0;
+  color: #1e5a96;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+:where(body:not(:has(.workspace))) .operation-card a span {
+  font-size: 16px;
+}
+:where(body:not(:has(.workspace))) .dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+}
+:where(body:not(:has(.workspace))) .dashboard-list > .section-heading h2 {
+  margin: 2px 0 0;
+}
+:where(body:not(:has(.workspace))) .dashboard-list > a {
+  display: grid;
+  gap: 2px;
+  padding: 14px 18px;
+  border-top: 1px solid #e5e9ef;
+  color: #253449;
+  text-decoration: none;
+}
+:where(body:not(:has(.workspace))) .dashboard-list > a:hover {
+  background: #f8fafc;
+}
+:where(body:not(:has(.workspace))) .dashboard-list > a span {
+  font-size: 12px;
+  font-weight: 650;
+}
+:where(body:not(:has(.workspace))) .dashboard-list > a small {
+  color: #6a7788;
+  font-size: 11px;
+}
+@media (max-width: 1180px) {
+  :where(body:not(:has(.workspace))) .operation-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .dashboard-heading {
+    display: grid;
+  }
+  :where(body:not(:has(.workspace))) .primary-link {
+    width: 100%;
+  }
+  :where(body:not(:has(.workspace))) .operation-grid,
+  :where(body:not(:has(.workspace))) .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+  :where(body:not(:has(.workspace))) .operation-card {
+    min-height: 145px;
+  }
+  :where(body:not(:has(.workspace))) .section-title > span {
+    display: none;
+  }
+}
+:where(body:not(:has(.workspace))) .secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #bdc8d5;
+  border-radius: 5px;
+  background: white;
+  color: #245b91;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+:where(body:not(:has(.workspace))) .metrics-panel {
+  padding: 0 18px 18px;
+  overflow: hidden;
+}
+:where(body:not(:has(.workspace))) .metrics-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #e3e8ee;
+  background: #fbfcfd;
+}
+:where(body:not(:has(.workspace))) .metrics-heading h2 {
+  margin: 2px 0 0;
+}
+:where(body:not(:has(.workspace))) .metrics-heading > span {
+  color: #6e7c8d;
+  font-size: 10px;
+}
+:where(body:not(:has(.workspace))) .metrics-description {
+  margin: 14px 0 0;
+}
+:where(body:not(:has(.workspace))) .metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 18px;
+  border: 1px solid #e0e6ed;
+  border-radius: 7px;
+  overflow: hidden;
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .secondary-link {
+    width: 100%;
+  }
+  :where(body:not(:has(.workspace))) .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+:root:not(:has(.workspace)) {
+  --primary: #980b13;
+  --primary-foreground: #fff;
+  --ring: #980b13;
+  --canvas: #f6f5f3;
+  --navy: #262626;
+  --navy-soft: #383838;
+  --faculty-red: #980b13;
+  --faculty-red-dark: #71070d;
+  --faculty-gold: #d6a51d;
+  --faculty-ink: #262626;
+  --faculty-warm: #f5f2ec;
+}
+body:not(:has(.workspace)) {
+  background: #f6f5f3;
+  color: #262626;
+}
+:where(body:not(:has(.workspace))) h1,
+:where(body:not(:has(.workspace))) h2,
+:where(body:not(:has(.workspace))) h3 {
+  color: #252525;
+}
+:where(body:not(:has(.workspace))) .sidebar-logo {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+:where(body:not(:has(.workspace))) .brand-mark {
+  width: 43px;
+  height: 43px;
+  border: 2px solid var(--faculty-gold);
+  border-radius: 50%;
+  background: var(--faculty-red);
+  color: white;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 2px white;
+}
+:where(body:not(:has(.workspace))) .brand-copy {
+  color: #292929;
+}
+:where(body:not(:has(.workspace))) .brand-copy strong {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+:where(body:not(:has(.workspace))) .brand-copy small {
+  color: #7a6d61;
+  font-size: 9px;
+  line-height: 1.3;
+}
+:where(body:not(:has(.workspace))) .status-dot {
+  background: #4a8d66;
+  box-shadow: none;
+}
+:where(body:not(:has(.workspace))) .topbar-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+}
+:where(body:not(:has(.workspace))) .eyebrow {
+  color: #8c0c13;
+}
+:where(body:not(:has(.workspace))) .primary-link {
+  background: var(--faculty-red);
+}
+:where(body:not(:has(.workspace))) .primary-link:hover {
+  background: var(--faculty-red-dark);
+}
+:where(body:not(:has(.workspace))) .secondary-link,
+:where(body:not(:has(.workspace))) .operation-card a,
+:where(body:not(:has(.workspace))) .text-link {
+  color: #8b0c13;
+}
+:where(body:not(:has(.workspace))) .operation-card {
+  border-radius: 3px;
+  border-top: 3px solid #b0933f;
+  box-shadow: none;
+}
+:where(body:not(:has(.workspace))) .operation-card a {
+  color: #790a10;
+}
+:where(body:not(:has(.workspace))) .records,
+:where(body:not(:has(.workspace))) .reference-section,
+:where(body:not(:has(.workspace))) .border.bg-white {
+  border-radius: 3px;
+  box-shadow: none;
+}
+:where(body:not(:has(.workspace))) .metric-grid {
+  border-radius: 2px;
+}
+:where(body:not(:has(.workspace))) [data-slot='button'] {
+  border-radius: 2px;
+}
+:where(body:not(:has(.workspace))) [data-slot='input'],
+:where(body:not(:has(.workspace))) select {
+  border-radius: 2px;
+}
+
+:where(body:not(:has(.workspace))) .login-page {
+  grid-template-columns: minmax(520px, 1.08fr) minmax(420px, 0.92fr);
+  background: #f7f5f1;
+}
+:where(body:not(:has(.workspace))) .login-intro {
+  position: relative;
+  min-height: 100vh;
+  padding: 52px clamp(48px, 7vw, 106px);
+  background: #f2eee7;
+  color: #292929;
+  overflow: hidden;
+}
+:where(body:not(:has(.workspace))) .login-intro::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  background: var(--faculty-red);
+}
+:where(body:not(:has(.workspace))) .login-intro::after {
+  content: '';
+  position: absolute;
+  right: -190px;
+  bottom: -210px;
+  width: 520px;
+  height: 520px;
+  border: 1px solid rgb(152 11 19 / 0.09);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 70px rgb(152 11 19 / 0.028),
+    0 0 0 140px rgb(152 11 19 / 0.018);
+  pointer-events: none;
+}
+:where(body:not(:has(.workspace))) .faculty-identity {
+  position: relative;
+  z-index: 1;
+}
+:where(body:not(:has(.workspace))) .faculty-identity img {
+  width: min(100%, 500px);
+  height: auto;
+}
+:where(body:not(:has(.workspace))) .faculty-seal {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border: 3px double #d2a41f;
+  border-radius: 50%;
+  background: #980b13;
+  color: white;
+  box-shadow:
+    0 0 0 3px #f2eee7,
+    0 0 0 4px #d2a41f;
+}
+:where(body:not(:has(.workspace))) .faculty-seal b {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+}
+:where(body:not(:has(.workspace))) .faculty-seal small {
+  color: #f4d989;
+  font-size: 8px;
+  font-weight: 700;
+}
+:where(body:not(:has(.workspace))) .system-intro {
+  position: relative;
+  z-index: 1;
+  max-width: 650px;
+  margin: auto 0;
+}
+:where(body:not(:has(.workspace))) .gold-rule {
+  display: block;
+  width: 54px;
+  height: 4px;
+  margin-bottom: 24px;
+  background: var(--faculty-gold);
+}
+:where(body:not(:has(.workspace))) .system-intro .eyebrow {
+  color: #8b0b12;
+}
+:where(body:not(:has(.workspace))) .login-intro .system-intro h1 {
+  max-width: 650px;
+  margin: 12px 0 20px;
+  color: #292724;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+:where(body:not(:has(.workspace))) .login-intro .system-intro > p:last-child,
+:where(body:not(:has(.workspace))) .login-intro > div:nth-child(2) > p:last-child {
+  max-width: 560px;
+  color: #655e58;
+  font-size: 15px;
+}
+:where(body:not(:has(.workspace))) .system-note {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #877d73;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:where(body:not(:has(.workspace))) .login-panel {
+  background: white;
+  border-left: 1px solid #e0dcd5;
+}
+:where(body:not(:has(.workspace))) .login-card {
+  width: min(100%, 420px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+:where(body:not(:has(.workspace))) .login-card::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-bottom: 28px;
+  background: linear-gradient(90deg, var(--faculty-red) 0 84%, var(--faculty-gold) 84%);
+}
+:where(body:not(:has(.workspace))) .login-card-heading h2 {
+  margin: 7px 0 6px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 30px;
+  font-weight: 600;
+}
+:where(body:not(:has(.workspace))) .login-card-heading > p:last-child {
+  margin: 0;
+  color: #756d66;
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .field-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+:where(body:not(:has(.workspace))) .field-heading span {
+  color: #91867d;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+:where(body:not(:has(.workspace))) .login-support {
+  margin-top: 26px;
+  padding: 17px 0;
+  border-top: 1px solid #e4e0da;
+  border-bottom: 1px solid #e4e0da;
+}
+:where(body:not(:has(.workspace))) .login-support strong {
+  font-size: 11px;
+}
+:where(body:not(:has(.workspace))) .login-support p {
+  margin: 3px 0 0;
+  color: #7b7168;
+  font-size: 10px;
+}
+:where(body:not(:has(.workspace))) .login-footer {
+  color: #8d8379;
+}
+
+@media (max-width: 1023px) {
+  :where(body:not(:has(.workspace))) .login-page {
+    grid-template-columns: 1fr 420px;
+  }
+  :where(body:not(:has(.workspace))) .login-intro {
+    padding: 40px;
+  }
+  :where(body:not(:has(.workspace))) .faculty-identity strong {
+    font-size: 17px;
+  }
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .login-page {
+    grid-template-columns: 1fr;
+  }
+  :where(body:not(:has(.workspace))) .login-intro {
+    min-height: auto;
+    padding: 22px 26px;
+    border-top: 5px solid var(--faculty-red);
+  }
+  :where(body:not(:has(.workspace))) .login-intro::before,
+  :where(body:not(:has(.workspace))) .login-intro::after,
+  :where(body:not(:has(.workspace))) .system-intro,
+  :where(body:not(:has(.workspace))) .system-note {
+    display: none;
+  }
+  :where(body:not(:has(.workspace))) .faculty-seal {
+    width: 50px;
+    height: 50px;
+  }
+  :where(body:not(:has(.workspace))) .faculty-identity strong {
+    font-size: 16px;
+  }
+  :where(body:not(:has(.workspace))) .login-panel {
+    min-height: calc(100vh - 103px);
+    border: 0;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer {
+    background: white !important;
+    color: #292929 !important;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-title'] {
+    color: #292929;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-description'] {
+    color: #7a6d61;
+  }
+  :where(body:not(:has(.workspace))) .nav-drawer [data-slot='dialog-close'] {
+    color: #292929;
+  }
+}
+:where(body:not(:has(.workspace))) .metrics-panel > form > label {
+  flex: 1 1 170px;
+}
+:where(body:not(:has(.workspace))) .metrics-panel > form > div {
+  flex-wrap: wrap;
+}
+:where(body:not(:has(.workspace))) .operation-form {
+  padding: 24px;
+  max-width: 960px;
+}
+:where(body:not(:has(.workspace))) .operation-form > h2 {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+:where(body:not(:has(.workspace))) .operation-form > p.muted {
+  font-size: 12px;
+}
+:where(body:not(:has(.workspace))) .operation-form > form > fieldset > button[type='submit'] {
+  justify-self: start;
+  min-width: 160px;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body {
+  padding: 24px;
+  overflow: auto;
+  flex: 1;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body .operation-form {
+  padding: 20px;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body form {
+  max-width: none;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body fieldset > fieldset {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body legend {
+  padding: 0 6px;
+}
+@media (max-width: 1100px) {
+}
+@media (max-width: 767px) {
+  :where(body:not(:has(.workspace))) .operation-form {
+    padding: 18px;
+  }
+  :where(body:not(:has(.workspace))) .review-sheet-body {
+    padding: 16px;
+  }
+}
+:where(body:not(:has(.workspace))) .review-sheet-body .operation-form {
+  margin-top: 20px;
+}
+:where(body:not(:has(.workspace)))
+  .review-sheet-body
+  .operation-form
+  [data-slot='button'][type='submit'] {
+  width: 100%;
+}
+@media (max-width: 767px) {
+}
+:where(body:not(:has(.workspace))) .review-sheet-body .grid > section {
+  min-width: 0;
+}
+:where(body:not(:has(.workspace))) .review-sheet-body [data-slot='table'] {
+  min-width: 600px;
+}

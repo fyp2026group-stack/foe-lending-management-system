@@ -1,0 +1,1878 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Laboratory Services · Technical Officer UI Prototype</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --panel: #fff;
+        --text: #18202b;
+        --muted: #687385;
+        --line: #e3e7ec;
+        --accent: #861727;
+        --accent-soft: #f8edef;
+        --green: #26734c;
+        --green-bg: #eaf7ee;
+        --amber: #97600a;
+        --amber-bg: #fff5e3;
+        --blue: #275da7;
+        --blue-bg: #eaf2ff;
+        --radius: 10px;
+        --shadow: 0 6px 24px #18202b07;
+        font-family: Inter, 'Segoe UI', Arial, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        font-size: 13px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.46;
+        cursor: not-allowed;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .topline {
+        position: fixed;
+        z-index: 30;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 27px;
+        background: #751220;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px 0 266px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .sidebar {
+        position: fixed;
+        z-index: 25;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 238px;
+        background: #fff;
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .identity {
+        padding: 24px 17px 20px;
+        border-bottom: 1px solid var(--line);
+        min-height: 116px;
+      }
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .crest {
+        width: 37px;
+        height: 37px;
+        border: 3px solid #e1ae28;
+        border-radius: 100%;
+        display: grid;
+        place-items: center;
+        font-family: Georgia, serif;
+        background: #970c20;
+        color: #ffd65e;
+        font-size: 21px;
+        box-shadow: inset 0 0 0 2px #f6df6f;
+      }
+      .brand strong {
+        display: block;
+        font-size: 13px;
+        letter-spacing: -0.3px;
+      }
+      .brand small {
+        font-size: 9px;
+        color: #7e2933;
+        font-weight: 650;
+      }
+      .identity p {
+        color: var(--muted);
+        font-size: 11px;
+        margin: 16px 0 0;
+      }
+      .sidenav {
+        flex: 1;
+        overflow-y: auto;
+        padding: 13px 10px;
+      }
+      .navgroup {
+        margin: 14px 9px 7px;
+        color: #98a1ae;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        font-weight: 750;
+        font-size: 10px;
+      }
+      .navitem {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        padding: 11px 12px;
+        text-align: left;
+        color: #4c5666;
+        border-radius: 7px;
+        margin: 2px 0;
+        font-weight: 530;
+      }
+      .navitem svg {
+        width: 17px;
+        height: 17px;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .navitem:hover {
+        background: #f4f5f6;
+      }
+      .navitem.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-weight: 740;
+      }
+      .navcount {
+        margin-left: auto;
+        background: #f2f3f5;
+        color: #586477;
+        border-radius: 5px;
+        font-size: 11px;
+        padding: 1px 7px;
+      }
+      .navitem.active .navcount {
+        background: #efdadd;
+        color: var(--accent);
+      }
+      .sidefoot {
+        border-top: 1px solid var(--line);
+        padding: 16px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .main {
+        margin-left: 238px;
+        padding-top: 27px;
+        min-height: 100vh;
+      }
+      .header {
+        height: 62px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        position: sticky;
+        top: 27px;
+        z-index: 15;
+      }
+      .crumb {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+      }
+      .crumb strong {
+        color: #313b49;
+      }
+      .profile {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        height: 33px;
+        width: 33px;
+        border-radius: 50%;
+        background: #f2f3f5;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        color: #566070;
+        font-size: 11px;
+      }
+      .profile b {
+        font-size: 12px;
+      }
+      .profile small {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .content {
+        max-width: 1680px;
+        margin: auto;
+        padding: 29px 34px 60px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 0.095em;
+        color: var(--accent);
+        text-transform: uppercase;
+        font-weight: 800;
+      }
+      .pagehead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .pagehead h1 {
+        font-size: 27px;
+        letter-spacing: -0.7px;
+        line-height: 1.25;
+        margin: 6px 0;
+      }
+      .pagehead p {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+        line-height: 1.5;
+      }
+      .actions {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid #d9dfe7;
+        background: white;
+        color: #344052;
+        padding: 9px 13px;
+        border-radius: 7px;
+        font-weight: 650;
+        min-height: 35px;
+        white-space: nowrap;
+      }
+      .btn svg {
+        height: 15px;
+        width: 15px;
+      }
+      .btn:hover {
+        background: #faf8f8;
+        border-color: #c7b7bb;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: #701220;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .btn.sm {
+        padding: 6px 10px;
+        min-height: 30px;
+        font-size: 12px;
+      }
+      .btn.danger {
+        color: #ae3440;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 11px;
+        margin-bottom: 19px;
+      }
+      .metric {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        min-height: 93px;
+        box-shadow: var(--shadow);
+      }
+      .metricicon {
+        width: 37px;
+        height: 37px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #f3f4f6;
+        color: #536176;
+        flex: none;
+      }
+      .metricicon svg {
+        width: 19px;
+        height: 19px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .metricicon.green {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .metricicon.amber {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .metricicon.red {
+        background: #fff0f0;
+        color: #aa3543;
+      }
+      .metricicon.blue {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
+      .metric strong {
+        display: block;
+        font-size: 24px;
+        letter-spacing: -0.6px;
+        font-weight: 740;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+        gap: 16px;
+      }
+      .panel {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .panelhead {
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .panelhead h2 {
+        font-size: 14px;
+        letter-spacing: -0.1px;
+        margin: 0;
+      }
+      .panelhead p {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 5px 0 0;
+      }
+      .panelbody {
+        padding: 18px;
+      }
+      .panelhead a {
+        font-weight: 650;
+        color: var(--accent);
+        font-size: 12px;
+      }
+      .sectiongap {
+        margin-top: 17px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-weight: 650;
+        white-space: nowrap;
+        background: #f0f2f5;
+        color: #5c6474;
+      }
+      .badge.green {
+        color: var(--green);
+        background: var(--green-bg);
+      }
+      .badge.amber {
+        color: var(--amber);
+        background: var(--amber-bg);
+      }
+      .badge.red {
+        color: #ae3547;
+        background: #fff0f1;
+      }
+      .badge.blue {
+        color: var(--blue);
+        background: var(--blue-bg);
+      }
+      .badge.purple {
+        color: #6e4994;
+        background: #f2eafa;
+      }
+      .toolbar {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .field {
+        min-width: 0;
+        position: relative;
+      }
+      .field.search {
+        flex: 1 1 230px;
+        max-width: 370px;
+      }
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        background: white;
+        border: 1px solid #dce2e8;
+        border-radius: 6px;
+        padding: 9px 11px;
+        color: #273244;
+        min-height: 36px;
+        outline: none;
+      }
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        border-color: #a44d59;
+        box-shadow: 0 0 0 3px #86172718;
+      }
+      .field input::placeholder {
+        color: #929ba8;
+      }
+      .field select {
+        min-width: 138px;
+      }
+      .field label {
+        display: block;
+        font-size: 11px;
+        color: #596676;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .tablewrap {
+        overflow: auto;
+      }
+      .datatable {
+        border-collapse: collapse;
+        width: 100%;
+        text-align: left;
+        font-size: 12px;
+      }
+      .datatable th {
+        padding: 12px 15px;
+        background: #f9fafb;
+        border-bottom: 1px solid var(--line);
+        font-weight: 700;
+        color: #697383;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .datatable td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #edf0f3;
+        vertical-align: middle;
+      }
+      .datatable tr:last-child td {
+        border-bottom: none;
+      }
+      .datatable tbody tr:hover {
+        background: #fbfcfd;
+      }
+      .datatable .name {
+        font-weight: 720;
+        color: #233042;
+      }
+      .sub {
+        display: block;
+        color: #7b8794;
+        font-size: 11px;
+        margin-top: 3px;
+        line-height: 1.4;
+      }
+      .tablefoot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .statline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 13px 0;
+        border-bottom: 1px solid var(--line);
+        gap: 12px;
+      }
+      .statline:last-child {
+        border: 0;
+      }
+      .statline strong {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .statline span {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .listrows {
+        padding: 0 18px;
+      }
+      .listrow {
+        padding: 15px 0;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+      }
+      .listrow:last-child {
+        border: 0;
+      }
+      .listrow .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .listrow b {
+        font-size: 12px;
+      }
+      .listrow p {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 4px 0 0;
+      }
+      .miniicon {
+        display: grid;
+        place-items: center;
+        background: #f2f4f6;
+        color: #596578;
+        width: 34px;
+        height: 34px;
+        border-radius: 7px;
+      }
+      .miniicon svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .tabs {
+        display: flex;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        margin: 0 0 17px;
+        padding: 0 1px;
+        overflow: auto;
+      }
+      .tab {
+        border: 0;
+        background: transparent;
+        color: #637083;
+        font-weight: 650;
+        padding: 11px 5px 12px;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+      }
+      .tab.active {
+        border-bottom-color: var(--accent);
+        color: var(--accent);
+      }
+      .inlinehint {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 0 16px 12px;
+      }
+      .notice {
+        padding: 12px 15px;
+        border: 1px solid #dbe5ee;
+        border-radius: 8px;
+        background: #f7fafc;
+        color: #576678;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .detailgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .detailgrid .full {
+        grid-column: 1/-1;
+      }
+      .detailgrid label {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .detailgrid strong {
+        font-size: 13px;
+      }
+      .drawerbackdrop {
+        position: fixed;
+        inset: 0;
+        background: #101b2d66;
+        z-index: 45;
+        display: none;
+      }
+      .drawerbackdrop.open {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        z-index: 50;
+        right: 0;
+        top: 0;
+        height: 100vh;
+        width: min(590px, 100%);
+        background: #fff;
+        box-shadow: -16px 0 40px #0002;
+        transform: translateX(105%);
+        transition: transform 0.22s ease;
+        display: flex;
+        flex-direction: column;
+      }
+      .drawer.open {
+        transform: translateX(0);
+      }
+      .drawhead {
+        padding: 23px 24px 19px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 10px;
+      }
+      .drawhead h2 {
+        font-size: 21px;
+        margin: 7px 0;
+      }
+      .drawhead p {
+        color: var(--muted);
+        margin: 0;
+        font-size: 12px;
+      }
+      .drawbody {
+        flex: 1;
+        overflow: auto;
+        padding: 22px 24px;
+      }
+      .drawfooter {
+        padding: 16px 24px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+      }
+      .formgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .formgrid .wide {
+        grid-column: 1/-1;
+      }
+      .formgrid label {
+        display: block;
+        font-size: 12px;
+        font-weight: 650;
+        margin-bottom: 6px;
+      }
+      .formgrid input,
+      .formgrid textarea,
+      .formgrid select {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid #dce1e7;
+        border-radius: 6px;
+        padding: 10px;
+        outline: none;
+      }
+      .formgrid textarea {
+        min-height: 85px;
+        resize: vertical;
+      }
+      .formgrid .helper {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 5px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .divider {
+        height: 1px;
+        background: var(--line);
+        margin: 19px 0;
+      }
+      .flowsteps {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 15px 0 21px;
+        flex-wrap: wrap;
+      }
+      .step {
+        font-size: 11px;
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        border-radius: 6px;
+        background: #fafbfc;
+        color: #6a7482;
+      }
+      .step.current {
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-color: #edcfd5;
+      }
+      .mobilemenu {
+        display: none;
+      }
+      .toast {
+        position: fixed;
+        right: 22px;
+        bottom: 20px;
+        background: #263344;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 12px 34px #0003;
+        display: none;
+        z-index: 80;
+        max-width: 340px;
+      }
+      .toast.show {
+        display: block;
+      }
+      .quicklinks {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .quicklink {
+        padding: 15px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        cursor: pointer;
+        background: white;
+        text-align: left;
+      }
+      .quicklink:hover {
+        border-color: #b77882;
+        background: #fffaf9;
+      }
+      .quicklink b {
+        display: block;
+        margin: 8px 0 4px;
+      }
+      .quicklink small {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .pillcount {
+        border-radius: 100px;
+        padding: 3px 9px;
+        background: #fff0f1;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 750;
+      }
+      .empty {
+        padding: 35px 15px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .empty b {
+        display: block;
+        color: #2d3a4a;
+        margin-bottom: 6px;
+      }
+      .demo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #fffaeb;
+        border: 1px solid #f2e0a4;
+        border-radius: 5px;
+        padding: 4px 8px;
+        color: #8a6a11;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .mobileoverlay {
+        display: none;
+      }
+      @media (max-width: 1250px) {
+        .kpis {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .grid3 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .grid3 > :last-child {
+          grid-column: 1/-1;
+        }
+        .content {
+          padding: 24px;
+        }
+        .field.search {
+          max-width: none;
+        }
+      }
+      @media (max-width: 900px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .sidebar {
+          transform: translateX(-105%);
+          transition: transform 0.2s;
+          z-index: 44;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .mobileoverlay.open {
+          display: block;
+          position: fixed;
+          inset: 0;
+          background: #0005;
+          z-index: 40;
+        }
+        .main {
+          margin-left: 0;
+        }
+        .topline {
+          padding-left: 18px;
+        }
+        .header {
+          padding: 0 18px;
+        }
+        .content {
+          padding: 22px 17px;
+        }
+        .mobilemenu {
+          display: inline-flex;
+        }
+        .profile b,
+        .profile small {
+          display: none;
+        }
+      }
+      @media (max-width: 600px) {
+        .pagehead {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .pagehead h1 {
+          font-size: 23px;
+        }
+        .kpis {
+          gap: 8px;
+        }
+        .metric {
+          padding: 12px;
+          min-height: 78px;
+        }
+        .metric strong {
+          font-size: 20px;
+        }
+        .metricicon {
+          width: 30px;
+          height: 30px;
+        }
+        .metricicon svg {
+          width: 16px;
+          height: 16px;
+        }
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+        .grid3 > :last-child {
+          grid-column: auto;
+        }
+        .quicklinks {
+          grid-template-columns: 1fr;
+        }
+        .topline {
+          font-size: 9px;
+        }
+        .topline span:last-child {
+          display: none;
+        }
+        .content {
+          padding: 18px 12px;
+        }
+        .formgrid {
+          grid-template-columns: 1fr;
+        }
+        .formgrid .wide {
+          grid-column: auto;
+        }
+        .drawer {
+          width: 100%;
+        }
+        .header {
+          height: 55px;
+        }
+        .tablewrap {
+          overflow-x: auto;
+        }
+        .datatable {
+          min-width: 710px;
+        }
+        .toolbar .field {
+          flex: 1 1 140px;
+        }
+        .toolbar .field.search {
+          flex-basis: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <symbol id="i-grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </symbol>
+      <symbol id="i-package" viewBox="0 0 24 24">
+        <path d="m12 2 9 5-9 5-9-5 9-5ZM3 7v10l9 5 9-5V7M12 12v10" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M18 12H6m6 6-6-6 6-6" /></symbol>
+      <symbol id="i-clipboard" viewBox="0 0 24 24">
+        <rect x="5" y="4" width="14" height="18" rx="2" />
+        <path d="M9 4V2h6v2m-6 7h6m-6 4h6" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v6l4 2" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="m12 3 10 18H2L12 3Zm0 6v5m0 4h.01" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10" cy="10" r="7" />
+        <path d="m15.5 15.5 6 6" />
+      </symbol>
+      <symbol id="i-user" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M6 2h9l5 5v15H6V2Zm9 0v6h5M9 12h8m-8 4h8" />
+      </symbol>
+      <symbol id="i-tool" viewBox="0 0 24 24">
+        <path d="M14 6a6 6 0 0 0-7 7L2 18l4 4 5-5a6 6 0 0 0 7-7l-4 3-3-3 3-4Z" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19" /></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7" />
+      </symbol>
+      <symbol id="i-boxes" viewBox="0 0 24 24">
+        <path
+          d="M3 7 8 4l5 3-5 3-5-3Zm0 0v6l5 3 5-3V7M8 10v6m5-7 4-3 4 3-4 3-4-3Zm0 0v6l4 3 4-3V9m-4 3v7"
+        />
+      </symbol>
+    </svg>
+    <div class="topline">
+      <span>UNIVERSITY OF SRI JAYEWARDENEPURA</span><span>FACULTY OF ENGINEERING</span>
+    </div>
+    <div class="mobileoverlay" id="overlay" onclick="toggleMenu(false)"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="identity">
+        <div class="brand">
+          <div class="crest">✺</div>
+          <div>
+            <small>University of Sri Jayewardenepura</small><strong>Faculty of Engineering</strong
+            ><small>Laboratory Services</small>
+          </div>
+        </div>
+        <p>Equipment & Inventory Operations</p>
+      </div>
+      <nav class="sidenav">
+        <div class="navgroup">OPERATIONS</div>
+        <button class="navitem active" data-page="dashboard">
+          <svg><use href="#i-grid" /></svg>Operations Dashboard
+        </button>
+        <button class="navitem" data-page="handovers">
+          <svg><use href="#i-package" /></svg>Equipment Handovers<span class="navcount">3</span>
+        </button>
+        <button class="navitem" data-page="returns">
+          <svg><use href="#i-back" /></svg>Receive Returns<span class="navcount">4</span>
+        </button>
+        <button class="navitem" data-page="inspections">
+          <svg><use href="#i-check" /></svg>Inspections<span class="navcount">2</span>
+        </button>
+        <div class="navgroup">INVENTORY</div>
+        <button class="navitem" data-page="inventory">
+          <svg><use href="#i-boxes" /></svg>Inventory Catalogue
+        </button>
+        <button class="navitem" data-page="stock">
+          <svg><use href="#i-clipboard" /></svg>Stock Operations
+        </button>
+        <button class="navitem" data-page="imports">
+          <svg><use href="#i-file" /></svg>Receipt Imports
+        </button>
+        <div class="navgroup">MY BORROWING</div>
+        <button class="navitem" data-page="myrequests">
+          <svg><use href="#i-list" /></svg>My Requests
+        </button>
+        <button class="navitem" data-page="myborrowed">
+          <svg><use href="#i-package" /></svg>Borrowed Equipment
+        </button>
+        <div class="navgroup">REFERENCE</div>
+        <button class="navitem" data-page="history">
+          <svg><use href="#i-clock" /></svg>Activity & History
+        </button>
+      </nav>
+      <div class="sidefoot">
+        <div class="miniicon">
+          <svg><use href="#i-tool" /></svg>
+        </div>
+        <span>Laboratory Services<br />Faculty of Engineering</span>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="header">
+        <div class="crumb">
+          <button
+            class="btn ghost mobilemenu"
+            onclick="toggleMenu(true)"
+            aria-label="Open navigation"
+          >
+            ☰</button
+          ><span>Laboratory Services</span><span>›</span
+          ><strong id="breadcrumb">Operations Dashboard</strong>
+        </div>
+        <div class="profile">
+          <div class="demo">● DEMO DATA</div>
+          <div class="avatar">TO</div>
+          <div><b>Technical Officer</b><small>Electronics & Instrumentation Labs</small></div>
+        </div>
+      </header>
+      <main class="content" id="view"></main>
+    </div>
+    <div class="drawerbackdrop" id="backdrop" onclick="closeDrawer()"></div>
+    <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawhead">
+        <div>
+          <span class="eyebrow" id="drawerLabel">OPERATION</span>
+          <h2 id="drawerTitle">Review record</h2>
+          <p id="drawerSubtitle">Confirm the relevant details</p>
+        </div>
+        <button class="btn ghost" onclick="closeDrawer()" aria-label="Close panel">
+          <svg width="16" height="16"><use href="#i-x" /></svg>
+        </button>
+      </div>
+      <div class="drawbody" id="drawerBody"></div>
+      <div class="drawfooter" id="drawerFooter"></div>
+    </aside>
+    <div class="toast" id="toast" role="status"></div>
+    <script>
+      // Prototype-only source. No backend. All data and actions below are illustrative; never migrate as real records.
+      const icon = (name, size = 16) =>
+        `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+      const requests = [
+        {
+          id: 'REQ-2026-0214',
+          person: 'Student · 23ENG074',
+          item: 'Digital Oscilloscope',
+          lab: 'Electronics Lab',
+          qty: 1,
+          due: '15 Nov 2026',
+          status: 'Ready',
+          code: 'AS-0064',
+          purpose: 'Instrumentation practical',
+        },
+        {
+          id: 'REQ-2026-0212',
+          person: 'Student · 23ENG021',
+          item: 'Digital Multimeter',
+          lab: 'Electronics Lab',
+          qty: 2,
+          due: '15 Nov 2026',
+          status: 'Ready',
+          code: 'Unidentified stock',
+          purpose: 'Circuit measurement',
+        },
+        {
+          id: 'REQ-2026-0209',
+          person: 'Lecturer · Dr. R. Perera',
+          item: 'Logic Analyzer',
+          lab: 'Instrumentation Lab',
+          qty: 1,
+          due: '18 Nov 2026',
+          status: 'Ready',
+          code: 'AS-0112',
+          purpose: 'Module demonstration',
+        },
+      ];
+      const borrowed = [
+        {
+          id: 'BOR-2026-0082',
+          person: 'Student · 23ENG036',
+          item: 'Digital Oscilloscope',
+          code: 'AS-0052',
+          lab: 'Electronics Lab',
+          qty: 1,
+          due: '09 Nov 2026',
+          status: 'Overdue',
+        },
+        {
+          id: 'BOR-2026-0084',
+          person: 'Student · 23ENG104',
+          item: 'Digital Multimeter',
+          code: 'AS-0044',
+          lab: 'Electronics Lab',
+          qty: 1,
+          due: '10 Nov 2026',
+          status: 'Due today',
+        },
+        {
+          id: 'BOR-2026-0088',
+          person: 'Lecturer · Dr. S. Silva',
+          item: 'Function Generator',
+          code: 'AS-0028',
+          lab: 'Instrumentation Lab',
+          qty: 1,
+          due: '16 Nov 2026',
+          status: 'Borrowed',
+        },
+        {
+          id: 'BOR-2026-0091',
+          person: 'Student · 22ENG118',
+          item: 'Arduino Uno',
+          code: 'AS-0191',
+          lab: 'Electronics Lab',
+          qty: 2,
+          due: '18 Nov 2026',
+          status: 'Borrowed',
+        },
+      ];
+      const stock = [
+        {
+          name: 'Digital Multimeter',
+          sku: 'EQ-MLT-001',
+          category: 'Electrical Measurement',
+          lab: 'Electronics Lab',
+          type: 'Returnable',
+          total: 18,
+          avail: 10,
+          res: 2,
+          out: 4,
+          inspect: 1,
+          maint: 1,
+        },
+        {
+          name: 'Digital Oscilloscope',
+          sku: 'EQ-OSC-004',
+          category: 'Signal Analysis',
+          lab: 'Electronics Lab',
+          type: 'Returnable',
+          total: 8,
+          avail: 3,
+          res: 1,
+          out: 3,
+          inspect: 1,
+          maint: 0,
+        },
+        {
+          name: 'Function Generator',
+          sku: 'EQ-FGN-003',
+          category: 'Signal Generation',
+          lab: 'Instrumentation Lab',
+          type: 'Returnable',
+          total: 9,
+          avail: 5,
+          res: 1,
+          out: 2,
+          inspect: 0,
+          maint: 1,
+        },
+        {
+          name: 'Arduino Uno',
+          sku: 'EQ-MCU-013',
+          category: 'Microcontrollers',
+          lab: 'Electronics Lab',
+          type: 'Returnable',
+          total: 32,
+          avail: 22,
+          res: 4,
+          out: 6,
+          inspect: 0,
+          maint: 0,
+        },
+        {
+          name: 'Resistor Kit',
+          sku: 'EQ-CMP-018',
+          category: 'Components',
+          lab: 'Electronics Lab',
+          type: 'Consumable',
+          total: 120,
+          avail: 120,
+          res: 0,
+          out: 0,
+          inspect: 0,
+          maint: 0,
+        },
+      ];
+      const inspections = [
+        {
+          id: 'RET-2026-0122',
+          item: 'Digital Multimeter',
+          asset: 'AS-0021',
+          person: 'Student · 23ENG017',
+          lab: 'Electronics Lab',
+          received: '10 Nov · 10:45',
+          note: 'Screen and probes appear intact',
+          status: 'Awaiting inspection',
+        },
+        {
+          id: 'RET-2026-0120',
+          item: 'Function Generator',
+          asset: 'AS-0030',
+          person: 'Student · 22ENG078',
+          lab: 'Instrumentation Lab',
+          received: '10 Nov · 09:10',
+          note: 'Output knob requires further review',
+          status: 'Awaiting inspection',
+        },
+      ];
+      const pageMeta = {
+        dashboard: [
+          'Operations Dashboard',
+          'Your laboratory operations at a glance. Review pending work and process equipment efficiently.',
+        ],
+        inventory: [
+          'Inventory Catalogue',
+          'Manage the equipment catalogue and stock in your assigned laboratories.',
+        ],
+        handovers: [
+          'Equipment Handovers',
+          'Verify approved reservations and record physical equipment collection.',
+        ],
+        returns: [
+          'Receive Returns',
+          'Find borrowed equipment, verify items and record physical receipt.',
+        ],
+        inspections: [
+          'Equipment Inspections',
+          'Assess returned equipment before releasing it back into available stock.',
+        ],
+        stock: [
+          'Stock Operations',
+          'Receive stock, record movements and propose quantity adjustments.',
+        ],
+        imports: [
+          'Receipt Imports',
+          'Validate and stage inventory receipts before committing changes.',
+        ],
+        myrequests: ['My Requests', 'Request equipment for your own academic or laboratory work.'],
+        myborrowed: ['My Borrowed Equipment', 'View your own borrowed equipment and return dates.'],
+        history: [
+          'Activity & History',
+          'Review authorized equipment movements, handovers and return history.',
+        ],
+      };
+      const header = (title, desc, buttons = '') =>
+        `<div class="pagehead"><div><div class="eyebrow">LABORATORY OPERATIONS</div><h1>${title}</h1><p>${desc}</p></div><div class="actions">${buttons}</div></div>`;
+      const btn = (text, fn, cls = '') =>
+        `<button class="btn ${cls}" onclick="${fn}">${text}</button>`;
+      const badge = (s) =>
+        `<span class="badge ${/overdue|damage|reject/i.test(s) ? 'red' : /ready|available|passed|cleared/i.test(s) ? 'green' : /await|due today|pending|inspection/i.test(s) ? 'amber' : /borrowed|reserved/i.test(s) ? 'blue' : ''}">${s}</span>`;
+      const panel = (title, body, more = '', subtitle = '') =>
+        `<section class="panel"><div class="panelhead"><div><h2>${title}</h2>${subtitle ? `<p>${subtitle}</p>` : ''}</div>${more}</div>${body}</section>`;
+      const tabstrip = (items, active) =>
+        `<div class="tabs">${items.map(([label, page]) => `<button class="tab ${page === active ? 'active' : ''}" onclick="navigate('${page}')">${label}</button>`).join('')}</div>`;
+      const tables = (headers, rows) =>
+        `<div class="tablewrap"><table class="datatable"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || `<tr><td colspan="${headers.length}"><div class="empty"><b>No matching records</b>Try changing your search or filters.</div></td></tr>`}</tbody></table></div>`;
+      const foot = (count) =>
+        `<div class="tablefoot"><span id="rowCount">${count} records · Demo dataset</span><span>Rows per page: 10 &nbsp; <button class="btn sm" disabled>Previous</button> &nbsp; 1 / 1 &nbsp; <button class="btn sm" disabled>Next</button></span></div>`;
+      const toolbar = (placeholder = 'Search item, borrower or reference...') =>
+        `<div class="toolbar"><div class="field search"><input class="searchbox" placeholder="${placeholder}" aria-label="Search records" oninput="applyFilters()"></div><div class="field"><select class="labfilter" onchange="applyFilters()"><option value="">All assigned laboratories</option><option>Electronics Lab</option><option>Instrumentation Lab</option></select></div><div class="field"><select class="statusfilter" onchange="applyFilters()"><option value="">All statuses</option><option>Ready</option><option>Overdue</option><option>Borrowed</option><option>Awaiting inspection</option></select></div><button class="btn sm" onclick="resetFilters()">Reset</button></div>`;
+      const dashboard = () => {
+        const metrics = [
+          ['Ready for handover', '3', 'package', 'blue', 'handovers'],
+          ['Returns due / overdue', '2', 'clock', 'amber', 'returns'],
+          ['Awaiting inspection', '2', 'check', 'red', 'inspections'],
+          ['Stock requiring attention', '2', 'alert', 'amber', 'inventory'],
+          ['Completed today', '7', 'check', 'green', 'history'],
+        ];
+        const metricsHTML = `<div class="kpis">${metrics.map(([label, num, ico, color, page]) => `<button class="metric" style="text-align:left" onclick="navigate('${page}')"><div class="metricicon ${color}">${icon(ico, 19)}</div><div><span>${label}</span><strong>${num}</strong></div></button>`).join('')}</div>`;
+        const priorities = [
+          [
+            'Handovers ready for collection',
+            'Verify borrower, approved items and asset IDs',
+            'handovers',
+            'Ready',
+          ],
+          [
+            'Returns awaiting inspection',
+            'Clear usable equipment or record damage',
+            'inspections',
+            'Pending',
+          ],
+          [
+            'Overdue equipment needs follow-up',
+            'Review expected return dates and borrowers',
+            'returns',
+            'Overdue',
+          ],
+          [
+            'Low availability items',
+            'Inspect current laboratory stock balances',
+            'inventory',
+            'Review',
+          ],
+        ];
+        const priorityContent = `<div class="listrows">${priorities.map(([t, d, p, st]) => `<div class="listrow"><div class="miniicon">${icon('clipboard')}</div><div class="body"><b>${t}</b><p>${d}</p></div>${badge(st)}${btn('Open', `navigate('${p}')`, 'sm')}</div>`).join('')}</div>`;
+        const readyRows = requests.map(
+          (r, i) =>
+            `<tr><td><span class="name">${r.id}</span><span class="sub">${r.lab}</span></td><td>${r.person}</td><td>${r.item}</td><td>${r.qty}</td><td>${btn('Process', `openOperation('handover',${i})`, 'sm')}</td></tr>`
+        );
+        const readyContent =
+          tables(['Request', 'Borrower', 'Equipment', 'Qty', 'Action'], readyRows) +
+          `<div class="tablefoot">${btn('View all handovers', `navigate('handovers')`, 'sm')}</div>`;
+        const returnContent = `<div class="listrows">${borrowed
+          .slice(0, 3)
+          .map(
+            (b) =>
+              `<div class="statline"><div><strong>${b.item}</strong><span>${b.person} · Due ${b.due}</span></div>${badge(b.status)}</div>`
+          )
+          .join('')}</div>`;
+        const stockContent = `<div class="panelbody"><div class="detailgrid"><div><label>Available units</label><strong>160</strong></div><div><label>Reserved units</label><strong>8</strong></div><div><label>Borrowed units</label><strong>15</strong></div><div><label>Inspection / maintenance</label><strong>4</strong></div></div><div class="divider"></div><div class="notice">Illustrative quantities only. Production balances must derive from authorized inventory accounting.</div></div>`;
+        const links = [
+          ['Process handover', 'handovers', 'package'],
+          ['Receive return', 'returns', 'back'],
+          ['Inspect item', 'inspections', 'check'],
+          ['Stock receipt', 'stock', 'plus'],
+          ['Inventory', 'inventory', 'boxes'],
+          ['My requests', 'myrequests', 'file'],
+        ];
+        const quickContent = `<div class="panelbody"><div class="quicklinks">${links.map(([t, p, ico]) => `<button class="quicklink" onclick="navigate('${p}')">${icon(ico, 18)}<b>${t}</b><small>Open workspace →</small></button>`).join('')}</div></div>`;
+        return (
+          header(
+            'Technical officer workspace',
+            'Manage handovers, returns, inspections and stock across your assigned laboratories.',
+            btn(`${icon('plus')} Record stock receipt`, `openOperation('receipt')`, 'primary')
+          ) +
+          metricsHTML +
+          `<div class="grid2">${panel('Priority work queue', priorityContent, '<span class="pillcount">8 actions</span>', 'Work that needs action in your assigned labs')}${panel('Ready for handover', readyContent, '', 'Assigned laboratory reservations')}</div>` +
+          `<div class="grid3 sectiongap">${panel('Upcoming & overdue returns', returnContent, '<a href="#returns" onclick="navigate(\'returns\');return false">View returns →</a>')}${panel('Inventory snapshot', stockContent, '<a href="#inventory" onclick="navigate(\'inventory\');return false">View inventory →</a>')}${panel('Quick actions', quickContent, '', 'Task-oriented shortcuts')}</div>`
+        );
+      };
+      const handovers = () =>
+        header(...pageMeta.handovers, btn('View handover history', `navigate('history')`)) +
+        `<div class="kpis">${[
+          ['Ready for collection', '3', 'package', 'green'],
+          ['Items reserved', '4', 'boxes', 'blue'],
+          ['Handover today', '2', 'check', 'green'],
+          ['Awaiting stock', '1', 'clock', 'amber'],
+        ]
+          .map(
+            ([t, v, i, c]) =>
+              `<div class="metric"><div class="metricicon ${c}">${icon(i)}</div><div><span>${t}</span><strong>${v}</strong></div></div>`
+          )
+          .join('')}</div>` +
+        panel(
+          'Approved requests ready for collection',
+          toolbar('Search reference, borrower, equipment...') +
+            `<div class="tableholder">${tables(
+              [
+                'Request / Lab',
+                'Borrower',
+                'Equipment',
+                'Reserved',
+                'Asset / Identification',
+                'Collection',
+                'Action',
+              ],
+              requests.map(
+                (r, i) =>
+                  `<tr data-record data-lab="${r.lab}" data-status="${r.status}"><td><span class="name">${r.id}</span><span class="sub">${r.lab}</span></td><td>${r.person}</td><td>${r.item}</td><td>${r.qty}</td><td><span class="sub">${r.code}</span></td><td>${badge('Ready')}</td><td>${btn('Verify & handover', `openOperation('handover',${i})`, 'sm primary')}</td></tr>`
+              )
+            )}</div>` +
+            foot(requests.length),
+          '',
+          'Verify identity and actual equipment before creating a borrowing record'
+        );
+      const returns = () =>
+        header(...pageMeta.returns, btn('View inspection queue', `navigate('inspections')`)) +
+        `<div class="kpis">${[
+          ['Outstanding records', '4', 'clipboard', 'blue'],
+          ['Due today', '1', 'clock', 'amber'],
+          ['Overdue', '1', 'alert', 'red'],
+          ['Received today', '2', 'check', 'green'],
+        ]
+          .map(
+            ([t, v, i, c]) =>
+              `<div class="metric"><div class="metricicon ${c}">${icon(i)}</div><div><span>${t}</span><strong>${v}</strong></div></div>`
+          )
+          .join('')}</div>` +
+        panel(
+          'Equipment currently held by borrowers',
+          toolbar('Search borrower, equipment, asset ID...') +
+            `<div class="tableholder">${tables(
+              [
+                'Borrowing reference',
+                'Borrower',
+                'Item / Asset',
+                'Laboratory',
+                'Expected return',
+                'Outstanding',
+                'Status',
+                'Action',
+              ],
+              borrowed.map(
+                (r, i) =>
+                  `<tr data-record data-lab="${r.lab}" data-status="${r.status}"><td><span class="name">${r.id}</span></td><td>${r.person}</td><td><span class="name">${r.item}</span><span class="sub">${r.code}</span></td><td>${r.lab}</td><td>${r.due}</td><td>${r.qty}</td><td>${badge(r.status)}</td><td>${btn('Receive', `openOperation('return',${i})`, 'sm primary')}</td></tr>`
+              )
+            )}</div>` +
+            foot(borrowed.length),
+          '',
+          'Physical receipt is recorded separately from inspection clearance'
+        );
+      const inspect = () =>
+        header(...pageMeta.inspections, btn('Inventory status', `navigate('inventory')`)) +
+        `<div class="kpis">${[
+          ['Awaiting inspection', '2', 'clipboard', 'amber'],
+          ['Cleared today', '3', 'check', 'green'],
+          ['Needs maintenance', '1', 'tool', 'red'],
+        ]
+          .map(
+            ([t, v, i, c]) =>
+              `<div class="metric"><div class="metricicon ${c}">${icon(i)}</div><div><span>${t}</span><strong>${v}</strong></div></div>`
+          )
+          .join('')}</div>` +
+        panel(
+          'Returned equipment awaiting condition clearance',
+          toolbar('Search return reference, equipment, asset...') +
+            `<div class="tableholder">${tables(
+              [
+                'Return reference',
+                'Equipment / Asset',
+                'Former borrower',
+                'Laboratory',
+                'Received',
+                'Status',
+                'Action',
+              ],
+              inspections.map(
+                (r, i) =>
+                  `<tr data-record data-lab="${r.lab}" data-status="${r.status}"><td><span class="name">${r.id}</span></td><td><span class="name">${r.item}</span><span class="sub">${r.asset}</span></td><td>${r.person}</td><td>${r.lab}</td><td>${r.received}</td><td>${badge(r.status)}</td><td>${btn('Inspect item', `openOperation('inspect',${i})`, 'sm primary')}</td></tr>`
+              )
+            )}</div>` +
+            foot(inspections.length),
+          '',
+          'An item stays unavailable until authorized inspection clearance'
+        );
+      const inventory = () =>
+        header(
+          ...pageMeta.inventory,
+          btn(`${icon('plus')} Add catalogue item`, `openOperation('additem')`, 'primary') +
+            btn('Record receipt', `openOperation('receipt')`)
+        ) +
+        `<div class="kpis">${[
+          ['Catalogue items', '5', 'boxes', 'blue'],
+          ['Available units', '160', 'package', 'green'],
+          ['Reserved units', '8', 'clock', 'amber'],
+          ['Borrowed units', '15', 'back', 'blue'],
+          ['Inspection / maintenance', '4', 'tool', 'red'],
+        ]
+          .map(
+            ([t, v, i, c]) =>
+              `<div class="metric"><div class="metricicon ${c}">${icon(i)}</div><div><span>${t}</span><strong>${v}</strong></div></div>`
+          )
+          .join('')}</div>` +
+        tabstrip(
+          [
+            ['Catalogue', 'inventory'],
+            ['Stock operations', 'stock'],
+            ['Receipt imports', 'imports'],
+          ],
+          'inventory'
+        ) +
+        panel(
+          'Laboratory inventory',
+          `<div class="toolbar"><div class="field search"><input class="searchbox" placeholder="Search item, code or category..." oninput="applyFilters()" aria-label="Search inventory"></div><div class="field"><select class="labfilter" onchange="applyFilters()"><option value="">All assigned laboratories</option><option>Electronics Lab</option><option>Instrumentation Lab</option></select></div><div class="field"><select class="categoryfilter" onchange="applyFilters()"><option value="">All categories</option>${[...new Set(stock.map((s) => s.category))].map((c) => `<option>${c}</option>`).join('')}</select></div><button class="btn sm" onclick="resetFilters()">Reset</button></div><div class="tableholder">${tables(
+            [
+              'Equipment',
+              'Category',
+              'Laboratory',
+              'Available',
+              'Reserved',
+              'Borrowed',
+              'Inspection',
+              'Maintenance',
+              'Action',
+            ],
+            stock.map(
+              (r, i) =>
+                `<tr data-record data-lab="${r.lab}" data-category="${r.category}"><td><span class="name">${r.name}</span><span class="sub">${r.sku} · ${r.type}</span></td><td>${r.category}</td><td>${r.lab}</td><td><strong>${r.avail}</strong></td><td>${r.res}</td><td>${r.out}</td><td>${r.inspect}</td><td>${r.maint}</td><td>${btn('View details', `openOperation('item',${i})`, 'sm')}</td></tr>`
+            )
+          )}</div>` + foot(stock.length),
+          '',
+          'Item-level stock states are shown separately; avoid mixing physical units with consumable units'
+        );
+      const stockpage = () =>
+        header(
+          ...pageMeta.stock,
+          btn(`${icon('plus')} Record stock receipt`, `openOperation('receipt')`, 'primary') +
+            btn('Propose adjustment', `openOperation('adjust')`)
+        ) +
+        tabstrip(
+          [
+            ['Catalogue', 'inventory'],
+            ['Stock operations', 'stock'],
+            ['Receipt imports', 'imports'],
+          ],
+          'stock'
+        ) +
+        `<div class="grid2">${panel(
+          'Common stock operations',
+          `<div class="listrows">${[
+            ['Record stock receipt', 'Increase recorded stock with receipt evidence', 'receipt'],
+            [
+              'Identify physical asset',
+              'Register an asset ID against returnable stock',
+              'identify',
+            ],
+            ['Propose stock adjustment', 'Requires independent authorization', 'adjust'],
+            ['Review stock movements', 'Browse ledger history for assigned labs', 'history'],
+          ]
+            .map(
+              ([t, d, a]) =>
+                `<div class="listrow"><div class="miniicon">${icon('boxes')}</div><div class="body"><b>${t}</b><p>${d}</p></div>${btn('Open', a === 'history' ? `navigate('history')` : `openOperation('${a}')`, 'sm')}</div>`
+            )
+            .join('')}</div>`,
+          '',
+          'No self-approval of stock adjustments'
+        )}${panel(
+          'Recent inventory activity',
+          `<div class="listrows">${[
+            ['STK-2026-0312', 'Stock receipt recorded · Arduino Uno', '10 Nov · 11:15'],
+            ['STK-2026-0308', 'Asset identified · Multimeter', '10 Nov · 09:32'],
+            ['STK-2026-0302', 'Equipment moved to inspection', '09 Nov · 16:41'],
+          ]
+            .map(
+              ([id, t, d]) =>
+                `<div class="statline"><div><strong>${id}</strong><span>${t}</span></div><span>${d}</span></div>`
+            )
+            .join('')}</div>`,
+          '',
+          'Illustrative inventory-only events'
+        )}</div>`;
+      const imports = () =>
+        header(
+          ...pageMeta.imports,
+          btn('Stage receipt import', `openOperation('import')`, 'primary')
+        ) +
+        panel(
+          'Receipt import workflow',
+          `<div class="panelbody"><div class="flowsteps"><span class="step current">1. Upload CSV/XLSX</span><span class="step">2. Validate</span><span class="step">3. Preview</span><span class="step">4. Commit</span></div><div class="notice">Prototype only. The real import must validate item identity, laboratory, quantities, duplicates, permissions and stock conservation using the existing backend before commit.</div><div class="sectiongap">${btn('Choose file / stage import', `openOperation('import')`, 'primary')}</div></div>`,
+          '',
+          'Controlled, auditable inventory receipt imports'
+        );
+      const myrequests = () =>
+        header(
+          ...pageMeta.myrequests,
+          btn('New borrowing request', `openOperation('request')`, 'primary')
+        ) +
+        panel(
+          'Requests created by you',
+          `<div class="empty"><b>No demonstration personal requests</b>Technical officers can borrow according to the same item-specific approval policies as other roles.<div style="margin-top:15px">${btn('Create a request', `openOperation('request')`, 'primary')}</div></div>`,
+          '',
+          'Self-approval and self-handover remain prohibited'
+        );
+      const myborrowed = () =>
+        header(...pageMeta.myborrowed, btn('My Requests', `navigate('myrequests')`)) +
+        panel(
+          'Equipment currently borrowed by you',
+          `<div class="empty"><b>No demonstration personal borrowing records</b>Your issued equipment, expected return dates and history will appear here.</div>`
+        );
+      const history = () =>
+        header(...pageMeta.history, btn('Inventory catalogue', `navigate('inventory')`)) +
+        panel(
+          'Recent operational events',
+          toolbar('Search reference or operation...') +
+            tables(
+              ['Reference', 'Event', 'Equipment / Borrower', 'When', 'Outcome'],
+              [
+                [
+                  'HO-2026-0142',
+                  'Equipment handover',
+                  'Digital Multimeter · 23ENG083',
+                  '10 Nov · 12:30',
+                  'Recorded',
+                ],
+                [
+                  'RET-2026-0122',
+                  'Return received',
+                  'Digital Multimeter · 23ENG017',
+                  '10 Nov · 10:45',
+                  'Inspection',
+                ],
+                [
+                  'STK-2026-0312',
+                  'Stock receipt',
+                  'Arduino Uno · Electronics Lab',
+                  '10 Nov · 11:15',
+                  'Recorded',
+                ],
+              ].map(
+                ([a, b, c, d, e]) =>
+                  `<tr data-record><td class="name">${a}</td><td>${b}</td><td>${c}</td><td>${d}</td><td>${badge(e)}</td></tr>`
+              )
+            ) +
+            foot(3),
+          '',
+          'Security login/logout events are excluded from the operational activity view'
+        );
+      const pages = {
+        dashboard,
+        inventory,
+        handovers,
+        returns,
+        inspections,
+        stock: stockpage,
+        imports,
+        myrequests,
+        myborrowed,
+        history,
+      };
+      let current = 'dashboard';
+      function navigate(page) {
+        current = pages[page] ? page : 'dashboard';
+        document
+          .querySelectorAll('.navitem')
+          .forEach((b) => b.classList.toggle('active', b.dataset.page === current));
+        document.getElementById('breadcrumb').textContent = pageMeta[current][0];
+        document.getElementById('view').innerHTML = pages[current]();
+        window.scrollTo(0, 0);
+        toggleMenu(false);
+        window.history.replaceState(null, '', '#' + page);
+      }
+      function toggleMenu(open) {
+        document.getElementById('sidebar').classList.toggle('open', open);
+        document.getElementById('overlay').classList.toggle('open', open);
+      }
+      function resetFilters() {
+        document.querySelectorAll('.searchbox').forEach((e) => (e.value = ''));
+        document
+          .querySelectorAll('.labfilter,.statusfilter,.categoryfilter')
+          .forEach((e) => (e.value = ''));
+        applyFilters();
+      }
+      function applyFilters() {
+        const q = (document.querySelector('.searchbox')?.value || '').toLowerCase().trim(),
+          lab = document.querySelector('.labfilter')?.value || '',
+          st = document.querySelector('.statusfilter')?.value || '',
+          cat = document.querySelector('.categoryfilter')?.value || '';
+        let count = 0;
+        document.querySelectorAll('[data-record]').forEach((row) => {
+          const match =
+            (!q || row.innerText.toLowerCase().includes(q)) &&
+            (!lab || row.dataset.lab === lab) &&
+            (!st || row.dataset.status === st) &&
+            (!cat || row.dataset.category === cat);
+          row.hidden = !match;
+          if (match) count++;
+        });
+        let c = document.getElementById('rowCount');
+        if (c) c.textContent = `${count} matching records · Demo dataset`;
+      }
+      function closeDrawer() {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('backdrop').classList.remove('open');
+        document.body.style.overflow = '';
+      }
+      function showToast(msg) {
+        let el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(window.toastTimer);
+        window.toastTimer = setTimeout(() => el.classList.remove('show'), 4200);
+      }
+      function formField(label, value = '', type = 'text', helper = '', wide = '') {
+        let id = 'f' + Math.random().toString(36).slice(2, 9);
+        return `<div class="${wide}"><label for="${id}">${label}</label><input id="${id}" type="${type}" value="${value}" ${type === 'number' ? 'min="1"' : ''}><span class="helper">${helper}</span></div>`;
+      }
+      function selectField(label, choices, wide = '') {
+        return `<div class="${wide}"><label>${label}</label><select>${choices.map((c) => `<option>${c}</option>`).join('')}</select></div>`;
+      }
+      function openOperation(kind, index = 0) {
+        let title = '',
+          subtitle = '',
+          body = '',
+          action = 'Save demo changes',
+          lab = 'OPERATION';
+        const r = requests[index],
+          b = borrowed[index],
+          ins = inspections[index],
+          item = stock[index];
+        if (kind === 'handover') {
+          lab = 'EQUIPMENT HANDOVER';
+          title = 'Verify & hand over equipment';
+          subtitle = `${r.id} · ${r.lab}`;
+          body = `<div class="notice">Check the actual borrower and physical equipment. The approval is already complete; handover creates the borrowing record. Never hand equipment to yourself.</div><div class="divider"></div><div class="detailgrid"><div><label>Borrower</label><strong>${r.person}</strong></div><div><label>Approved equipment</label><strong>${r.item}</strong></div><div><label>Reserved quantity</label><strong>${r.qty}</strong></div><div><label>Expected return</label><strong>${r.due}</strong></div></div><div class="divider"></div><div class="formgrid">${formField('Verified quantity', r.qty, 'number')}${selectField('Physical unit', 'Use existing asset ID,Identify from anonymous stock'.split(','))}${formField('Internal asset ID (when existing)', r.code.startsWith('AS-') ? r.code : '')}${formField('Manufacturer serial (optional)', '')}${selectField('Borrower identity confirmed?', ['Yes — identity checked', 'No — do not issue'], 'wide')}<div class="wide"><label>Handover remarks</label><textarea placeholder="Only relevant factual notes..."></textarea></div></div>`;
+          action = 'Confirm physical handover';
+        } else if (kind === 'return') {
+          lab = 'PHYSICAL RETURN';
+          title = 'Receive returned equipment';
+          subtitle = `${b.id} · ${b.lab}`;
+          body = `<div class="notice">Receipt is not clearance. All physically returned equipment enters INSPECTION and remains unavailable until a separate authorized inspection decision.</div><div class="divider"></div><div class="detailgrid"><div><label>Borrower</label><strong>${b.person}</strong></div><div><label>Equipment</label><strong>${b.item}</strong></div><div><label>Asset ID</label><strong>${b.code}</strong></div><div><label>Outstanding quantity</label><strong>${b.qty}</strong></div></div><div class="divider"></div><div class="formgrid">${formField('Quantity physically received', b.qty, 'number')}${selectField('Condition at receipt', ['Appears good', 'Visible damage', 'Incomplete / missing accessory', 'Requires further checking'])}<div class="wide"><label>Receipt condition notes</label><textarea placeholder="Record observed condition, missing parts, visible faults..."></textarea></div></div>`;
+          action = 'Confirm receipt → Inspection';
+        } else if (kind === 'inspect') {
+          lab = 'INSPECTION & CLEARANCE';
+          title = 'Inspect returned equipment';
+          subtitle = `${ins.id} · ${ins.lab}`;
+          body = `<div class="notice">Inspection is a distinct operation after receipt. Clearance must be authorized and recorded with the inspector, outcome and condition assessment.</div><div class="divider"></div><div class="detailgrid"><div><label>Equipment</label><strong>${ins.item}</strong></div><div><label>Asset</label><strong>${ins.asset}</strong></div><div><label>Return reference</label><strong>${ins.id}</strong></div><div><label>Receipt notes</label><strong>${ins.note}</strong></div></div><div class="divider"></div><div class="formgrid">${selectField('Inspection outcome', ['Pass → Available', 'Damage → Maintenance', 'Unresolved → Remain unavailable'], 'wide')}<div class="wide"><label>Condition assessment / inspection notes</label><textarea placeholder="Describe inspection findings and actions..." required></textarea></div></div>`;
+          action = 'Record inspection outcome';
+        } else if (kind === 'item') {
+          lab = 'INVENTORY DETAIL';
+          title = item.name;
+          subtitle = `${item.sku} · ${item.lab}`;
+          body = `<div class="detailgrid"><div><label>Category</label><strong>${item.category}</strong></div><div><label>Type</label><strong>${item.type}</strong></div><div><label>Available</label><strong>${item.avail}</strong></div><div><label>Reserved</label><strong>${item.res}</strong></div><div><label>Borrowed</label><strong>${item.out}</strong></div><div><label>Inspection / maintenance</label><strong>${item.inspect} / ${item.maint}</strong></div><div><label>Total recorded units</label><strong>${item.total}</strong></div></div><div class="divider"></div><div class="notice">Actual production view should show individual assets, locations, stock movements and authorized edit controls. Do not infer asset IDs for anonymous stock.</div>`;
+          action = 'Close details';
+        } else if (kind === 'receipt' || kind === 'adjust' || kind === 'identify') {
+          lab = 'INVENTORY TRANSACTION';
+          title =
+            kind === 'receipt'
+              ? 'Record stock receipt'
+              : kind === 'adjust'
+                ? 'Propose stock adjustment'
+                : 'Identify physical asset';
+          subtitle = 'Authorized assigned-laboratory transaction';
+          body = `<div class="notice">Prototype interaction only. Real stock changes must use protected PostgreSQL transaction functions, authorization checks and immutable movement history.</div><div class="divider"></div><div class="formgrid">${selectField('Laboratory', ['Electronics Lab', 'Instrumentation Lab'])}${selectField(
+            'Equipment',
+            stock.map((x) => x.name)
+          )}${formField(kind === 'identify' ? 'Units to identify' : 'Quantity', 1, 'number')}${formField('Reference / document identifier', '')}<div class="wide"><label>Reason / evidence</label><textarea placeholder="Explain source, evidence or authorized reason..."></textarea></div></div>`;
+          action =
+            kind === 'adjust'
+              ? 'Submit adjustment proposal'
+              : kind === 'identify'
+                ? 'Register asset identity'
+                : 'Record stock receipt';
+        } else if (kind === 'additem') {
+          lab = 'CATALOGUE';
+          title = 'Add catalogue item';
+          subtitle = 'Item definition for authorized laboratory';
+          body = `<div class="formgrid">${formField('Equipment name', '', 'text', '', 'wide')}${selectField('Type', ['Returnable', 'Consumable'])}${selectField('Category', ['Electrical Measurement', 'Microcontrollers', 'Components'])}${selectField('Laboratory', ['Electronics Lab', 'Instrumentation Lab'])}${formField('Storage location', '')}${selectField('Approval policy', ['None', 'Lecturer', 'HOD', 'Lecturer then HOD'])}<div class="wide"><label>Description</label><textarea placeholder="Identification and specifications..."></textarea></div></div>`;
+          action = 'Create item (demo)';
+        } else if (kind === 'import') {
+          lab = 'RECEIPT IMPORT';
+          title = 'Stage receipt import';
+          subtitle = 'CSV / XLSX, preview required';
+          body = `<div class="notice">File selection here demonstrates form layout only. This static HTML does not parse, store or commit files. Real imports must use server-side preview and atomic commit APIs.</div><div class="divider"></div><div class="formgrid"><div class="wide"><label>Receipt file</label><input type="file" accept=".csv,.xlsx"></div>${selectField('Target laboratory', ['Electronics Lab', 'Instrumentation Lab'], 'wide')}<div class="wide"><label>Receipt notes</label><textarea></textarea></div></div>`;
+          action = 'Preview import (demo)';
+        } else {
+          lab = 'PERSONAL BORROWING';
+          title = 'New borrowing request';
+          subtitle = 'Same item-specific policies as other authorized borrowers';
+          body = `<div class="notice">Technical officers may borrow, but must never hand over equipment to themselves. The request must follow item-specific approval rules.</div><div class="divider"></div><div class="formgrid">${selectField(
+            'Equipment',
+            stock.map((x) => x.name)
+          )}${formField('Quantity', 1, 'number')}${formField('Requested collection date', '', 'date')}${formField('Expected return date', '', 'date')}<div class="wide"><label>Purpose</label><textarea></textarea></div></div>`;
+          action = 'Continue request (demo)';
+        }
+        const foot = `${btn('Cancel', 'closeDrawer()')}${btn(action, kind === 'item' ? `closeDrawer()` : `demoSubmit('${kind}')`, 'primary')}`;
+        document.getElementById('drawerLabel').textContent = lab;
+        document.getElementById('drawerTitle').textContent = title;
+        document.getElementById('drawerSubtitle').textContent = subtitle;
+        document.getElementById('drawerBody').innerHTML = body;
+        document.getElementById('drawerFooter').innerHTML = foot;
+        document.getElementById('backdrop').classList.add('open');
+        document.getElementById('drawer').classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function demoSubmit(kind) {
+        closeDrawer();
+        showToast(
+          'Prototype only: ' + kind + ' action demonstrated. No database record was changed.'
+        );
+      }
+      document
+        .querySelectorAll('.navitem')
+        .forEach((b) => b.addEventListener('click', () => navigate(b.dataset.page)));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDrawer();
+      });
+      navigate(location.hash.slice(1) || 'dashboard');
+    </script>
+  </body>
+</html>

@@ -13,16 +13,16 @@ C01–C17 in `docs/review/2026-11-08/01-corrections.md` are accepted as the prop
 
 No institutional choice has been accepted in this authorization. Each entry below is deferred; its affected implementation remains blocked. Design may describe alternatives and explicit unresolved parameters.
 
-| IDs | Status | Blocking dependency |
-|---|---|---|
-| P01, P02, P10, PR26 | Deferred | Capability, substitute, grant and bootstrap implementation in M2 and later workflows |
-| P03, P04, P05, P06, P07, P09, P21, PR27 | Deferred | Affected approval, terms, reservation and policy-fallback contracts cannot be activated in M4/M5 |
-| P08, P20, PR22, PR23, PR25 | Deferred | Affected overdue, receipt, clearance, extension, rescission and identity-evidence behavior in M5 |
-| P11, P12, P16, P19, PR24 | Deferred | Affected identity, stock, transfer, adjustment and parser/export implementations in M3/M6 |
-| P13, P18 | Deferred | Comment and record scopes in M2; historical reporting in M6 |
-| P14 | Deferred | Privacy/retention design; real-data use and release blocked |
-| P15 | Deferred; alternatives analysis authorized | Compare authentication/session approaches without a real IdP connection; no provider or local-password fallback accepted |
-| P17 | Deferred | Production hosting, operator, service/capacity/recovery commitments and deployment |
+| IDs                                     | Status                                     | Blocking dependency                                                                                                      |
+| --------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| P01, P02, P10, PR26                     | Deferred                                   | Capability, substitute, grant and bootstrap implementation in M2 and later workflows                                     |
+| P03, P04, P05, P06, P07, P09, P21, PR27 | Deferred                                   | Affected approval, terms, reservation and policy-fallback contracts cannot be activated in M4/M5                         |
+| P08, P20, PR22, PR23, PR25              | Deferred                                   | Affected overdue, receipt, clearance, extension, rescission and identity-evidence behavior in M5                         |
+| P11, P12, P16, P19, PR24                | Deferred                                   | Affected identity, stock, transfer, adjustment and parser/export implementations in M3/M6                                |
+| P13, P18                                | Deferred                                   | Comment and record scopes in M2; historical reporting in M6                                                              |
+| P14                                     | Deferred                                   | Privacy/retention design; real-data use and release blocked                                                              |
+| P15                                     | Deferred; alternatives analysis authorized | Compare authentication/session approaches without a real IdP connection; no provider or local-password fallback accepted |
+| P17                                     | Deferred                                   | Production hosting, operator, service/capacity/recovery commitments and deployment                                       |
 
 ## Permission gate
 

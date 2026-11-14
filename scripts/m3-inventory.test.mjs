@@ -1,63 +1,364 @@
 import pg from 'pg';
 import assert from 'node:assert/strict';
-import {randomUUID,createHmac} from 'node:crypto';
-import {hashPassword} from '../src/lib/server/password.mjs';
-const url=process.env.DATABASE_URL;
-if(!url||new URL(url).hostname!=='127.0.0.1'||new URL(url).pathname!=='/lab_m2_test_identity')throw Error('Dedicated local database required');
-const owner=new pg.Client({connectionString:process.env.MIGRATION_DATABASE_URL}),pool=new pg.Pool({connectionString:url,max:12});await owner.connect();
-const query=async(sql,args)=>(await pool.query(sql,args)).rows[0]?.result;
-const suffix=randomUUID(),password='Synthetic-M3-'+suffix;
-try{
-async function fixture(roles){const id=randomUUID(),email=id+'@example.invalid';await owner.query('BEGIN');await owner.query('INSERT INTO lab.users(id,email,display_name,password_hash) VALUES($1,$2,$3,$4)',[id,email,'Synthetic M3',hashPassword(password)]);for(const role of roles)await owner.query('INSERT INTO lab.user_roles VALUES($1,$2)',[id,role]);await owner.query('COMMIT');const start=await query('SELECT lab.login_start($1) AS result',[email]);const session=await query('SELECT lab.login_finish($1,$2) AS result',[start.challengeId,createHmac('sha256',process.env.LOGIN_VERIFIER_SECRET).update(start.challengeId).digest('hex')]);assert(session.token);return {...session,id};}
-const admin=await fixture(['ADMIN']),to=await fixture(['TECHNICAL_OFFICER']),both=await fixture(['ADMIN','TECHNICAL_OFFICER']),student=await fixture(['LECTURER']);
-const lab=randomUUID(),other=randomUUID();await owner.query('INSERT INTO lab.laboratories VALUES($1,$2),($3,$4)',[lab,'M3 '+suffix,other,'Other '+suffix]);await owner.query('INSERT INTO lab.staff_labs VALUES($1,$2),($3,$2)',[to.id,lab,both.id]);
-const call=(session,op,p)=>query('SELECT lab.inventory_call($1,$2,$3,$4) AS result',[session.token,session.csrfToken,op,p]);
-const command=p=>({commandId:randomUUID(),...p});
-const category=await call(admin,'categories',command({name:'Category '+suffix}));assert(category.id);
-const item=(await call(admin,'items',command({name:'Equipment '+suffix,categoryId:category.id,kind:'RETURNABLE',uom:'unit'}))).id;assert(item);
-const loc=(await call(admin,'locations',command({labId:lab,name:'Store'}))).id;assert(loc);
-await owner.query('INSERT INTO lab.staff_labs VALUES($1,$2)',[student.id,lab]);
-assert.equal((await call(student,'read_locations',{labId:lab})).items.length,0);
-assert.equal((await call(admin,'items',command({name:'Ignored field',categoryId:category.id,kind:'RETURNABLE',uom:'unit',assetId:randomUUID()}))).code,'UNSUPPORTED_FIELD');
-assert.equal((await call(student,'items',command({name:'Denied'}))).status,403);
-const receipt=command({itemId:item,labId:lab,locationId:loc,quantity:10,provenance:'Receipt '+suffix});assert((await call(to,'receipts',receipt)).movementId);
-assert.deepEqual(await call(to,'receipts',receipt),await call(to,'receipts',receipt));
-assert.equal((await call(to,'receipts',{...receipt,quantity:11})).status,409);
-assert.equal((await call(to,'receipts',command({...receipt,commandId:randomUUID()}))).status,409);
-assert.equal((await call(admin,'receipts',command({itemId:item,labId:lab,locationId:loc,quantity:1,provenance:'admin bypass'}))).status,403);
-assert.equal((await call(to,'receipts',command({itemId:item,labId:other,locationId:loc,quantity:1,provenance:'cross lab'}))).status,403);
-let stock=(await call(to,'read_stock',{itemId:item,labId:lab})).items;let anon=stock.find(x=>!x.asset_id&&x.state==='AVAILABLE');assert.equal(anon.quantity,10);
-const asset=await call(to,'assets',command({itemId:item,labId:lab,locationId:loc,expectedVersion:anon.version,serial:' synthetic- '+suffix}));assert(asset.assetId);
-stock=(await call(to,'read_stock',{itemId:item,labId:lab})).items;anon=stock.find(x=>!x.asset_id&&x.state==='AVAILABLE');assert.equal(anon.quantity,9);const identified=stock.find(x=>x.asset_id===asset.assetId&&x.quantity===1);
-assert((await call(to,'stock',command({itemId:item,labId:lab,locationId:loc,expectedVersion:identified.version,fromState:'AVAILABLE',toState:'MAINTENANCE',quantity:1,assetId:asset.assetId}))).movementId);
-assert.equal((await call(to,'stock',command({itemId:item,labId:lab,locationId:loc,expectedVersion:anon.version,fromState:'AVAILABLE',toState:'BORROWED',quantity:1}))).status,422);
-const proposed=await call(to,'adjustments',command({itemId:item,labId:lab,locationId:loc,quantity:3,direction:'REMOVE',reason:'Synthetic reconciliation',expectedVersion:anon.version}));assert(proposed.id);
-assert((await call(admin,'approve',command({id:proposed.id}))).movementId);
-anon=(await call(to,'read_stock',{itemId:item,labId:lab})).items.find(x=>!x.asset_id&&x.state==='AVAILABLE');assert.equal(anon.quantity,6);
-const self=await call(both,'adjustments',command({itemId:item,labId:lab,locationId:loc,quantity:1,direction:'ADD',reason:'self check',expectedVersion:anon.version}));assert(self.id);assert.equal((await call(both,'approve',command({id:self.id}))).status,403);
-const row=(provenance,quantity=2)=>({itemId:item,labId:lab,locationId:loc,quantity,provenance});
-const duplicate=await call(to,'preview',command({rows:[row(receipt.provenance)]}));assert.equal(duplicate.code,'VALIDATION_FAILED');assert(duplicate.errors.some(e=>e.row===2&&e.column==='provenance'&&e.code==='ALREADY_RECEIVED'));
-const conflicting='Concurrent receipt '+suffix;
-const badPreview=await call(to,'preview',command({rows:[row('Atomic first '+suffix),row(conflicting)]}));assert(badPreview.id);
-assert((await call(to,'receipts',command(row(conflicting,1)))).movementId);
-assert.equal((await call(to,'commit',command({id:badPreview.id}))).status,409);
-let total=Number((await owner.query('SELECT sum(quantity) AS q FROM lab.inv_cells WHERE item_id=$1',[item])).rows[0].q);assert.equal(total,8);
-const good=await call(to,'preview',command({rows:[row('Import '+suffix)]}));assert(good.id);const commit=command({id:good.id});assert.equal((await call(to,'commit',commit)).rowCount,1);assert.equal((await call(to,'commit',commit)).rowCount,1);assert.equal((await call(to,'commit',command({id:good.id}))).status,409);
-const reopened=await call(to,'read_import_detail',{id:good.id});assert.equal(reopened.committed,true);assert.deepEqual(reopened.rows,[row('Import '+suffix)]);
-assert.equal((await call(admin,'read_import_detail',{id:good.id})).status,404);assert.equal((await call(student,'read_import_detail',{id:good.id})).status,404);
-anon=(await call(to,'read_stock',{itemId:item,labId:lab})).items.find(x=>!x.asset_id&&x.state==='AVAILABLE');
-const races=await Promise.all(Array.from({length:12},()=>call(to,'assets',command({itemId:item,labId:lab,locationId:loc,expectedVersion:anon.version}))));assert.equal(races.filter(x=>x.assetId).length,1);
-total=Number((await owner.query('SELECT sum(quantity) AS q FROM lab.inv_cells WHERE item_id=$1',[item])).rows[0].q);assert.equal(total,10);
-assert.equal(Number((await owner.query('SELECT count(*) FROM (SELECT movement_id FROM lab.inv_entries e JOIN lab.inv_movements m ON m.id=e.movement_id WHERE m.item_id=$1 GROUP BY movement_id HAVING sum(delta)<>0 OR count(*)<>2)x',[item])).rows[0].count),0);
-assert.equal((await call(student,'read_stock',{itemId:item})).items.length,0);assert((await call(student,'read_items',{itemId:item})).items.length);
-const history=(await call(to,'read_movements',{itemId:item,assetId:asset.assetId})).items;assert(history.length>=2);assert(history.every(m=>m.entries.length===2&&m.entries.reduce((s,e)=>s+e.delta,0)===0));assert(history.some(m=>m.entries.some(e=>e.asset_id===asset.assetId&&e.location_name==='Store')));
-const beforeStages=Number((await owner.query('SELECT count(*) FROM lab.inv_imports WHERE owner_id=$1',[to.id])).rows[0].count);
-const validation=await call(to,'preview',command({rows:[row('Bad quantity',0),{...row('Bad location'),locationId:randomUUID()},{...row('Opaque scope'),labId:other,itemId:randomUUID()}]}));
-assert.equal(validation.code,'VALIDATION_FAILED');assert(validation.errors.some(e=>e.row===2&&e.column==='quantity'));assert(validation.errors.some(e=>e.row===3&&e.column==='locationId'));assert(validation.errors.some(e=>e.row===4&&e.column==='labId'&&e.code==='DENIED'));assert(!validation.errors.some(e=>e.row===4&&e.column==='itemId'));
-assert.equal(Number((await owner.query('SELECT count(*) FROM lab.inv_imports WHERE owner_id=$1',[to.id])).rows[0].count),beforeStages);
-await assert.rejects(pool.query('SELECT * FROM lab.inv_cells'),e=>e.code==='42501');await assert.rejects(pool.query('UPDATE lab.inv_cells SET quantity=999'),e=>e.code==='42501');await assert.rejects(pool.query("INSERT INTO lab.inv_movements(actor_id,item_id,lab_id,kind,reason) VALUES($1,$2,$3,'FORGED','x')",[to.id,item,lab]),e=>e.code==='42501');
-await assert.rejects(owner.query('UPDATE lab.inv_items SET uom=$1 WHERE id=$2',['changed',item]));
-await owner.query('DELETE FROM lab.staff_labs WHERE user_id=$1',[to.id]);assert.equal((await call(to,'receipts',receipt)).status,403);
-assert.equal((await call(to,'read_import_detail',{id:good.id})).status,404);
-console.log('M3 SQL passed: catalogue, TO lab scope, durable receipts/replay/conflicts, identity conservation, maintenance/no custody bypass, independent adjustment, atomic import rollback/commit, twelve-way race, balanced ledger, immutable item and runtime DML denial');
-}finally{await owner.end();await pool.end();}
+import { randomUUID, createHmac } from 'node:crypto';
+import { hashPassword } from '../src/lib/server/password.mjs';
+const url = process.env.DATABASE_URL;
+if (
+  !url ||
+  new URL(url).hostname !== '127.0.0.1' ||
+  new URL(url).pathname !== '/lab_m2_test_identity'
+)
+  throw Error('Dedicated local database required');
+const owner = new pg.Client({ connectionString: process.env.MIGRATION_DATABASE_URL }),
+  pool = new pg.Pool({ connectionString: url, max: 12 });
+await owner.connect();
+const query = async (sql, args) => (await pool.query(sql, args)).rows[0]?.result;
+const suffix = randomUUID(),
+  password = 'Synthetic-M3-' + suffix;
+try {
+  async function fixture(roles) {
+    const id = randomUUID(),
+      email = id + '@example.invalid';
+    await owner.query('BEGIN');
+    await owner.query(
+      'INSERT INTO lab.users(id,email,display_name,password_hash) VALUES($1,$2,$3,$4)',
+      [id, email, 'Synthetic M3', hashPassword(password)]
+    );
+    for (const role of roles)
+      await owner.query('INSERT INTO lab.user_roles VALUES($1,$2)', [id, role]);
+    await owner.query('COMMIT');
+    const start = await query('SELECT lab.login_start($1) AS result', [email]);
+    const session = await query('SELECT lab.login_finish($1,$2) AS result', [
+      start.challengeId,
+      createHmac('sha256', process.env.LOGIN_VERIFIER_SECRET)
+        .update(start.challengeId)
+        .digest('hex'),
+    ]);
+    assert(session.token);
+    return { ...session, id };
+  }
+  const admin = await fixture(['ADMIN']),
+    to = await fixture(['TECHNICAL_OFFICER']),
+    both = await fixture(['ADMIN', 'TECHNICAL_OFFICER']),
+    student = await fixture(['LECTURER']);
+  const lab = randomUUID(),
+    other = randomUUID();
+  await owner.query('INSERT INTO lab.laboratories VALUES($1,$2),($3,$4)', [
+    lab,
+    'M3 ' + suffix,
+    other,
+    'Other ' + suffix,
+  ]);
+  await owner.query('INSERT INTO lab.staff_labs VALUES($1,$2),($3,$2)', [to.id, lab, both.id]);
+  const call = (session, op, p) =>
+    query('SELECT lab.inventory_call($1,$2,$3,$4) AS result', [
+      session.token,
+      session.csrfToken,
+      op,
+      p,
+    ]);
+  const command = (p) => ({ commandId: randomUUID(), ...p });
+  const category = await call(admin, 'categories', command({ name: 'Category ' + suffix }));
+  assert(category.id);
+  const item = (
+    await call(
+      admin,
+      'items',
+      command({
+        name: 'Equipment ' + suffix,
+        categoryId: category.id,
+        kind: 'RETURNABLE',
+        uom: 'unit',
+      })
+    )
+  ).id;
+  assert(item);
+  const loc = (await call(admin, 'locations', command({ labId: lab, name: 'Store' }))).id;
+  assert(loc);
+  await owner.query('INSERT INTO lab.staff_labs VALUES($1,$2)', [student.id, lab]);
+  assert.equal((await call(student, 'read_locations', { labId: lab })).items.length, 0);
+  assert.equal(
+    (
+      await call(
+        admin,
+        'items',
+        command({
+          name: 'Ignored field',
+          categoryId: category.id,
+          kind: 'RETURNABLE',
+          uom: 'unit',
+          assetId: randomUUID(),
+        })
+      )
+    ).code,
+    'UNSUPPORTED_FIELD'
+  );
+  assert.equal((await call(student, 'items', command({ name: 'Denied' }))).status, 403);
+  const receipt = command({
+    itemId: item,
+    labId: lab,
+    locationId: loc,
+    quantity: 10,
+    provenance: 'Receipt ' + suffix,
+  });
+  assert((await call(to, 'receipts', receipt)).movementId);
+  assert.deepEqual(await call(to, 'receipts', receipt), await call(to, 'receipts', receipt));
+  assert.equal((await call(to, 'receipts', { ...receipt, quantity: 11 })).status, 409);
+  assert.equal(
+    (await call(to, 'receipts', command({ ...receipt, commandId: randomUUID() }))).status,
+    409
+  );
+  assert.equal(
+    (
+      await call(
+        admin,
+        'receipts',
+        command({
+          itemId: item,
+          labId: lab,
+          locationId: loc,
+          quantity: 1,
+          provenance: 'admin bypass',
+        })
+      )
+    ).status,
+    403
+  );
+  assert.equal(
+    (
+      await call(
+        to,
+        'receipts',
+        command({
+          itemId: item,
+          labId: other,
+          locationId: loc,
+          quantity: 1,
+          provenance: 'cross lab',
+        })
+      )
+    ).status,
+    403
+  );
+  let stock = (await call(to, 'read_stock', { itemId: item, labId: lab })).items;
+  let anon = stock.find((x) => !x.asset_id && x.state === 'AVAILABLE');
+  assert.equal(anon.quantity, 10);
+  const asset = await call(
+    to,
+    'assets',
+    command({
+      itemId: item,
+      labId: lab,
+      locationId: loc,
+      expectedVersion: anon.version,
+      serial: ' synthetic- ' + suffix,
+    })
+  );
+  assert(asset.assetId);
+  stock = (await call(to, 'read_stock', { itemId: item, labId: lab })).items;
+  anon = stock.find((x) => !x.asset_id && x.state === 'AVAILABLE');
+  assert.equal(anon.quantity, 9);
+  const identified = stock.find((x) => x.asset_id === asset.assetId && x.quantity === 1);
+  assert(
+    (
+      await call(
+        to,
+        'stock',
+        command({
+          itemId: item,
+          labId: lab,
+          locationId: loc,
+          expectedVersion: identified.version,
+          fromState: 'AVAILABLE',
+          toState: 'MAINTENANCE',
+          quantity: 1,
+          assetId: asset.assetId,
+        })
+      )
+    ).movementId
+  );
+  assert.equal(
+    (
+      await call(
+        to,
+        'stock',
+        command({
+          itemId: item,
+          labId: lab,
+          locationId: loc,
+          expectedVersion: anon.version,
+          fromState: 'AVAILABLE',
+          toState: 'BORROWED',
+          quantity: 1,
+        })
+      )
+    ).status,
+    422
+  );
+  const proposed = await call(
+    to,
+    'adjustments',
+    command({
+      itemId: item,
+      labId: lab,
+      locationId: loc,
+      quantity: 3,
+      direction: 'REMOVE',
+      reason: 'Synthetic reconciliation',
+      expectedVersion: anon.version,
+    })
+  );
+  assert(proposed.id);
+  assert((await call(admin, 'approve', command({ id: proposed.id }))).movementId);
+  anon = (await call(to, 'read_stock', { itemId: item, labId: lab })).items.find(
+    (x) => !x.asset_id && x.state === 'AVAILABLE'
+  );
+  assert.equal(anon.quantity, 6);
+  const self = await call(
+    both,
+    'adjustments',
+    command({
+      itemId: item,
+      labId: lab,
+      locationId: loc,
+      quantity: 1,
+      direction: 'ADD',
+      reason: 'self check',
+      expectedVersion: anon.version,
+    })
+  );
+  assert(self.id);
+  assert.equal((await call(both, 'approve', command({ id: self.id }))).status, 403);
+  const row = (provenance, quantity = 2) => ({
+    itemId: item,
+    labId: lab,
+    locationId: loc,
+    quantity,
+    provenance,
+  });
+  const duplicate = await call(to, 'preview', command({ rows: [row(receipt.provenance)] }));
+  assert.equal(duplicate.code, 'VALIDATION_FAILED');
+  assert(
+    duplicate.errors.some(
+      (e) => e.row === 2 && e.column === 'provenance' && e.code === 'ALREADY_RECEIVED'
+    )
+  );
+  const conflicting = 'Concurrent receipt ' + suffix;
+  const badPreview = await call(
+    to,
+    'preview',
+    command({ rows: [row('Atomic first ' + suffix), row(conflicting)] })
+  );
+  assert(badPreview.id);
+  assert((await call(to, 'receipts', command(row(conflicting, 1)))).movementId);
+  assert.equal((await call(to, 'commit', command({ id: badPreview.id }))).status, 409);
+  let total = Number(
+    (await owner.query('SELECT sum(quantity) AS q FROM lab.inv_cells WHERE item_id=$1', [item]))
+      .rows[0].q
+  );
+  assert.equal(total, 8);
+  const good = await call(to, 'preview', command({ rows: [row('Import ' + suffix)] }));
+  assert(good.id);
+  const commit = command({ id: good.id });
+  assert.equal((await call(to, 'commit', commit)).rowCount, 1);
+  assert.equal((await call(to, 'commit', commit)).rowCount, 1);
+  assert.equal((await call(to, 'commit', command({ id: good.id }))).status, 409);
+  const reopened = await call(to, 'read_import_detail', { id: good.id });
+  assert.equal(reopened.committed, true);
+  assert.deepEqual(reopened.rows, [row('Import ' + suffix)]);
+  assert.equal((await call(admin, 'read_import_detail', { id: good.id })).status, 404);
+  assert.equal((await call(student, 'read_import_detail', { id: good.id })).status, 404);
+  anon = (await call(to, 'read_stock', { itemId: item, labId: lab })).items.find(
+    (x) => !x.asset_id && x.state === 'AVAILABLE'
+  );
+  const races = await Promise.all(
+    Array.from({ length: 12 }, () =>
+      call(
+        to,
+        'assets',
+        command({ itemId: item, labId: lab, locationId: loc, expectedVersion: anon.version })
+      )
+    )
+  );
+  assert.equal(races.filter((x) => x.assetId).length, 1);
+  total = Number(
+    (await owner.query('SELECT sum(quantity) AS q FROM lab.inv_cells WHERE item_id=$1', [item]))
+      .rows[0].q
+  );
+  assert.equal(total, 10);
+  assert.equal(
+    Number(
+      (
+        await owner.query(
+          'SELECT count(*) FROM (SELECT movement_id FROM lab.inv_entries e JOIN lab.inv_movements m ON m.id=e.movement_id WHERE m.item_id=$1 GROUP BY movement_id HAVING sum(delta)<>0 OR count(*)<>2)x',
+          [item]
+        )
+      ).rows[0].count
+    ),
+    0
+  );
+  assert.equal((await call(student, 'read_stock', { itemId: item })).items.length, 0);
+  assert((await call(student, 'read_items', { itemId: item })).items.length);
+  const history = (await call(to, 'read_movements', { itemId: item, assetId: asset.assetId }))
+    .items;
+  assert(history.length >= 2);
+  assert(
+    history.every((m) => m.entries.length === 2 && m.entries.reduce((s, e) => s + e.delta, 0) === 0)
+  );
+  assert(
+    history.some((m) =>
+      m.entries.some((e) => e.asset_id === asset.assetId && e.location_name === 'Store')
+    )
+  );
+  const beforeStages = Number(
+    (await owner.query('SELECT count(*) FROM lab.inv_imports WHERE owner_id=$1', [to.id])).rows[0]
+      .count
+  );
+  const validation = await call(
+    to,
+    'preview',
+    command({
+      rows: [
+        row('Bad quantity', 0),
+        { ...row('Bad location'), locationId: randomUUID() },
+        { ...row('Opaque scope'), labId: other, itemId: randomUUID() },
+      ],
+    })
+  );
+  assert.equal(validation.code, 'VALIDATION_FAILED');
+  assert(validation.errors.some((e) => e.row === 2 && e.column === 'quantity'));
+  assert(validation.errors.some((e) => e.row === 3 && e.column === 'locationId'));
+  assert(validation.errors.some((e) => e.row === 4 && e.column === 'labId' && e.code === 'DENIED'));
+  assert(!validation.errors.some((e) => e.row === 4 && e.column === 'itemId'));
+  assert.equal(
+    Number(
+      (await owner.query('SELECT count(*) FROM lab.inv_imports WHERE owner_id=$1', [to.id])).rows[0]
+        .count
+    ),
+    beforeStages
+  );
+  await assert.rejects(pool.query('SELECT * FROM lab.inv_cells'), (e) => e.code === '42501');
+  await assert.rejects(
+    pool.query('UPDATE lab.inv_cells SET quantity=999'),
+    (e) => e.code === '42501'
+  );
+  await assert.rejects(
+    pool.query(
+      "INSERT INTO lab.inv_movements(actor_id,item_id,lab_id,kind,reason) VALUES($1,$2,$3,'FORGED','x')",
+      [to.id, item, lab]
+    ),
+    (e) => e.code === '42501'
+  );
+  await assert.rejects(
+    owner.query('UPDATE lab.inv_items SET uom=$1 WHERE id=$2', ['changed', item])
+  );
+  await owner.query('DELETE FROM lab.staff_labs WHERE user_id=$1', [to.id]);
+  assert.equal((await call(to, 'receipts', receipt)).status, 403);
+  assert.equal((await call(to, 'read_import_detail', { id: good.id })).status, 404);
+  console.log(
+    'M3 SQL passed: catalogue, TO lab scope, durable receipts/replay/conflicts, identity conservation, maintenance/no custody bypass, independent adjustment, atomic import rollback/commit, twelve-way race, balanced ledger, immutable item and runtime DML denial'
+  );
+} finally {
+  await owner.end();
+  await pool.end();
+}

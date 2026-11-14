@@ -12,15 +12,15 @@ The principal blockers are: ambiguous transfer ownership in the conservation equ
 
 ## Read the review
 
-| File | Purpose |
-|---|---|
-| [Corrections](01-corrections.md) | Prioritized findings, precise amendments, source references and acceptance checks |
-| [Policy decisions](02-policy-decisions.md) | All existing P01–P21 decisions retained; additional decisions and approval timing |
-| [Desktop/mobile design plan](03-ui-ux-plan.md) | Information architecture, critical wireframes, interaction and accessibility acceptance |
-| [Backlog and M1 proposal](04-backlog-and-m1.md) | Ordered work, dependencies, ownership, exit gates and bounded approval scope |
-| [Security and evidence](05-security-and-evidence.md) | ASVS validation, verification gaps and additional test scenarios |
-| [source-manifest.json](source-manifest.json) | SHA-256 and byte lengths for the 17 original files |
-| [asvs-validation.json](asvs-validation.json) | Official pinned-source count, ID/level comparison and hash verification |
+| File                                                 | Purpose                                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Corrections](01-corrections.md)                     | Prioritized findings, precise amendments, source references and acceptance checks       |
+| [Policy decisions](02-policy-decisions.md)           | All existing P01–P21 decisions retained; additional decisions and approval timing       |
+| [Desktop/mobile design plan](03-ui-ux-plan.md)       | Information architecture, critical wireframes, interaction and accessibility acceptance |
+| [Backlog and M1 proposal](04-backlog-and-m1.md)      | Ordered work, dependencies, ownership, exit gates and bounded approval scope            |
+| [Security and evidence](05-security-and-evidence.md) | ASVS validation, verification gaps and additional test scenarios                        |
+| [source-manifest.json](source-manifest.json)         | SHA-256 and byte lengths for the 17 original files                                      |
+| [asvs-validation.json](asvs-validation.json)         | Official pinned-source count, ID/level comparison and hash verification                 |
 
 ## Recommended first milestone
 
