@@ -111,7 +111,13 @@ test('admin routes prioritize the HOD workspace while preserving official brandi
     'utf8'
   );
   assert.ok(sourceContains(route, 'adminViews.includes'));
-  assert.ok(sourceContains(route, '<AdminWorkspace'));
+  // Server page gates authorization; client entry owns the render-prop.
+  const entry = readFileSync(
+    new URL('../src/components/hod-admin/entry.tsx', import.meta.url), 'utf8'
+  );
+  assert.ok(sourceContains(route, '<AdminEntry'));
+  assert.ok(sourceContains(route, "requirePageRole(['ADMIN'])"));
+  assert.ok(sourceContains(entry, '<AdminWorkspace'));
   assert.ok(
     workspace.indexOf("includes('ADMIN')") < workspace.indexOf("includes('TECHNICAL_OFFICER')")
   );
