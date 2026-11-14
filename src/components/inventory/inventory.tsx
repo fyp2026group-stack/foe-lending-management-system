@@ -127,10 +127,14 @@ export function MutationForm({
   children,
   onSaved,
   context,
+  formId,
+  externalSubmit = false,
 }: {
   title: string;
   path: string;
   session: Session;
+  formId?: string;
+  externalSubmit?: boolean;
   context?: React.ReactNode;
   build: (data: FormData) => unknown;
   children: React.ReactNode;
@@ -188,10 +192,11 @@ export function MutationForm({
         onConfirmed={submit}
         context={context}
         className="mt-4"
+        formId={formId}
       >
         <fieldset disabled={busy} className="grid gap-4">
           {children}
-          <Button type="submit">{busy ? 'Submitting...' : title}</Button>
+          {!externalSubmit && <Button type="submit">{busy ? 'Submitting...' : title}</Button>}
         </fieldset>
       </ConfirmedForm>
       <p className="muted mt-3">
@@ -397,7 +402,7 @@ function ReceiptFields({ labs, locations }: { labs: Named[]; locations: Named[] 
   const [labId, setLabId] = useState('');
   return (
     <>
-      <ItemPicker name="receiptItem" label="Receipt item" />
+      <ItemPicker name="receiptItem" label="Equipment" compact />
       <div>
         <label htmlFor="receiptLab">Laboratory</label>
         <select
@@ -428,22 +433,27 @@ function ReceiptFields({ labs, locations }: { labs: Named[]; locations: Named[] 
   );
 }
 export function ReceiveItemsDialog({open,onOpenChange,session,labs,locations,onSaved}:{
- open:boolean;onOpenChange:(value:boolean)=>void;session:Session;labs:Named[];locations:Named[];onSaved:()=>void;
+  open:boolean;onOpenChange:(value:boolean)=>void;session:Session;labs:Named[];locations:Named[];onSaved:()=>void;
 }) {
- return <ReviewSheet open={open} onOpenChange={onOpenChange} title="Add items to inventory"
-  description="Record equipment received at your laboratory. You can identify each physical unit later.">
-   <MutationForm title="Save received items" path="receipts" session={session}
-    onSaved={()=>{onSaved();onOpenChange(false);}}
-    build={d=>({itemId:d.get('receiptItem'),labId:d.get('receiptLab'),locationId:d.get('receiptLocation'),
-      quantity:Number(d.get('receiptQuantity')),provenance:d.get('provenance')})}>
-    <p className="inventory-form-guidance">Choose an existing equipment type, enter how many units arrived
-      and where they are stored. Individual serial numbers can be recorded later, including at handover.
-      Identifying a unit does not increase stock.</p>
-    <ReceiptFields labs={labs} locations={locations}/>
-   </MutationForm>
- </ReviewSheet>;
+  return <ReviewSheet open={open} onOpenChange={onOpenChange}
+    title="Add items to inventory"
+    description="Record delivery of equipment already in the catalogue."
+    variant="receipt"
+    footer={<>
+      <Button type="button" variant="outline" onClick={()=>onOpenChange(false)}>Cancel</Button>
+      <Button type="submit" form="inventory-receipt-form">Review & save</Button>
+    </>}>
+    <MutationForm title="Save received items" path="receipts" session={session}
+      formId="inventory-receipt-form" externalSubmit
+      onSaved={()=>{onSaved();onOpenChange(false);}}
+      build={d=>({itemId:d.get('receiptItem'),labId:d.get('receiptLab'),locationId:d.get('receiptLocation'),
+        quantity:Number(d.get('receiptQuantity')),provenance:d.get('provenance')})}>
+      <p className="receipt-form-context">Select equipment, the storage location and quantity received.
+        Serial numbers may be recorded later without adding more stock.</p>
+      <div className="receipt-form-fields"><ReceiptFields labs={labs} locations={locations}/></div>
+    </MutationForm>
+  </ReviewSheet>;
 }
-
 export function StockOperations({
   session,
   items: catalogueItems,
