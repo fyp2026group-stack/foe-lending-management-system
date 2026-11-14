@@ -41,8 +41,21 @@ jobs:
         run: npm run local:config
       - name: Provision and verify local PostgreSQL
         run: npm run db:setup
-      - name: Run rollback-protected SQL integration cases
-        run: node --env-file=.verification/m2.env --test --test-concurrency=1 tests/*.integration.mjs
+      - name: Run isolated rollback-protected PostgreSQL cases
+        run: |
+          node --env-file=.verification/m2.env --test --test-concurrency=1 \
+            tests/application-lending.integration.mjs \
+            tests/catalogue.integration.mjs \
+            tests/hod-admin-governance.integration.mjs \
+            tests/hod-admin-reports.integration.mjs \
+            tests/lending-authority.integration.mjs \
+            tests/lending-lifecycle.integration.mjs \
+            tests/lending-sources.integration.mjs \
+            tests/officer-operations.integration.mjs \
+            tests/physical-lifecycle.integration.mjs \
+            tests/workflow-basic.integration.mjs
+      - name: Run authenticated HTTP identity, inventory and lending flow
+        run: node --env-file=.verification/m2.env tests/workflow-run.integration.mjs
       - name: Stop isolated PostgreSQL
         if: always()
         run: npm run db:down
