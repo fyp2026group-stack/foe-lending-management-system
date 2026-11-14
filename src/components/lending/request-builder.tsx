@@ -1,517 +1,181 @@
 'use client';
-import { StudentEmptyState } from './student-empty-state';
-import { StudentSelect, NativeSelect } from './student-controls';
-import { useState, useRef, Fragment, type FormEvent } from 'react';
-import { ApiError } from '@/components/identity/api';
-import { lendingWrite, type BorrowDraft } from './api';
-import { ErrorNotice } from '@/components/identity/session';
+import { useMemo, useRef, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Minus, Plus, Search, Trash2 } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useStudentClock } from './student-clock';
+import { ApiError } from '@/components/identity/api';
+import { lendingWrite, type BorrowDraft, type Lecturer, type LendingSource } from './api';
+import { useLendingChoices } from './shared';
+import { CommandReplay, draftSavePayload, draftSubmitPayload } from './lifecycle-model';
+import { quantityLimit } from './request-options';
+import { basketKey, readSelection } from './student-model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useLendingChoices } from './shared';
-import type { Lecturer, LendingSource } from './api';
-import { CommandReplay, draftSavePayload, draftSubmitPayload } from './lifecycle-model';
-import { basketKey, readSelection, isStudent } from './student-model';
-import { eligibleLecturers, quantityLimit } from './request-options';
+import { Textarea } from '@/components/ui/textarea';
 
-const selectClass = 'min-h-11 border rounded-md bg-white px-3 w-full';
-type DraftLine = {
-  key: number;
-  itemId: string;
-  labId: string;
-  locationId: string;
-  quantity: number;
-};
-const blankLine = (key: number): DraftLine => ({
-  key,
-  itemId: '',
-  labId: '',
-  locationId: '',
-  quantity: 1,
-});
-const requiresLecturer = (source: LendingSource) =>
-  source.policy === 'LECTURER' || source.policy === 'BOTH';
+type Pick = { itemId: string; quantity: number };
+const approval = (p: string) => p === 'LECTURER' || p === 'BOTH';
+const hodApproval = (p: string) => p === 'HOD' || p === 'BOTH';
+const dateLocal = (value?: string) => value ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
 
-export function RequestBuilder({
-  session,
-  revision,
-  refresh,
-  draft,
-}: {
-  session: Session;
-  revision: number;
-  refresh: () => void;
-  draft?: BorrowDraft;
+export function RequestBuilder({ session, revision, refresh, draft }: {
+  session: Session; revision: number; refresh: () => void; draft?: BorrowDraft;
 }) {
-  const student = isStudent(session.user.roles);
-  const now = useStudentClock(revision);
-  const Container = student ? Card : 'section';
-  const Header = student ? CardHeader : Fragment;
-  const Title = student ? CardTitle : Fragment;
-  const Content = student ? CardContent : Fragment;
-  const Footer = student ? CardFooter : Fragment;
-  const Purpose = student ? Textarea : Input;
-  const SelectControl = isStudent(session.user.roles) ? StudentSelect : NativeSelect;
   const sources = useLendingChoices<LendingSource>('sources', revision);
   const lecturers = useLendingChoices<Lecturer>('lecturers', revision);
-  const [lines, setLines] = useState<DraftLine[]>(() => {
-    if (draft) return draft.payload.lines.map((line, key) => ({ ...line, key }));
-    try {
-      const carried = readSelection(sessionStorage.getItem(basketKey(session.user.id)));
-      if (carried.length) return carried.map((line, key) => ({ ...line, key }));
-    } catch {}
-    return [blankLine(0)];
-  });
-  const [nextKey, setNextKey] = useState(() => Math.max(lines.length, 1));
-  const [lecturerId, setLecturerId] = useState(draft?.payload.lecturerId ?? '');
-  const [saved, setSaved] = useState(draft);
+  const [step, setStep] = useState(0);
+  const [query, setQuery] = useState('');
+  const [picks, setPicks] = useState<Pick[]>(() =>
+    draft?.payload.lines.map(l => ({ itemId: l.itemId, quantity: l.quantity })) ?? (() => { try {return readSelection(sessionStorage.getItem(basketKey(session.user.id))).map(l=>({itemId:l.itemId,quantity:l.quantity}));}catch{return [];} })());
   const [purpose, setPurpose] = useState(draft?.payload.purpose ?? '');
-  const local = (value?: string) =>
-    value
-      ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16)
-      : '';
-  const [collectAt, setCollectAt] = useState(local(draft?.payload.collectAt));
-  const [returnAt, setReturnAt] = useState(local(draft?.payload.returnAt));
-  const [review, setReview] = useState(false);
+  const [collectAt, setCollectAt] = useState(dateLocal(draft?.payload.collectAt));
+  const [returnAt, setReturnAt] = useState(dateLocal(draft?.payload.returnAt));
+  const [lecturerId, setLecturerId] = useState(draft?.payload.lecturerId ?? '');
   const [busy, setBusy] = useState(false);
-  const [uncertainPath, setUncertainPath] = useState('');
-  const [message, setMessage] = useState('');
-  const pending = useRef(new CommandReplay());
-  async function act(path: string, body: Record<string, unknown>) {
-    const command = pending.current.prepare(path, body);
+  const [error, setError] = useState('');
+  const [complete, setComplete] = useState(false);
+  const replay = useRef(new CommandReplay());
+  const pendingDraft = useRef<BorrowDraft | undefined>(draft);
+
+  const catalogue = useMemo(() => {
+    const grouped = new Map<string, LendingSource[]>();
+    for (const source of sources.data?.items ?? []) grouped.set(source.itemId, [...(grouped.get(source.itemId) ?? []), source]);
+    return [...grouped.entries()].map(([itemId, available]) => ({
+      itemId, name: available[0].item, kind: available[0].kind, uom: available[0].uom,
+      available, stock: available.reduce((sum, s) => sum + s.availableQuantity, 0),
+      limit: Math.max(...available.map(s => Math.min(s.availableQuantity, quantityLimit(s)))),
+      policy: available[0].policy
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [sources.data]);
+  const selected = picks.map(pick => ({ pick, item: catalogue.find(i => i.itemId === pick.itemId) }))
+    .filter((entry): entry is {pick: Pick; item: (typeof catalogue)[number]} => Boolean(entry.item));
+  const lecturerNeeded = selected.some(({item}) => approval(item.policy));
+  const hodNeeded = selected.some(({item}) => hodApproval(item.policy));
+  const selectedLabs = selected.filter(({item}) => approval(item.policy))
+    .map(({item,pick}) => item.available.filter(s=>s.availableQuantity>=pick.quantity).sort((a,b)=>b.availableQuantity-a.availableQuantity)[0]?.labId).filter((lab):lab is string=>Boolean(lab));
+  const eligible = (lecturers.data?.items ?? []).filter(l => l.id !== session.user.id &&
+    selectedLabs.every(lab => l.labIds.includes(lab)));
+  const chosenLecturer = eligible.some(l => l.id === lecturerId) ? lecturerId : '';
+  const itemsValid = picks.length > 0 && picks.length === selected.length &&
+    selected.every(({pick,item}) => Number.isInteger(pick.quantity) && pick.quantity >= 1 && pick.quantity <= item.limit);
+  const datesValid = !!collectAt && !!returnAt && new Date(collectAt).getTime() > Date.now() &&
+    new Date(returnAt).getTime() > new Date(collectAt).getTime();
+  const detailsValid = !!purpose.trim() && datesValid && (!lecturerNeeded || !!chosenLecturer);
+  const add = (id: string) => {
+    setError('');
+    setPicks(current => current.some(p => p.itemId === id) ? current : [...current, {itemId:id,quantity:1}]);
+  };
+  const qty = (id: string, n: number) => setPicks(current =>
+    current.map(p => p.itemId === id ? {...p,quantity:n} : p));
+  const go = (next: number) => {
+    setError('');
+    if (next === 1 && !itemsValid) { setError('Select at least one available item and enter a valid quantity.'); return; }
+    if (next === 2 && !detailsValid) { setError('Complete the purpose, collection and return dates, and required lecturer.'); return; }
+    setStep(next);
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  async function issue(path: string, payload: Record<string,unknown>) {
+    const command = replay.current.prepare(path, payload);
     try {
-      const result = await lendingWrite<{ id: string; version: number }>(
-        path,
-        command,
-        session.csrfToken
-      );
-      pending.current.resolve();
-      setUncertainPath('');
+      const result = await lendingWrite<{id:string;version:number}>(path,command,session.csrfToken);
+      replay.current.resolve();
       return result;
-    } catch (error) {
-      if (error instanceof ApiError && error.status < 500) {
-        pending.current.resolve();
-        setUncertainPath('');
-      } else setUncertainPath(path);
-      throw error;
-    }
-  }
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage('');
-    try {
-      const payload = {
-        purpose,
-        ...(collectAt ? { collectAt: new Date(collectAt).toISOString() } : {}),
-        ...(returnAt ? { returnAt: new Date(returnAt).toISOString() } : {}),
-        ...(chosenLecturer ? { lecturerId: chosenLecturer } : {}),
-        lines: lines.map(({ itemId, labId, locationId, quantity }) => ({
-          itemId,
-          labId,
-          locationId,
-          quantity,
-        })),
-      };
-      const result = await act('drafts', draftSavePayload(payload, saved));
-      try {
-        sessionStorage.removeItem(basketKey(session.user.id));
-      } catch {}
-      setSaved({ ...result, payload, cancelled: false, updatedAt: new Date().toISOString() });
-      setReview(true);
-      setMessage('Draft saved. Review the saved details before submitting.');
-      refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof ApiError && error.status === 409
-          ? 'The draft changed. Reopen it from My requests before retrying.'
-          : error instanceof Error
-            ? error.message
-            : 'Outcome unknown. Retry the same action.'
-      );
-    } finally {
-      setBusy(false);
+    } catch (e) {
+      if (e instanceof ApiError && e.status < 500) replay.current.resolve();
+      throw e;
     }
   }
   async function submit() {
-    if (!saved) return;
-    setBusy(true);
+    if (!itemsValid || !detailsValid || busy) return;
+    setBusy(true); setError('');
     try {
-      await act('submit', draftSubmitPayload(saved));
-      setReview(false);
-      setSaved(undefined);
-      setLines([blankLine(nextKey)]);
-      setNextKey(nextKey + 1);
-      setPurpose('');
-      setMessage('Request submitted. View its progress in My requests.');
-      refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof ApiError && error.status === 409
-          ? 'Saved version is stale. Reopen the draft and review again.'
-          : error instanceof Error
-            ? error.message
-            : 'Outcome unknown. Retry submission with the same details.'
-      );
-    } finally {
-      setBusy(false);
-    }
+      // The stock location is assigned internally; the borrower never selects it.
+      const lines = selected.map(({pick,item}) => {
+        const source = item.available
+          .filter(s => s.availableQuantity >= pick.quantity)
+          .sort((a,b) => b.availableQuantity - a.availableQuantity)[0];
+        if (!source) throw Error('The requested quantity cannot be supplied from one stock source. Reduce the quantity.');
+        return { itemId:pick.itemId,labId:source.labId,locationId:source.locationId,quantity:pick.quantity };
+      });
+      const payload = {purpose:purpose.trim(),collectAt:new Date(collectAt).toISOString(),
+        returnAt:new Date(returnAt).toISOString(),...(lecturerNeeded ? {lecturerId:chosenLecturer} : {}),lines};
+      if (!pendingDraft.current) {
+        const saved = await issue('drafts',draftSavePayload(payload));
+        pendingDraft.current = {...saved,payload,cancelled:false,updatedAt:new Date().toISOString()};
+      } else if (JSON.stringify(pendingDraft.current.payload) !== JSON.stringify(payload)) {
+        const saved = await issue('drafts',draftSavePayload(payload,pendingDraft.current));
+        pendingDraft.current = {...saved,payload,cancelled:false,updatedAt:new Date().toISOString()};
+      }
+      await issue('submit',draftSubmitPayload(pendingDraft.current!));
+      pendingDraft.current = undefined;
+      try {sessionStorage.removeItem(basketKey(session.user.id));} catch {}
+      setComplete(true); refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to submit this request. Please retry.');
+    } finally { setBusy(false); }
   }
-  const choices = sources.data?.items ?? [];
-  const items = Array.from(new Map(choices.map((source) => [source.itemId, source])).values());
-  const sourceFor = (line: DraftLine) =>
-    choices.find(
-      (source) =>
-        source.itemId === line.itemId &&
-        source.labId === line.labId &&
-        source.locationId === line.locationId
-    );
-  const selectedSources = lines.map(sourceFor);
-  const needsLecturer = selectedSources.some((source) => source && requiresLecturer(source));
-  const labsChosen = lines.every((line) => Boolean(line.labId));
-  const eligible = labsChosen
-    ? eligibleLecturers(
-        lecturers.data?.items ?? [],
-        lines.map((line) => line.labId),
-        session.user.id
-      )
-    : [];
-  const chosenLecturer = eligible.some((lecturer) => lecturer.id === lecturerId) ? lecturerId : '';
-  function update(key: number, value: Partial<DraftLine>) {
-    setReview(false);
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...value } : line)));
-  }
-
-  if (sources.error || lecturers.error)
-    return (
-      <section className="records p-4">
-        <h2>Borrowing choices unavailable</h2>
-        {sources.error && <ErrorNotice message={sources.error} />}
-        {lecturers.error && <ErrorNotice message={lecturers.error} />}
-        <p>Use Refresh records to load current borrowing sources and lecturer eligibility again.</p>
-      </section>
-    );
-  if (!sources.data || !lecturers.data)
-    return (
-      <div role="status">
-        <p>Loading borrowing sources and lecturer eligibility...</p>
-        <Skeleton className="h-32 w-full" />
+  if (sources.error || lecturers.error) return <div role="alert" className="rounded-xl border p-6">{sources.error || lecturers.error}</div>;
+  if (!sources.data || !lecturers.data) return <div role="status" className="p-8">Loading available equipment…</div>;
+  if (complete) return <section className="mx-auto max-w-3xl rounded-2xl border bg-white p-10 text-center space-y-5">
+    <Check className="mx-auto h-12 w-12 text-emerald-600"/>
+    <h2 className="text-2xl font-semibold">Request submitted</h2>
+    <p>Your request has been sent for the required approvals.</p>
+    <Button onClick={() => {setComplete(false);setPicks([]);setPurpose('');setCollectAt('');setReturnAt('');setStep(0);}}>Create another request</Button>
+  </section>;
+  return <section className="w-full space-y-6 pb-12">
+    <div className="grid grid-cols-3 gap-2 rounded-xl border bg-white p-4 sm:p-5" aria-label="Request progress">
+      {['Select equipment','Request details','Review & submit'].map((title,i)=>
+        <div key={title} className="flex items-center gap-2 sm:gap-3">
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${step >= i ? 'bg-slate-900 text-white':'bg-slate-100 text-slate-500'}`}>{step > i ? <Check size={17}/> : i+1}</span>
+          <span className={`text-xs sm:text-sm ${step===i?'font-semibold':'text-slate-500'}`}>{title}</span>
+        </div>)}
+    </div>
+    {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+    {step===0 && <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div><h2 className="text-xl font-semibold">Select equipment</h2><p className="text-sm text-slate-500">Add the items and quantities needed for one request.</p></div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">{picks.length} selected</span>
       </div>
-    );
-
-  return (
-    <Container className={student ? 'cp2-builder student-builder' : 'cp2-builder'}>
-      <Header>
-        <Title>
-          <h2>{draft?.predecessorId ? 'Correct rejected items' : 'Build borrowing request'}</h2>
-        </Title>
-        {student && (
-          <CardDescription>
-            Save a draft, review it, then explicitly submit for the current item policies.
-          </CardDescription>
-        )}
-      </Header>
-      <Content>
-        {!choices.length &&
-          (student ? (
-            <StudentEmptyState kind="equipment" />
-          ) : (
-            <p role="status">
-              No current borrowing sources are available. You can still save an incomplete draft and
-              add equipment when sources are available.
-            </p>
-          ))}
-        <p>Save your work as a draft, then review and submit. Saving does not reserve equipment.</p>
-        {draft?.predecessorId && (
-          <p>
-            Correction of {draft.predecessorId}. Original decisions and quantities remain in
-            history.
-          </p>
-        )}
-        {message && <p role="status">{message}</p>}
-        {uncertainPath === 'submit' && (
-          <Button disabled={busy} onClick={submit}>
-            Recover submission result
-          </Button>
-        )}
-        <form noValidate onSubmit={save} onChange={() => setReview(false)}>
-          <fieldset disabled={busy || Boolean(uncertainPath)} className="grid gap-4">
-            <div className="request-details">
-              <h3>Purpose & schedule</h3>
-              <label>
-                {student ? 'Academic purpose' : 'Borrowing purpose'}
-                <Purpose
-                  maxLength={1000}
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="Explain how the selected equipment will be used"
-                />
-              </label>
-              <label>
-                Collection date and time
-                <Input
-                  type="datetime-local"
-                  value={collectAt}
-                  onChange={(e) => setCollectAt(e.target.value)}
-                />
-              </label>
-              <label>
-                Expected Return Date
-                <Input
-                  type="datetime-local"
-                  value={returnAt}
-                  onChange={(e) => setReturnAt(e.target.value)}
-                />
-              </label>
-            </div>
-            {lines.map((line, index) => {
-              const labs = Array.from(
-                new Map(
-                  choices
-                    .filter((source) => source.itemId === line.itemId)
-                    .map((source) => [source.labId, source])
-                ).values()
-              );
-              const locations = choices.filter(
-                (source) => source.itemId === line.itemId && source.labId === line.labId
-              );
-              const source = sourceFor(line);
-              return (
-                <fieldset key={line.key} className="request-line border p-4 grid gap-3">
-                  <legend>Item {index + 1}</legend>
-                  <label>
-                    Catalogue item
-                    <SelectControl
-                      className={selectClass}
-                      value={line.itemId}
-                      onChange={(event) =>
-                        update(line.key, {
-                          itemId: event.target.value,
-                          labId: '',
-                          locationId: '',
-                          quantity: 1,
-                        })
-                      }
-                    >
-                      <option value="">Select item</option>
-                      {items.map((item) => (
-                        <option key={item.itemId} value={item.itemId}>
-                          {item.item} / {item.kind} / {item.uom}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  <label>
-                    Laboratory
-                    <SelectControl
-                      className={selectClass}
-                      disabled={!line.itemId}
-                      value={line.labId}
-                      onChange={(event) =>
-                        update(line.key, { labId: event.target.value, locationId: '', quantity: 1 })
-                      }
-                    >
-                      <option value="">Select laboratory</option>
-                      {labs.map((lab) => (
-                        <option key={lab.labId} value={lab.labId}>
-                          {lab.lab}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  <label>
-                    Stock location
-                    <SelectControl
-                      className={selectClass}
-                      disabled={!line.labId}
-                      value={line.locationId}
-                      onChange={(event) =>
-                        update(line.key, { locationId: event.target.value, quantity: 1 })
-                      }
-                    >
-                      <option value="">Select location</option>
-                      {locations.map((location) => (
-                        <option key={location.locationId} value={location.locationId}>
-                          {location.location} / {location.availableQuantity} {location.uom}{' '}
-                          available
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  {source && (
-                    <p id={'source-' + line.key}>
-                      {source.lab} / {source.location}: {source.availableQuantity} {source.uom}{' '}
-                      available. Approval: {source.policy}. Request limit: {quantityLimit(source)}{' '}
-                      {source.uom}.
-                    </p>
-                  )}
-                  <label>
-                    Quantity {source ? `(${source.uom})` : ''}
-                    <Input
-                      type="number"
-                      min={1}
-                      max={source ? quantityLimit(source) : 1}
-                      step={1}
-                      disabled={!source}
-                      aria-describedby={source ? 'source-' + line.key : undefined}
-                      value={line.quantity}
-                      onChange={(event) =>
-                        update(line.key, { quantity: Number(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length === 1}
-                    onClick={() => {
-                      setReview(false);
-                      setLines((current) => current.filter((row) => row.key !== line.key));
-                    }}
-                  >
-                    Remove item {index + 1}
-                  </Button>
-                </fieldset>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={lines.length >= 20}
-              onClick={() => {
-                setReview(false);
-                setLines((current) => [...current, blankLine(nextKey)]);
-                setNextKey((key) => key + 1);
-              }}
-            >
-              Add item ({lines.length}/20)
-            </Button>
-            {needsLecturer ? (
-              <>
-                <label>
-                  Eligible lecturer (required)
-                  <SelectControl
-                    name="lecturerId"
-                    className={selectClass}
-                    value={chosenLecturer}
-                    onChange={(event) => setLecturerId(event.target.value)}
-                    aria-describedby="lecturer-help"
-                  >
-                    <option value="">Select lecturer</option>
-                    {eligible.map((lecturer) => (
-                      <option key={lecturer.id} value={lecturer.id}>
-                        {lecturer.displayName}
-                      </option>
-                    ))}
-                  </SelectControl>
-                </label>
-                <p id="lecturer-help" role="status">
-                  {!labsChosen
-                    ? 'Choose a laboratory for every item to see eligible lecturers.'
-                    : eligible.length
-                      ? 'Only lecturers assigned to every requested laboratory are listed.'
-                      : 'No lecturer is eligible for every requested laboratory. Change the selected laboratories or submit separate requests.'}
-                </p>
-              </>
-            ) : (
-              <p>No lecturer selection is required by the selected sources.</p>
-            )}
-            <p className="muted">
-              Availability is current stock, not a future booking guarantee. The server rechecks
-              stock, approval policy and lecturer eligibility. Consumables do not require a return.
-            </p>
-          </fieldset>
-          <Footer>
-            <Button disabled={busy || uncertainPath === 'submit'} type="submit">
-              {busy ? 'Saving...' : 'Save draft and review'}
-            </Button>
-          </Footer>
-        </form>
-        {review && saved && (
-          <section className="records p-4">
-            <h3>Review saved draft</h3>
-            {(!purpose.trim() ||
-              !collectAt ||
-              !returnAt ||
-              new Date(returnAt).getTime() <= now ||
-              (needsLecturer && !chosenLecturer) ||
-              lines.some((line) => !sourceFor(line))) && (
-              <Alert>
-                <AlertTitle>Complete the saved request before submitting</AlertTitle>
-                <AlertDescription>
-                  <ul>
-                    {!purpose.trim() && <li>Add an academic purpose.</li>}
-                    {(!collectAt || !returnAt) && (
-                      <li>Choose collection and expected return dates.</li>
-                    )}
-                    {returnAt && new Date(returnAt).getTime() <= now && (
-                      <li>Expected return must be in the future.</li>
-                    )}
-                    {needsLecturer && !chosenLecturer && (
-                      <li>Select an eligible lecturer for the requested laboratories.</li>
-                    )}
-                    {lines.some((line) => !sourceFor(line)) && (
-                      <li>
-                        Choose a currently authorized item, laboratory and location for every line.
-                      </li>
-                    )}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            <p>
-              Submission requires a purpose, distinct current sources, quantities within each policy
-              limit, an eligible lecturer when required, and a future return after collection.
-              Correct any missing details and save again.
-            </p>
-            <p>
-              {purpose} / {lines.length} items / Collection {collectAt || 'missing'} / Expected
-              return {returnAt || 'missing'}
-            </p>
-            <p>
-              Submitting sends this saved version for current policy and source validation. Approval
-              can reserve stock; physical handover happens separately.
-            </p>
-            <Button
-              disabled={
-                busy ||
-                !purpose.trim() ||
-                !collectAt ||
-                !returnAt ||
-                lines.some(
-                  (line) =>
-                    !sourceFor(line) ||
-                    !Number.isInteger(line.quantity) ||
-                    line.quantity < 1 ||
-                    line.quantity > quantityLimit(sourceFor(line)!)
-                ) ||
-                new Date(returnAt) <= new Date(collectAt) ||
-                new Date(returnAt).getTime() <= now ||
-                new Set(lines.map((line) => [line.itemId, line.labId, line.locationId].join(':')))
-                  .size !== lines.length ||
-                (needsLecturer && !chosenLecturer)
-              }
-              onClick={submit}
-            >
-              Confirm and submit saved draft
-            </Button>
-          </section>
-        )}
-      </Content>
-    </Container>
-  );
+      <div className="relative max-w-xl"><Search size={18} className="absolute left-3 top-3.5 text-slate-400"/><Input aria-label="Search equipment" className="pl-10" placeholder="Search equipment" value={query} onChange={e=>setQuery(e.target.value)}/></div>
+      <div className="grid gap-3 lg:grid-cols-2">
+      {catalogue.filter(i=>i.name.toLowerCase().includes(query.toLowerCase())).map(item=>{
+        const pick=picks.find(p=>p.itemId===item.itemId);
+        return <article key={item.itemId} className="flex flex-col justify-between gap-4 rounded-xl border bg-white p-5">
+          <div><div className="flex justify-between gap-3"><h3 className="font-semibold">{item.name}</h3><span className="text-xs text-slate-500">{item.kind==='CONSUMABLE'?'Consumable':'Returnable'}</span></div>
+          <p className="mt-2 text-sm text-slate-500">{item.stock} {item.uom} available</p></div>
+          {pick ? <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="icon" aria-label={'Decrease '+item.name} disabled={pick.quantity<=1} onClick={()=>qty(item.itemId,pick.quantity-1)}><Minus size={16}/></Button>
+            <Input aria-label={'Quantity for '+item.name} type="number" min={1} max={item.limit} className="w-20 text-center" value={pick.quantity} onChange={e=>qty(item.itemId,Number(e.target.value))}/>
+            <Button type="button" variant="outline" size="icon" aria-label={'Increase '+item.name} disabled={pick.quantity>=item.limit} onClick={()=>qty(item.itemId,pick.quantity+1)}><Plus size={16}/></Button>
+          </div><Button type="button" variant="ghost" aria-label={'Remove '+item.name} onClick={()=>setPicks(current=>current.filter(p=>p.itemId!==item.itemId))}><Trash2 size={17}/></Button></div>
+          : <Button type="button" variant="outline" disabled={picks.length>=20 || item.limit<1} onClick={()=>add(item.itemId)}><Plus size={17} className="mr-2"/>Add item</Button>}
+        </article>;
+      })}</div>
+      {!catalogue.length && <p>No equipment is currently available.</p>}
+    </div>}
+    {step===1 && <div className="mx-auto max-w-3xl space-y-5 rounded-xl border bg-white p-5 sm:p-8">
+      <h2 className="text-xl font-semibold">Request details</h2>
+      <label className="block space-y-2 text-sm font-medium">Purpose of borrowing<Textarea maxLength={1000} rows={4} value={purpose} onChange={e=>setPurpose(e.target.value)} placeholder="Describe the purpose of using this equipment" required/></label>
+      <div className="grid gap-5 sm:grid-cols-2"><label className="block space-y-2 text-sm font-medium">Collection date and time<Input type="datetime-local" value={collectAt} onChange={e=>setCollectAt(e.target.value)} required/></label>
+      <label className="block space-y-2 text-sm font-medium">Expected return date and time<Input type="datetime-local" value={returnAt} onChange={e=>setReturnAt(e.target.value)} required/></label></div>
+      {lecturerNeeded && <label className="block space-y-2 text-sm font-medium">Approving lecturer
+        <select className="min-h-11 w-full rounded-md border bg-white px-3" value={chosenLecturer} onChange={e=>setLecturerId(e.target.value)}>
+          <option value="">Select lecturer</option>{eligible.map(l=><option key={l.id} value={l.id}>{l.displayName}</option>)}
+        </select>
+        {!eligible.length && <p role="alert" className="text-sm font-normal text-red-700">No eligible lecturer covers the selected lecturer-approval items. Contact the laboratory administrator.</p>}
+      </label>}
+    </div>}
+    {step===2 && <div className="mx-auto max-w-3xl space-y-5 rounded-xl border bg-white p-5 sm:p-8">
+      <h2 className="text-xl font-semibold">Review your request</h2>
+      <div className="divide-y rounded-lg border">{selected.map(({pick,item})=><div key={item.itemId} className="flex justify-between gap-4 p-4"><span>{item.name}</span><strong>{pick.quantity} {item.uom}</strong></div>)}</div>
+      <div className="space-y-2 text-sm"><p><strong>Purpose:</strong> {purpose}</p><p><strong>Collection:</strong> {new Date(collectAt).toLocaleString()}</p>
+      <p><strong>Return:</strong> {new Date(returnAt).toLocaleString()}</p>
+      <p><strong>Approval:</strong> {lecturerNeeded && hodNeeded ? 'Lecturer and HOD' : lecturerNeeded ? 'Lecturer' : hodNeeded ? 'HOD' : 'No approval required'}</p></div>
+    </div>}
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
+      <Button type="button" variant="outline" disabled={busy || step===0} onClick={()=>go(step-1)}><ChevronLeft size={17} className="mr-1"/>Back</Button>
+      {step<2 ? <Button type="button" onClick={()=>go(step+1)} disabled={busy}>Continue<ChevronRight size={17} className="ml-1"/></Button>
+      : <Button type="button" disabled={busy} onClick={submit}>{busy?'Submitting…':'Submit request'}</Button>}
+    </div>
+  </section>;
 }

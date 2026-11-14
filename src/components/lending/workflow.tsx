@@ -119,12 +119,8 @@ function Workflow({ session, initialView }: { session: Session; initialView: str
         <PageHeader
           eyebrow="Student workspace"
           title="New Borrowing Request"
-          description="Select equipment, complete the academic purpose and schedule, then review your saved draft."
-          actions={
-            <Button asChild variant="outline">
-              <Link href="/inventory">Browse Equipment</Link>
-            </Button>
-          }
+          description="Select equipment, enter request details and submit."
+          
         />
         <RequestBuilder session={session} revision={revision} refresh={saved} />
       </div>

@@ -559,6 +559,31 @@ export function Requests({
                     drafts for previous revisions.
                   </p>
                 </details>
+                {approvals && selected.lines.some(line => canDecide(selected, line)) && (
+                  <ActionForm
+                    key={selected.id + ':' + selected.version}
+                    title="Review entire request"
+                    path="order-decisions"
+                    session={session}
+                    onSaved={() => {setSelectedId('');refresh();}}
+                    body={data => ({
+                      requestId:selected.id,
+                      expectedVersion:selected.version,
+                      decision:data.get('decision'),
+                      remarks:data.get('remarks')
+                    })}
+                  >
+                    <p>This decision applies to the complete request of {selected.lines.length} items.</p>
+                    <label>
+                      Decision
+                      <SelectControl name="decision" className={selectClass}>
+                        <option value="APPROVE">Approve request</option>
+                        <option value="REJECT">Reject request</option>
+                      </SelectControl>
+                    </label>
+                    <Field name="remarks" label="Decision remarks" />
+                  </ActionForm>
+                )}
                 {selected.lines.map((line) => (
                   <section className="request-line border p-4" key={line.id}>
                     <h4>{line.item}</h4>
@@ -589,30 +614,6 @@ export function Requests({
                         </li>
                       ))}
                     </ol>
-                    {approvals && canDecide(selected, line) && (
-                      <ActionForm
-                        key={line.id + ':' + line.version}
-                        title="Record line decision"
-                        path="decisions"
-                        session={session}
-                        onSaved={refresh}
-                        body={(data) => ({
-                          lineId: line.id,
-                          expectedVersion: line.version,
-                          decision: data.get('decision'),
-                          remarks: data.get('remarks'),
-                        })}
-                      >
-                        <label>
-                          Decision
-                          <SelectControl name="decision" className={selectClass}>
-                            <option value="APPROVE">Approve remaining quantity</option>
-                            <option value="REJECT">Reject line</option>
-                          </SelectControl>
-                        </label>
-                        <Field name="remarks" label="Decision remarks" />
-                      </ActionForm>
-                    )}
                     {selected.borrowerId === session.user.id && (
                       <>
                         {cancellableQuantity(line) > 0 && (

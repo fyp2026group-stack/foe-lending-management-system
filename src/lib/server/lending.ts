@@ -26,6 +26,7 @@ const writes = new Set([
   'policies',
   'requests',
   'decisions',
+  'order-decisions',
   'reserve',
   'issues',
   'returns',
