@@ -1,7 +1,7 @@
 'use client';
 import { StudentEmptyState } from './student-empty-state';
-import { StudentSelect, NativeSelect } from './student-controls';
-import { useState, useRef, Fragment, type FormEvent } from 'react';
+import { StudentSelect } from './student-controls';
+import { useState, useRef, type FormEvent } from 'react';
 import { ApiError } from '@/components/identity/api';
 import { lendingWrite, type BorrowDraft } from './api';
 import { ErrorNotice } from '@/components/identity/session';
@@ -26,7 +26,7 @@ import { CommandReplay, draftSavePayload, draftSubmitPayload } from './lifecycle
 import { basketKey, readSelection, isStudent } from './student-model';
 import { eligibleLecturers, quantityLimit } from './request-options';
 
-const selectClass = 'min-h-11 border rounded-md bg-white px-3 w-full';
+const selectClass = 'request-composer-select w-full min-w-0';
 type DraftLine = {
   key: number;
   itemId: string;
@@ -57,13 +57,13 @@ export function RequestBuilder({
 }) {
   const student = isStudent(session.user.roles);
   const now = useStudentClock(revision);
-  const Container = student ? Card : 'section';
-  const Header = student ? CardHeader : Fragment;
-  const Title = student ? CardTitle : Fragment;
-  const Content = student ? CardContent : Fragment;
-  const Footer = student ? CardFooter : Fragment;
-  const Purpose = student ? Textarea : Input;
-  const SelectControl = isStudent(session.user.roles) ? StudentSelect : NativeSelect;
+  const Container = Card;
+  const Header = CardHeader;
+  const Title = CardTitle;
+  const Content = CardContent;
+  const Footer = CardFooter;
+  const Purpose = Textarea;
+  const SelectControl = StudentSelect;
   const sources = useLendingChoices<LendingSource>('sources', revision);
   const lecturers = useLendingChoices<Lecturer>('lecturers', revision);
   const [lines, setLines] = useState<DraftLine[]>(() => {
@@ -214,16 +214,18 @@ export function RequestBuilder({
     );
 
   return (
-    <Container className={student ? 'cp2-builder student-builder' : 'cp2-builder'}>
+    <Container className={student ? 'cp2-builder student-builder request-composer' : 'cp2-builder request-composer'}>
       <Header>
-        <Title>
-          <h2>{draft?.predecessorId ? 'Correct rejected items' : 'Build borrowing request'}</h2>
-        </Title>
-        {student && (
-          <CardDescription>
-            Save a draft, review it, then explicitly submit for the current item policies.
-          </CardDescription>
-        )}
+        <div className="request-composer-heading">
+          <div>
+            <p className="request-composer-eyebrow">EQUIPMENT LENDING</p>
+            <Title>{draft?.predecessorId ? 'Correct an equipment request' : 'New equipment request'}</Title>
+            <CardDescription>
+              Choose equipment, set the collection and return dates, and review before submitting.
+            </CardDescription>
+          </div>
+          <span className="request-composer-count">{lines.length} {lines.length === 1 ? 'item' : 'items'}</span>
+        </div>
       </Header>
       <Content>
         {!choices.length &&
@@ -235,7 +237,12 @@ export function RequestBuilder({
               add equipment when sources are available.
             </p>
           ))}
-        <p>Save your work as a draft, then review and submit. Saving does not reserve equipment.</p>
+        <ol className="request-composer-steps" aria-label="Request progress">
+          <li className={review ? 'is-complete' : 'is-active'}><span>1</span> Equipment & dates</li>
+          <li className={review ? 'is-active' : ''}><span>2</span> Review saved draft</li>
+          <li><span>3</span> Submit request</li>
+        </ol>
+        <p className="request-composer-hint">You can save a draft without submitting it. Stock is confirmed by the server when the request progresses.</p>
         {draft?.predecessorId && (
           <p>
             Correction of {draft.predecessorId}. Original decisions and quantities remain in
@@ -251,7 +258,7 @@ export function RequestBuilder({
         <form noValidate onSubmit={save} onChange={() => setReview(false)}>
           <fieldset disabled={busy || Boolean(uncertainPath)} className="grid gap-4">
             <div className="request-details">
-              <h3>Purpose & schedule</h3>
+              <h3>Request details <small>Purpose and expected borrowing period</small></h3>
               <label>
                 {student ? 'Academic purpose' : 'Borrowing purpose'}
                 <Purpose
@@ -291,10 +298,10 @@ export function RequestBuilder({
               );
               const source = sourceFor(line);
               return (
-                <fieldset key={line.key} className="request-line border p-4 grid gap-3">
-                  <legend>Item {index + 1}</legend>
+                <fieldset key={line.key} className="request-line">
+                  <legend>Equipment {index + 1}</legend>
                   <label>
-                    Catalogue item
+                    Equipment
                     <SelectControl
                       className={selectClass}
                       value={line.itemId}
@@ -334,7 +341,7 @@ export function RequestBuilder({
                     </SelectControl>
                   </label>
                   <label>
-                    Stock location
+                    Collection location
                     <SelectControl
                       className={selectClass}
                       disabled={!line.labId}
@@ -383,7 +390,7 @@ export function RequestBuilder({
                       setLines((current) => current.filter((row) => row.key !== line.key));
                     }}
                   >
-                    Remove item {index + 1}
+                    Remove equipment
                   </Button>
                 </fieldset>
               );
@@ -398,7 +405,7 @@ export function RequestBuilder({
                 setNextKey((key) => key + 1);
               }}
             >
-              Add item ({lines.length}/20)
+              Add another item ({lines.length}/20)
             </Button>
             {needsLecturer ? (
               <>
@@ -442,8 +449,13 @@ export function RequestBuilder({
           </Footer>
         </form>
         {review && saved && (
-          <section className="records p-4">
-            <h3>Review saved draft</h3>
+          <section className="request-composer-review" aria-label="Review saved draft">
+            <div className="request-composer-review-header">
+              <div>
+                <h3>Review your request</h3>
+                <p>Confirm these details before submitting. A saved draft does not reserve equipment.</p>
+              </div>
+            </div>
             {(!purpose.trim() ||
               !collectAt ||
               !returnAt ||
@@ -478,10 +490,13 @@ export function RequestBuilder({
               limit, an eligible lecturer when required, and a future return after collection.
               Correct any missing details and save again.
             </p>
-            <p>
-              {purpose} / {lines.length} items / Collection {collectAt || 'missing'} / Expected
-              return {returnAt || 'missing'}
-            </p>
+            <dl className="request-composer-summary">
+              <div><dt>Purpose</dt><dd>{purpose || 'Not specified'}</dd></div>
+              <div><dt>Equipment</dt><dd>{lines.length} {lines.length === 1 ? 'item' : 'items'} selected</dd></div>
+              <div><dt>Collection</dt><dd>{collectAt ? new Date(collectAt).toLocaleString() : 'Not selected'}</dd></div>
+              <div><dt>Expected return</dt><dd>{returnAt ? new Date(returnAt).toLocaleString() : 'Not selected'}</dd></div>
+              {needsLecturer && <div><dt>Academic approval</dt><dd>{eligible.find((lecturer) => lecturer.id === chosenLecturer)?.displayName ?? 'Select an eligible lecturer'}</dd></div>}
+            </dl>
             <p>
               Submitting sends this saved version for current policy and source validation. Approval
               can reserve stock; physical handover happens separately.
