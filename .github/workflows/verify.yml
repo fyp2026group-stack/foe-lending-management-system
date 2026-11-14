@@ -41,6 +41,8 @@ jobs:
         run: npm run local:config
       - name: Provision and verify local PostgreSQL
         run: npm run db:setup
+      - name: Verify Google student registration and duplicate identifier rejection
+        run: node --env-file=.verification/m2.env --test tests/google-student-registration.integration.mjs
       - name: Run isolated rollback-protected PostgreSQL cases
         run: |
           node --env-file=.verification/m2.env --test --test-concurrency=1 \

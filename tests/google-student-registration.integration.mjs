@@ -27,7 +27,7 @@ test('Google enrollment creates STUDENT only, verifies subject binding and preve
     const row=(await db.query('SELECT user_id FROM lab.google_student_identities WHERE google_subject=$1',[subject])).rows[0];
     assert.deepEqual((await db.query('SELECT role FROM lab.user_roles WHERE user_id=$1',[row.user_id])).rows.map(r=>r.role),['STUDENT']);
     const stored=(await db.query('SELECT index_number,department FROM lab.student_profiles WHERE user_id=$1',[row.user_id])).rows[0];
-    assert.equal(stored.index_number,profile.indexNumber);
+    assert.equal(stored.index_number,profile.indexNumber.toUpperCase());
     assert.equal(stored.department,profile.department);
     // A second Google account cannot claim a case-variant of the same student ID.
     const sameIndex={...profile,indexNumber:profile.indexNumber.toLowerCase(),registrationNumber:'REG-'+randomUUID(),googleEmail:'another-'+randomUUID()+'@gmail.com'};
