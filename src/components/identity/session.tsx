@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -563,13 +563,18 @@ function RoleSwitcher({
     </DropdownMenu>
   );
 }
+/** A shared shell avoids re-authenticating/remounting the full navigation on every route. */
+export const WorkspaceSessionContext = createContext<Session | null>(null);
+
 export function Authenticated({ children }: { children: (session: Session) => ReactNode }) {
+  const inheritedSession = useContext(WorkspaceSessionContext);
   const [session, setSession] = useState<Session | null>(null);
   const [preferredRole, setPreferredRole] = useState<Role | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   useEffect(() => {
+    if (inheritedSession) return;
     const controller = new AbortController();
     api<Session>('/api/auth/me', { signal: controller.signal })
       .then(readSession)
@@ -588,7 +593,7 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         setError(error instanceof Error ? error.message : 'Unable to load session.');
       });
     return () => controller.abort();
-  }, []);
+  }, [inheritedSession]);
   async function logout() {
     if (!session) return;
     setBusy(true);
@@ -610,6 +615,9 @@ export function Authenticated({ children }: { children: (session: Session) => Re
       setBusy(false);
     }
   }
+  // Existing routed workspaces keep their Authenticated render-prop API, but
+  // the outer persistent layout now owns the one visible sidebar and session.
+  if (inheritedSession) return <>{children(inheritedSession)}</>;
   if (!session)
     return (
       <main id="main" tabIndex={-1} className="session-loading">
