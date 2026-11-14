@@ -41,7 +41,6 @@ export function ReportFilters({
   const [directoryError, setDirectoryError] = useState('');
   const items = useInventoryLookup<Item>('items', 0);
   const categories = useInventoryLookup<Named>('categories', 0);
-  useEffect(() => setDraft(filters), [filters]);
   useEffect(() => {
     const controller = new AbortController();
     Promise.all(

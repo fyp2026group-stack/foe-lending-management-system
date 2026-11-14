@@ -360,6 +360,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
                 variant={report === name ? 'default' : 'ghost'}
                 onClick={() => {
                   setReport(name);
+                  setFilters({});
                   setOffset(0);
                 }}
               >
@@ -395,6 +396,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
             }}
             audit={audit}
             report={report}
+            key={report}
           />
           {(error || exportError) && <ErrorNotice message={error ?? exportError} />}{' '}
           {!current && !error ? (
