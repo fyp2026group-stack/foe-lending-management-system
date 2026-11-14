@@ -7,6 +7,7 @@ import { lendingWrite, type BorrowDraft, type Lecturer, type LendingSource } fro
 import { useLendingChoices } from './shared';
 import { CommandReplay, draftSavePayload, draftSubmitPayload } from './lifecycle-model';
 import { quantityLimit } from './request-options';
+import { basketKey, readSelection } from './student-model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,7 +25,7 @@ export function RequestBuilder({ session, revision, refresh, draft }: {
   const [step, setStep] = useState(0);
   const [query, setQuery] = useState('');
   const [picks, setPicks] = useState<Pick[]>(() =>
-    draft?.payload.lines.map(l => ({ itemId: l.itemId, quantity: l.quantity })) ?? []);
+    draft?.payload.lines.map(l => ({ itemId: l.itemId, quantity: l.quantity })) ?? (() => { try {return readSelection(sessionStorage.getItem(basketKey(session.user.id))).map(l=>({itemId:l.itemId,quantity:l.quantity}));}catch{return [];} })());
   const [purpose, setPurpose] = useState(draft?.payload.purpose ?? '');
   const [collectAt, setCollectAt] = useState(dateLocal(draft?.payload.collectAt));
   const [returnAt, setReturnAt] = useState(dateLocal(draft?.payload.returnAt));
@@ -41,7 +42,7 @@ export function RequestBuilder({ session, revision, refresh, draft }: {
     return [...grouped.entries()].map(([itemId, available]) => ({
       itemId, name: available[0].item, kind: available[0].kind, uom: available[0].uom,
       available, stock: available.reduce((sum, s) => sum + s.availableQuantity, 0),
-      limit: Math.min(available.reduce((sum, s) => sum + s.availableQuantity, 0), ...available.map(quantityLimit)),
+      limit: Math.max(...available.map(s => Math.min(s.availableQuantity, quantityLimit(s)))),
       policy: available[0].policy
     })).sort((a, b) => a.name.localeCompare(b.name));
   }, [sources.data]);
@@ -50,7 +51,7 @@ export function RequestBuilder({ session, revision, refresh, draft }: {
   const lecturerNeeded = selected.some(({item}) => approval(item.policy));
   const hodNeeded = selected.some(({item}) => hodApproval(item.policy));
   const selectedLabs = selected.filter(({item}) => approval(item.policy))
-    .map(({item}) => item.available[0].labId);
+    .map(({item,pick}) => item.available.filter(s=>s.availableQuantity>=pick.quantity).sort((a,b)=>b.availableQuantity-a.availableQuantity)[0]?.labId).filter((lab):lab is string=>Boolean(lab));
   const eligible = (lecturers.data?.items ?? []).filter(l => l.id !== session.user.id &&
     selectedLabs.every(lab => l.labIds.includes(lab)));
   const chosenLecturer = eligible.some(l => l.id === lecturerId) ? lecturerId : '';
@@ -107,6 +108,7 @@ export function RequestBuilder({ session, revision, refresh, draft }: {
       }
       await issue('submit',draftSubmitPayload(pendingDraft.current!));
       pendingDraft.current = undefined;
+      try {sessionStorage.removeItem(basketKey(session.user.id));} catch {}
       setComplete(true); refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to submit this request. Please retry.');
