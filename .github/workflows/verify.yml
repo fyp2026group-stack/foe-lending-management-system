@@ -47,6 +47,7 @@ jobs:
             tests/application-lending.integration.mjs \
             tests/catalogue.integration.mjs \
             tests/hod-admin-governance.integration.mjs \
+            tests/google-student-registration.integration.mjs \
             tests/hod-admin-reports.integration.mjs \
             tests/lending-authority.integration.mjs \
             tests/lending-lifecycle.integration.mjs \
