@@ -242,9 +242,9 @@ export function CatalogueWorkspace({
                       </select>
                     </div>
                   )}
-                  {oversight && <details className="admin-inventory-more-filters">
+                  <details className={oversight ? 'admin-inventory-more-filters' : 'inventory-expanded-filters'} open={!oversight}>
                     <summary>More filters</summary>
-                    <div className="admin-inventory-more-grid">}
+                    <div className={oversight ? 'admin-inventory-more-grid' : 'inventory-expanded-filter-grid'}>
                   <div>
                     <label htmlFor="inventory-type">Type</label>
                     <select
@@ -290,7 +290,7 @@ export function CatalogueWorkspace({
                       </select>
                     </div>
                   )}
-                  {oversight && </div></details>}
+                  </div></details>
                   <Button type="submit">Apply filters</Button>
                 </form>
                 {active.length > 0 && (

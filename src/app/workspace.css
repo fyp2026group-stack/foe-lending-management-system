@@ -4521,3 +4521,8 @@ body [data-slot="dialog-content"].stock-control-dialog{max-width:890px}
 .admin-inventory-records .inventory-toolbar>button[type="submit"]{order:9;}
 .admin-inventory-records .inventory-item-meta{color:#778292;font-size:11px;}
 @media(max-width:700px){.admin-inventory-more-grid{grid-template-columns:1fr;}.admin-inventory-records .inventory-toolbar>button[type="submit"]{width:auto;}}
+
+/* Non-oversight inventory still shows its full original filter bar. */
+.inventory-expanded-filters {display:contents}
+.inventory-expanded-filters>summary {display:none}
+.inventory-expanded-filter-grid {display:contents}
