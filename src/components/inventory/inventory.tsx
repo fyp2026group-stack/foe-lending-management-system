@@ -449,7 +449,7 @@ export function ReceiveItemsDialog({open,onOpenChange,session,labs,locations,onS
       build={d=>({itemId:d.get('receiptItem'),labId:d.get('receiptLab'),locationId:d.get('receiptLocation'),
         quantity:Number(d.get('receiptQuantity')),provenance:d.get('provenance')})}>
       <p className="receipt-form-context">Select equipment, the storage location and quantity received.
-        Serial numbers may be recorded later without adding more stock.</p>
+        Serial numbers may be recorded later. Identifying a unit does not increase stock.</p>
       <div className="receipt-form-fields"><ReceiptFields labs={labs} locations={locations}/></div>
     </MutationForm>
   </ReviewSheet>;
