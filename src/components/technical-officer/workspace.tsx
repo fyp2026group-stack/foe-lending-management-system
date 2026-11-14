@@ -57,7 +57,6 @@ import type {
   Allocation,
   BorrowRequest,
   Loan,
-  HistoryEvent,
   Policy,
   OperationsSummary,
 } from '@/components/lending/api';
@@ -73,8 +72,6 @@ import {
   officerViews,
   officerLabels,
   officerHref,
-  operationalActions,
-  operationalEvents,
   isDue,
   laboratoryName,
   handoverRemarks,
@@ -1238,65 +1235,55 @@ function InventoryArea({
   );
 }
 
+/** Inventory history is for equipment stock movements, not login or lending events. */
 function OperationsActivity({ revision }: { revision: number }) {
-  const history = useLendingChoices<HistoryEvent>('history', revision);
   const movements = useInventoryLookup<Movement>('movements', revision);
+  const items = useInventoryLookup<Item>('items', revision);
   const [query, setQuery] = useState('');
-
-  const rows = [
-    ...operationalEvents(history.data?.items ?? []).map((e) => ({
-      id: e.action + e.targetId + e.occurredAt,
-      label: operationalActions[e.action],
-      date: e.occurredAt,
-      reference: e.targetId,
-      reason: '',
-    })),
-    ...(movements.data?.items ?? []).map((m) => ({
-      id: m.id,
-      label: m.kind.replaceAll('_', ' '),
-      date: m.createdAt,
-      reference: m.id,
-      reason: m.reason ?? '',
-    })),
-  ]
-    .filter((r) =>
-      `${r.label} ${r.reference} ${r.reason}`.toLowerCase().includes(query.toLowerCase())
+  const rows = (movements.data?.items ?? [])
+    .map((movement) => ({
+      id: movement.id,
+      label: movement.kind.replaceAll('_', ' ').toLowerCase(),
+      date: movement.createdAt,
+      equipment: items.data?.items.find(item => item.id === movement.itemId)?.name ?? 'Equipment',
+      reason: movement.reason ?? '',
+      entries: movement.entries ?? [],
+    }))
+    .filter(row =>
+      `${row.label} ${row.equipment} ${row.reason}`.toLowerCase().includes(query.toLowerCase())
     )
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  return (
-    <Records
-      filtered={Boolean(query)}
-      onReset={() => setQuery('')}
-      title="Laboratory operations & movements"
-      description="Security and session events are excluded from laboratory activity."
-      records={{
-        data: history.data && movements.data ? { items: rows } : undefined,
-        error: history.error ?? movements.error,
-      }}
-      id={(r) => r.id}
-      tools={
-        <Field>
-          <FieldLabel htmlFor="operation-search">Search operations</FieldLabel>
-          <Input id="operation-search" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </Field>
-      }
-      columns={[
-        { id: 'label', title: 'Operation', value: (r) => r.label },
-        { id: 'date', title: 'Recorded', value: (r) => r.date, cell: (r) => date(r.date) },
-        { id: 'reason', title: 'Factual notes', value: (r) => r.reason },
-        {
-          id: 'reference',
-          title: 'Record reference',
-          value: (r) => r.reference,
-          cell: (r) => (
-            <details>
-              <summary>Reference {r.reference.slice(0, 8)}</summary>
-              <span className="break-all">{r.reference}</span>
-            </details>
-          ),
-        },
-      ]}
-    />
-  );
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  return <Records
+    filtered={Boolean(query)}
+    onReset={() => setQuery('')}
+    title="Inventory history"
+    description="Recorded equipment receipts, identification, transfers and stock adjustments. Borrowing and sign-in activity is kept separately."
+    records={{
+      data: movements.data && items.data ? { items: rows } : undefined,
+      error: movements.error ?? items.error,
+    }}
+    id={row => row.id}
+    tools={<Field>
+      <FieldLabel htmlFor="operation-search">Search equipment history</FieldLabel>
+      <Input id="operation-search" value={query} placeholder="Equipment, action or reason"
+        onChange={event => setQuery(event.target.value)} />
+    </Field>}
+    columns={[
+      {id:'equipment',title:'Equipment',value:row=>row.equipment},
+      {id:'label',title:'Action',value:row=>row.label},
+      {id:'date',title:'Date',value:row=>row.date,cell:row=>date(row.date)},
+      {id:'reason',title:'Reason',value:row=>row.reason||'—'},
+      {id:'details',title:'Movement details',value:()=>'',cell:row=>
+        <details className="officer-activity-details">
+          <summary>View changes</summary>
+          {row.entries.length ? <ul>{row.entries.map((entry,index)=>
+            <li key={index}>
+              {entry.locationName || 'Stock movement'}{entry.state ? ' · '+entry.state.toLowerCase() : ''}
+              {' · '}{entry.delta>0?'+':''}{entry.delta}
+            </li>
+          )}</ul> : <p>Recorded inventory action</p>}
+        </details>
+      },
+    ]}
+  />;
 }
