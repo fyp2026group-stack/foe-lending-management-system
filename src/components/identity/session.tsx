@@ -581,8 +581,11 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         setSession(value);
       })
       .catch((error) => {
-        if (!controller.signal.aborted)
-          setError(error instanceof Error ? error.message : 'Unable to load session.');
+        if (controller.signal.aborted) return;
+        // The shared API helper redirects on 401. Do not render a dead-end
+        // "session ended" screen while the browser navigates to sign-in.
+        if (error instanceof ApiError && error.status === 401) return;
+        setError(error instanceof Error ? error.message : 'Unable to load session.');
       });
     return () => controller.abort();
   }, []);
