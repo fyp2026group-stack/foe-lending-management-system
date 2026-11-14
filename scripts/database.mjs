@@ -67,6 +67,7 @@ try {
       '050_hod_admin_governance_hardening.sql',
       '051_hod_admin_self_change_guard.sql',
       '052_google_student_registration.sql',
+      '053_google_student_identity_uniqueness.sql',
     ]) {
       const source = await readFile(new URL('../database/' + name, import.meta.url), 'utf8');
       const digest = createHash('sha256').update(source).digest('hex');

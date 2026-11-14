@@ -15,7 +15,7 @@ test('Google enrollment creates STUDENT only, verifies subject binding and preve
     const subject='synthetic-sub-'+randomUUID(),email='oauth-'+randomUUID()+'@example.invalid';
     const profile={indexNumber:'IDX-'+randomUUID(),registrationNumber:'REG-'+randomUUID(),
       fullName:'Synthetic OAuth Student',batchId:batch,department:'Computer Engineering',
-      phone:'+94771234567',universityEmail:email,personalEmail:''};
+      phone:'+94771234567',googleEmail:email,universityEmail:'student@university.example',personalEmail:''};
     const call=async(sql,args)=>(await db.query(sql,args)).rows[0].result;
     assert.equal((await call('SELECT lab.google_student_login($1,$2) result',[subject,email])).code,'PROFILE_REQUIRED');
     const created=await call('SELECT lab.google_student_register($1,$2,$3) result',[subject,email,profile]);
@@ -29,5 +29,12 @@ test('Google enrollment creates STUDENT only, verifies subject binding and preve
     const stored=(await db.query('SELECT index_number,department FROM lab.student_profiles WHERE user_id=$1',[row.user_id])).rows[0];
     assert.equal(stored.index_number,profile.indexNumber);
     assert.equal(stored.department,profile.department);
+    // A second Google account cannot claim a case-variant of the same student ID.
+    const sameIndex={...profile,indexNumber:profile.indexNumber.toLowerCase(),registrationNumber:'REG-'+randomUUID(),googleEmail:'another-'+randomUUID()+'@gmail.com'};
+    assert.equal((await call('SELECT lab.google_student_register($1,$2,$3) result',[
+      'synthetic-sub-'+randomUUID(),sameIndex.googleEmail,sameIndex])).code,'DUPLICATE_STUDENT_RECORD');
+    const sameRegistration={...profile,indexNumber:'IDX-'+randomUUID(),registrationNumber:profile.registrationNumber.toLowerCase(),googleEmail:'third-'+randomUUID()+'@gmail.com'};
+    assert.equal((await call('SELECT lab.google_student_register($1,$2,$3) result',[
+      'synthetic-sub-'+randomUUID(),sameRegistration.googleEmail,sameRegistration])).code,'DUPLICATE_STUDENT_RECORD');
   } finally { await db.query('ROLLBACK');await db.end(); }
 });
