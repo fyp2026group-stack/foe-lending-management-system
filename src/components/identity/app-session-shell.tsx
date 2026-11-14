@@ -11,6 +11,7 @@ export function AppSessionShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPublic = pathname === '/' ||
     pathname === '/login' ||
+    pathname === '/student/register' ||
     pathname === '/design-system' ||
     pathname.startsWith('/preview/');
   if (isPublic) return <>{children}</>;
