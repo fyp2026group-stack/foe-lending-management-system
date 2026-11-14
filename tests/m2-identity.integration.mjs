@@ -345,7 +345,7 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
             await request(`admin/users/${target.id}`, {
               method: 'PATCH',
               actor: admin,
-              body: { roles: ['LECTURER'], disabled: false, laboratoryIds: [lab] },
+              body: { roles: ['LECTURER'], disabled: false, laboratoryIds: [lab], batchIds: [] },
             })
           ).status,
           200
