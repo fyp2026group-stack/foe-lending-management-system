@@ -6,6 +6,8 @@ import { officerHasRows } from './empty-model';
 import { useState, type ReactNode } from 'react';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight } from 'lucide-react';
 
@@ -208,6 +210,7 @@ export function OfficerWorkspace({
   session: Session;
   view?: string;
 }) {
+  const router = useRouter();
   const [revision, setRevision] = useState(0);
   const refresh = () => setRevision((r) => r + 1);
   const [creating, setCreating] = useState(view === 'new');
@@ -292,18 +295,37 @@ export function OfficerWorkspace({
           revision={revision}
           refresh={refresh}
         />
-      ) : ['inventory', 'stock', 'imports'].includes(current) ? (
-        <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />
-      ) : current === 'requests' ? (
-        <>
-          {creating ? (
-            <RequestBuilder session={session} revision={revision} refresh={refresh} />
-          ) : (
-            <Requests approvals={false} session={session} revision={revision} refresh={refresh} />
-          )}
-        </>
-      ) : current === 'borrowed' ? (
-        <StudentBorrowed session={session} revision={revision} refresh={refresh} />
+      ) : ['inventory', 'stock', 'imports', 'activity'].includes(current) ? (
+        <Tabs value={current} onValueChange={(value) => router.push(officerHref(value as OfficerView))}>
+          <TabsList variant="line" className="officer-section-tabs" aria-label="Inventory and stock operations">
+            <TabsTrigger value="inventory">Equipment</TabsTrigger>
+            <TabsTrigger value="stock">Stock operations</TabsTrigger>
+            <TabsTrigger value="imports">Receipt imports</TabsTrigger>
+            <TabsTrigger value="activity">Activity & history</TabsTrigger>
+          </TabsList>
+          <TabsContent value={current} className="pt-3">
+            {current === 'activity'
+              ? <OperationsActivity revision={revision} />
+              : <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />}
+          </TabsContent>
+        </Tabs>
+      ) : current === 'requests' || current === 'borrowed' ? (
+        <Tabs value={current} onValueChange={(value) => {
+          setCreating(false);
+          router.push(officerHref(value as OfficerView));
+        }}>
+          <TabsList variant="line" className="officer-section-tabs" aria-label="Personal borrowing">
+            <TabsTrigger value="requests">My Requests</TabsTrigger>
+            <TabsTrigger value="borrowed">Borrowed Equipment</TabsTrigger>
+          </TabsList>
+          <TabsContent value={current} className="pt-3">
+            {current === 'borrowed'
+              ? <StudentBorrowed session={session} revision={revision} refresh={refresh} />
+              : creating
+                ? <RequestBuilder session={session} revision={revision} refresh={refresh} />
+                : <Requests approvals={false} session={session} revision={revision} refresh={refresh} />}
+          </TabsContent>
+        </Tabs>
       ) : (
         <OperationsActivity revision={revision} />
       )}

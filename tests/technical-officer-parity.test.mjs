@@ -44,9 +44,8 @@ test('officer mobile/sidebar and per-screen actions are scoped without changing 
   assert.ok(sourceContains(shell, "?'sidebar':'inset'"));
   for (const group of [
     "label:'Operations'",
-    "label:'Inventory'",
-    "label:'My Borrowing'",
-    "label:'Reference'",
+    "label:'Inventory & stock'",
+    "label:'Personal borrowing'",
   ])
     assert.ok(sourceContains(shell, group), group);
   for (const icon of [

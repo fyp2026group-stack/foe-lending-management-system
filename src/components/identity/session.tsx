@@ -174,9 +174,8 @@ function OfficerNavigation({
       label: 'Operations',
       views: ['dashboard', 'handovers', 'returns', 'inspections'],
     },
-    { label: 'Inventory', views: ['inventory', 'stock', 'imports'] },
-    { label: 'My Borrowing', views: ['requests', 'borrowed'] },
-    { label: 'Reference', views: ['activity'] },
+    { label: 'Inventory & stock', views: ['inventory'] },
+    { label: 'Personal borrowing', views: ['requests'] },
   ] as const;
   return (
     <nav aria-label="Primary navigation">
@@ -226,7 +225,7 @@ function LecturerNavigation({ pathname, currentView }: { pathname: string; curre
         <SidebarGroupLabel>Lecturer workspace</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {lecturerViews.map((view) => {
+            {lecturerViews.filter((view) => view !== 'policies').map((view) => {
               const href = lecturerHref(view);
               const active =
                 pathname === href.split('?')[0] &&
@@ -338,8 +337,7 @@ function Navigation({ session }: { session: Session }) {
               ['Browse Equipment', '/inventory', 'inventory'],
               ['My Requests', '/borrowing?view=requests', 'borrowing'],
               ['Borrowed Equipment', '/borrowing?view=loans', 'borrowing'],
-              ['Borrowing History', '/borrowing?view=history', 'borrowing'],
-              ['Help / Policies', '/borrowing?view=policies', 'labs'],
+
             ],
           },
         ]
