@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { availablePerEquipment,resolveBorrowingSources } from '../src/components/lending/request-source-selector.ts';
+import ts from 'typescript';
+const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(
+  ts.transpileModule(source, { compilerOptions: { module:ts.ModuleKind.ESNext, target:ts.ScriptTarget.ES2022 } }).outputText
+).toString('base64');
+const optionsUrl = moduleUrl(readFileSync(new URL('../src/components/lending/request-options.ts', import.meta.url), 'utf8'));
+const selectorText = readFileSync(new URL('../src/components/lending/request-source-selector.ts', import.meta.url), 'utf8')
+  .replace("from './request-options'", "from '" + optionsUrl + "'");
+const {availablePerEquipment,resolveBorrowingSources} = await import(moduleUrl(selectorText));
 
 const origin = { itemId:'a', item:'Multimeter', kind:'RETURNABLE', uom:'unit',
   labId:'l1',lab:'Laboratory',locationId:'x1',location:'Store 1',
