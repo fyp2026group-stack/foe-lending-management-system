@@ -28,9 +28,11 @@ const initialFilters = { q: '', kind: '', categoryId: '', labId: '', status: '',
 export function CatalogueWorkspace({
   session,
   oversight = false,
+  initialTab = 'catalogue',
 }: {
   session: Session;
   oversight?: boolean;
+  initialTab?: 'catalogue' | 'stock operations';
 }) {
   const admin = session.user.roles.includes('ADMIN');
   const stockActor = session.user.roles.includes('TECHNICAL_OFFICER');
@@ -42,7 +44,7 @@ export function CatalogueWorkspace({
   const [sort, setSort] = useState<CatalogueSort>('name');
   const [descending, setDescending] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [tab, setTab] = useState('catalogue');
+  const [tab, setTab] = useState(initialTab);
   const [detail, setDetail] = useState<Item | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
   const origin = useRef<HTMLButtonElement | null>(null);

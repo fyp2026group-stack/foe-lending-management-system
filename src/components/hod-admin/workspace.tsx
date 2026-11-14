@@ -8,7 +8,7 @@ import { ErrorNotice } from '@/components/identity/session';
 import { AdminResourceWorkspace } from '@/components/identity/admin-management';
 import { CatalogueWorkspace } from '@/components/inventory/catalogue-workspace';
 import { useInventoryLookup } from '@/components/inventory/lookups';
-import type { Adjustment, Item } from '@/components/inventory/api';
+import type { Item } from '@/components/inventory/api';
 import { Requests } from '@/components/lending/request-workspace';
 import { RequestBuilder } from '@/components/lending/request-builder';
 import { StudentBorrowed, StudentHistory } from '@/components/lending/student-borrowed';
@@ -85,7 +85,13 @@ export function AdminWorkspace({
       </AdminPage>
     );
   if (view === 'adjustments')
-    return <div className="admin-page"><AdminSectionNav active={view} section="inventory" /><Adjustments revision={revision} refresh={refresh} /></div>;
+    return (
+      <div className="admin-page">
+        <AdminSectionNav active={view} section="inventory" />
+        <p className="admin-note">Stock adjustment proposers cannot approve their own proposals; current authority and balances are revalidated when approving.</p>
+        <CatalogueWorkspace session={session} oversight initialTab="stock operations" />
+      </div>
+    );
   if (view === 'policies')
     return <div className="admin-page"><AdminSectionNav active={view} section="administration" /><Policies session={session} revision={revision} refresh={refresh} /></div>;
   if (view === 'audit') return <Audit />;
@@ -476,76 +482,6 @@ function Reports({ audit = false }: { audit?: boolean }) {
           </div>
         </CardContent>
       </Card>
-    </AdminPage>
-  );
-}
-
-function Adjustments({ revision, refresh }: { revision: number; refresh: () => void }) {
-  const rows = useInventoryLookup<Adjustment>('adjustments', revision);
-  const items = useInventoryLookup<Item>('items', revision);
-  return (
-    <AdminPage
-      title={adminLabels.adjustments}
-      eyebrow="Independent stock reconciliation"
-      description="Review proposed ledger corrections independently; proposers cannot approve their own proposals."
-      refresh={refresh}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>Adjustment review queue</CardTitle>
-          <CardDescription>Live proposals from the authorized inventory service.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {rows.error && <ErrorNotice message={rows.error} />}{' '}
-          {!rows.data && !rows.error ? (
-            <Skeleton className="h-24 m-4" />
-          ) : rows.data?.items.length ? (
-            <div className="table-region">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {['Item', 'Change', 'Proposer', 'Reason', 'Status'].map((x) => (
-                      <TableHead key={x}>{x}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.data.items.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        {items.data?.items.find((i) => i.id === row.itemId)?.name ?? row.itemId}
-                      </TableCell>
-                      <TableCell>
-                        {row.direction} {row.quantity}
-                      </TableCell>
-                      <TableCell>{row.proposer}</TableCell>
-                      <TableCell>{row.reason}</TableCell>
-                      <TableCell>
-                        <Badge variant={row.state === 'PENDING' ? 'secondary' : 'outline'}>
-                          {row.state}
-                        </Badge>
-                        {row.proposer === undefined ? null : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Empty
-              title="No adjustment proposals"
-              detail="Independent stock corrections will appear here when proposed."
-            />
-          )}
-        </CardContent>
-      </Card>
-      <p className="admin-note">
-        Approval controls are available in Inventory Oversight, where current stock version and
-        proposer conflict are revalidated by the server.
-      </p>
-      <Button asChild>
-        <Link href={adminHref('inventory')}>Open Inventory Oversight</Link>
-      </Button>
     </AdminPage>
   );
 }
