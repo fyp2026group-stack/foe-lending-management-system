@@ -24,3 +24,25 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    needs: checks
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Generate isolated synthetic environment
+        run: npm run local:config
+      - name: Provision and verify local PostgreSQL
+        run: npm run db:setup
+      - name: Run rollback-protected SQL integration cases
+        run: node --env-file=.verification/m2.env --test --test-concurrency=1 tests/*.integration.mjs
+      - name: Stop isolated PostgreSQL
+        if: always()
+        run: npm run db:down
