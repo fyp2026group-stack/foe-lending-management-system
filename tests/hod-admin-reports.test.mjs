@@ -8,7 +8,8 @@ test('report route uses protected reads, hardened export formats and snapshot is
     new URL('../src/lib/server/report-export.ts', import.meta.url),
     'utf8'
   );
-  assert.ok(source.includes("format === 'csv' ? csv(rows) : xlsx(rows)"));
+  assert.ok(source.includes("format === 'xlsx' ? xlsx(rows) : null"));
+  assert.ok(source.includes('csv(rows)'));
   assert.ok(source.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
   assert.ok(serializer.includes('/^\\s*[=+\\-@]/'));
   assert.ok(source.includes('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'));

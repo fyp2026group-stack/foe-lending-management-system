@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -31,21 +32,21 @@ test('HOD/Admin workspace uses real authorized APIs and preserves conflict bound
   );
   for (const token of [
     '"requests"',
-    "'/api/admin/reports?report=overdue'",
+    '/api/admin/reports?report=overdue',
     '"inspections"',
     '"history"',
     '"policies"',
     '"adjustments"',
     '/api/admin/reports',
   ])
-    assert.ok(source.includes(token), token);
-  assert.ok(source.includes('request.borrowerId===session.user.id?[]'));
-  assert.ok(source.includes('line.stage==="HOD"&&line.hodId===session.user.id'));
-  assert.ok(source.includes('proposers cannot approve their own proposals'));
+    assert.ok(sourceContains(source, token), token);
+  assert.ok(sourceContains(source, 'request.borrowerId===session.user.id?[]'));
+  assert.ok(sourceContains(source, 'line.stage==="HOD"&&line.hodId===session.user.id'));
+  assert.ok(sourceContains(source, 'proposers cannot approve their own proposals'));
   assert.ok(
-    source.includes('administrator authority never bypasses approval or handover conflicts')
+    sourceContains(source, 'administrator authority never bypasses approval or handover conflicts')
   );
-  assert.ok(source.includes('UNCONFIGURED'));
+  assert.ok(sourceContains(source, 'UNCONFIGURED'));
 });
 
 test('reports integrate all mandatory server filters and real CSV/XLSX exports', () => {
@@ -67,11 +68,11 @@ test('reports integrate all mandatory server filters and real CSV/XLSX exports',
     'stage',
     'kind',
   ])
-    assert.ok(source.includes(filter), filter);
-  assert.ok(source.includes('format:${format}') || source.includes('format=${format}'));
-  assert.ok(source.includes('"csv"|"xlsx"'));
-  assert.ok(source.includes('scope:"operations"') || source.includes('value="operations"'));
-  assert.ok(source.includes('value="security"'));
+    assert.ok(sourceContains(source, filter), filter);
+  assert.ok(sourceContains(source, 'format:${format}') || sourceContains(source, 'format=${format}'));
+  assert.ok(sourceContains(source, '"csv"|"xlsx"'));
+  assert.ok(sourceContains(source, 'scope:"operations"') || sourceContains(source, 'value="operations"'));
+  assert.ok(sourceContains(source, 'value="security"'));
 });
 
 test('admin shell follows reference dimensions and compact responsive composition', () => {
@@ -80,8 +81,8 @@ test('admin shell follows reference dimensions and compact responsive compositio
     'utf8'
   );
   const css = readFileSync(new URL('../src/app/workspace.css', import.meta.url), 'utf8');
-  assert.ok(shell.includes('AdminNavigation'));
-  assert.ok(shell.includes('admin-shell'));
+  assert.ok(sourceContains(shell, 'AdminNavigation'));
+  assert.ok(sourceContains(shell, 'admin-shell'));
   for (const token of [
     '--sidebar-width:250px',
     'height:28px',
@@ -94,7 +95,7 @@ test('admin shell follows reference dimensions and compact responsive compositio
     'admin-advanced-filters',
     '@media(max-width:480px)',
   ])
-    assert.ok(css.includes(token), token);
+    assert.ok(sourceContains(css, token), token);
 });
 
 test('admin routes prioritize the HOD workspace while preserving official branding', () => {
@@ -107,10 +108,10 @@ test('admin routes prioritize the HOD workspace while preserving official brandi
     new URL('../src/components/identity/session.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(route.includes('adminViews.includes'));
-  assert.ok(route.includes('<AdminWorkspace'));
+  assert.ok(sourceContains(route, 'adminViews.includes'));
+  assert.ok(sourceContains(route, '<AdminWorkspace'));
   assert.ok(
-    workspace.indexOf('includes("ADMIN")') < workspace.indexOf('includes("TECHNICAL_OFFICER")')
+    workspace.indexOf("includes('ADMIN')") < workspace.indexOf("includes('TECHNICAL_OFFICER')")
   );
-  assert.ok(shell.includes('src="/foe-logo.png"'));
+  assert.ok(sourceContains(shell, 'src="/foe-logo.png"'));
 });

@@ -135,7 +135,7 @@ test('owned workspace uses full-page review, versioned approval and borrowing te
     new URL('../src/components/lending/workflow.tsx', import.meta.url),
     'utf8'
   );
-  assert.match(workspace, /expectedVersion:line.version/);
+  assert.match(workspace, /expectedVersion\s*:\s*line\.version/);
   assert.match(workspace, /predecessorId/);
   assert.match(workspace, /Expected Return Date/);
   assert.doesNotMatch(workspace, /ReviewPanel/);

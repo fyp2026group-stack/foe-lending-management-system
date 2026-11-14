@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -76,18 +77,18 @@ test('officer screen wires migration 046 fields and removes superseded placehold
     new URL('../src/components/technical-officer/workspace.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(source.includes("...handoverRemarks(d.get('remarks'))"));
+  assert.ok(sourceContains(source, "...handoverRemarks(d.get('remarks'))"));
   assert.match(source, /<Textarea[^>]+name="remarks"[^>]+maxLength=\{1000\}/);
-  assert.ok(source.includes('laboratoryName(r)'));
-  assert.ok(source.includes('laboratoryName(a)'));
-  assert.ok(source.includes('laboratoryName(selected)'));
+  assert.ok(sourceContains(source, 'laboratoryName(r)'));
+  assert.ok(sourceContains(source, 'laboratoryName(a)'));
+  assert.ok(sourceContains(source, 'laboratoryName(selected)'));
   assert.ok(
-    source.includes('useLending<OperationsSummary>(operationsSummaryQuery(new Date(now)),revision)')
+    sourceContains(source, 'useLending<OperationsSummary>(operationsSummaryQuery(new Date(now)),revision)')
   );
-  assert.ok(source.includes('value:summary.data?.completed.total'));
-  assert.ok(source.includes('summary.data?.laboratories??[]'));
-  assert.ok(source.includes('<HandoverFacts handover={selected.handover}/>'));
-  assert.ok(!source.includes('remarks cannot be saved'));
-  assert.ok(!source.includes('Completed today'));
-  assert.ok(!source.includes('in your visible history'));
+  assert.ok(sourceContains(source, 'value:summary.data?.completed.total'));
+  assert.ok(sourceContains(source, 'summary.data?.laboratories??[]'));
+  assert.ok(sourceContains(source, '<HandoverFacts handover={selected.handover}/>'));
+  assert.ok(!sourceContains(source, 'remarks cannot be saved'));
+  assert.ok(!sourceContains(source, 'Completed today'));
+  assert.ok(!sourceContains(source, 'in your visible history'));
 });
