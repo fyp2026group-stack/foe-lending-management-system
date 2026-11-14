@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const get=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('officer uses Equipment + Inventory history, with stock control context action',()=>{
  const s=get('src/components/technical-officer/workspace.tsx');
- assert.ok(s.includes('Manage units & corrections'));
+ assert.ok(s.includes('Identify units / corrections'));
  assert.ok(s.includes('<OfficerStockActions'));
  assert.ok(!s.includes('<TabsTrigger value="stock">'));
  assert.ok(!s.includes('Common stock operations'));

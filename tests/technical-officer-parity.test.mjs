@@ -25,14 +25,17 @@ test('officer source retains reference shell dimensions, tokens and distinct com
   );
   assert.ok(sourceContains(page, 'className="officer-support"'));
   assert.ok(sourceContains(page, 'className="officer-quick-icon"'));
-  assert.ok(sourceContains(page, 'className="officer-queue-metrics"'));
+  assert.ok(sourceContains(page, 'officer-queue-metrics inventory-catalogue-metrics'));
   const stock = readFileSync(
     new URL('../src/components/inventory/inventory.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(sourceContains(stock, 'Common stock operations'));
-  assert.ok(sourceContains(stock, 'Recent inventory activity'));
-  assert.ok(sourceContains(stock, 'aria-label="Receipt import steps"'));
+  // Preserve the underlying audited stock operations and staged receipt validation,
+  // while exposing them through the simplified equipment-focused UI.
+  assert.ok(sourceContains(stock, 'path="receipts"'));
+  assert.ok(sourceContains(stock, 'path="adjustments"'));
+  assert.ok(sourceContains(stock, 'imports/preview'));
+  assert.ok(sourceContains(stock, 'Required spreadsheet columns'));
 });
 
 test('officer mobile/sidebar and per-screen actions are scoped without changing student breakpoint', () => {
