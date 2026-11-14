@@ -55,6 +55,7 @@ jobs:
             tests/physical-lifecycle.integration.mjs \
             tests/workflow-basic.integration.mjs
       - name: Run authenticated HTTP identity, inventory and lending flow
+        if: success() || failure()
         run: node --env-file=.verification/m2.env tests/workflow-run.integration.mjs
       - name: Stop isolated PostgreSQL
         if: always()
