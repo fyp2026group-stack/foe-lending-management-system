@@ -31,7 +31,7 @@ test('HOD/Admin workspace uses real authorized APIs and preserves conflict bound
   );
   for (const token of [
     '"requests"',
-    '"borrower-history"',
+    "'/api/admin/reports?report=overdue'",
     '"inspections"',
     '"history"',
     '"policies"',

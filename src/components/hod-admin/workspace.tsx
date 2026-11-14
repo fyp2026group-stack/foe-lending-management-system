@@ -13,7 +13,7 @@ import { Requests } from '@/components/lending/request-workspace';
 import { RequestBuilder } from '@/components/lending/request-builder';
 import { StudentBorrowed, StudentHistory } from '@/components/lending/student-borrowed';
 import { useLendingChoices, ActionForm } from '@/components/lending/shared';
-import type { BorrowRequest, HistoryEvent, Loan, Policy } from '@/components/lending/api';
+import type { BorrowRequest, HistoryEvent, Policy } from '@/components/lending/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import {
 import { ReviewSheet } from '@/components/ui/review-sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { adminHref, adminLabels, type AdminView } from './model';
+import { formatReportValue } from './report-format';
 
 type ReportName = 'borrowing' | 'overdue' | 'inventory' | 'approvals' | 'audit';
 type ReportResponse = {
@@ -124,7 +125,27 @@ function AdminPage({
 
 function Overview({ session, revision }: { session: Session; revision: number }) {
   const requests = useLendingChoices<BorrowRequest>('requests', revision);
-  const loans = useLendingChoices<Loan>('borrower-history', revision);
+  // Department-wide figures come from authorized reporting, not personal borrower history.
+  const [department, setDepartment] = useState<{
+    current: number;
+    overdue: number;
+    overdueRows: Array<Record<string, unknown>>;
+    error?: string;
+  }>();
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      api<ReportResponse>('/api/admin/reports?report=borrowing&kind=RETURNABLE&status=BORROWED&limit=1', { signal: controller.signal }),
+      api<ReportResponse>('/api/admin/reports?report=overdue&kind=RETURNABLE&limit=5', { signal: controller.signal }),
+    ]).then(([current, overdue]) => {
+      if (!controller.signal.aborted)
+        setDepartment({ current: current.total + overdue.total, overdue: overdue.total, overdueRows: overdue.items });
+    }).catch((error) => {
+      if (!controller.signal.aborted)
+        setDepartment({ current: 0, overdue: 0, overdueRows: [], error: error instanceof Error ? error.message : 'Department metrics unavailable.' });
+    });
+    return () => controller.abort();
+  }, [revision]);
   const history = useLendingChoices<HistoryEvent>('history', revision);
   const inspections = useLendingChoices<Loan>('inspections', revision);
   const items = useInventoryLookup<Item>('items', revision);
@@ -136,12 +157,9 @@ function Overview({ session, revision }: { session: Session; revision: number })
             .filter((line) => line.stage === 'HOD' && line.hodId === session.user.id)
             .map((line) => ({ request, line }))
     ) ?? [];
-  const [now] = useState(() => Date.now());
-  const active = loans.data?.items.filter((loan) => loan.returned < loan.quantity) ?? [];
-  const overdue = active.filter((loan) => Boolean(loan.dueAt && Date.parse(loan.dueAt) < now));
   const metrics = [
-    ['Borrowed returnable records', active.length, PackageCheck],
-    ['Overdue borrowing records', overdue.length, BarChart3],
+    ['Borrowed returnable records', department?.error ? '—' : department?.current ?? '—', PackageCheck],
+    ['Overdue borrowing records', department?.error ? '—' : department?.overdue ?? '—', BarChart3],
     ['Awaiting HOD decisions', assigned.length, ClipboardCheck],
     ['Awaiting inspection', inspections.data?.items.length ?? 0, ShieldCheck],
   ] as const;
@@ -154,7 +172,7 @@ function Overview({ session, revision }: { session: Session; revision: number })
       eyebrow="Department oversight"
       description={`Welcome, ${session.user.displayName}. Review departmental lending, inventory state and work requiring independent action.`}
     >
-      {[requests.error, loans.error, history.error, inspections.error, items.error]
+      {[requests.error, department?.error, history.error, inspections.error, items.error]
         .filter(Boolean)
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
@@ -223,18 +241,18 @@ function Overview({ session, revision }: { session: Session; revision: number })
             <CardDescription>Current records requiring follow-up.</CardDescription>
           </CardHeader>
           <CardContent className="admin-queue">
-            {overdue.slice(0, 5).map((loan) => (
-              <Link href={adminHref('reports')} key={loan.id}>
+            {department?.overdueRows.map((loan) => (
+              <Link href={adminHref('reports')} key={String(loan.id)}>
                 <span>
-                  <strong>{loan.item}</strong>
+                  <strong>{String(loan.item ?? 'Equipment')}</strong>
                   <small>
-                    {loan.borrower} · due {date(loan.dueAt)}
+                    {String(loan.borrower ?? 'Borrower')} · due {date(loan.dueAt)}
                   </small>
                 </span>
                 <Badge variant="destructive">Overdue</Badge>
               </Link>
             ))}
-            {loans.data && !overdue.length && (
+            {department && !department.error && !department.overdue && (
               <Empty
                 title="No overdue records"
                 detail="No outstanding record in this scope is past its due date."
@@ -396,9 +414,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
                     <TableRow key={String(row.id ?? i)}>
                       {columns.map((c) => (
                         <TableCell key={c}>
-                          {c.toLowerCase().includes('date') || c.toLowerCase().includes('at')
-                            ? date(row[c])
-                            : text(row[c])}
+                          {formatReportValue(c, row[c])}
                         </TableCell>
                       ))}
                     </TableRow>

@@ -108,7 +108,13 @@ export async function reportResponse(request: Request) {
       { status: 413, headers: { 'Cache-Control': 'no-store' } }
     );
   const filename = `${name}-report.${format}`;
-  return new Response(format === 'csv' ? csv(rows) : xlsx(rows), {
+  // Copy the ZIP bytes into an ArrayBuffer accepted by the Web Response API.
+  // A Uint8Array<ArrayBufferLike> is not a guaranteed BodyInit in TS 5.9+.
+  const binary = format === 'xlsx' ? xlsx(rows) : null;
+  const body = binary
+    ? Uint8Array.from(binary).buffer
+    : csv(rows);
+  return new Response(body, {
     headers: {
       'Cache-Control': 'no-store',
       'Content-Disposition': `attachment; filename="${filename}"`,

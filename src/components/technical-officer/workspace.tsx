@@ -340,7 +340,6 @@ function Dashboard({ session, revision }: { session: Session; revision: number }
       view: 'inspections',
       icon: ClipboardCheck,
     },
-    { label: 'Stock alerts', value: undefined, view: 'inventory', icon: Boxes },
     {
       label: completedOperationsLabel,
       value: summary.data?.completed.total,
@@ -367,9 +366,6 @@ function Dashboard({ session, revision }: { session: Session; revision: number }
           </Link>
         ))}
       </div>
-      <p className="muted text-xs mb-4">
-        Stock alerts are unavailable until an authoritative threshold policy is configured.
-      </p>
       {summary.data && (
         <p className="muted text-xs">
           Today across{' '}
