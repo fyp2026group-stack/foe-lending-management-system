@@ -427,6 +427,23 @@ function ReceiptFields({ labs, locations }: { labs: Named[]; locations: Named[] 
     </>
   );
 }
+export function ReceiveItemsDialog({open,onOpenChange,session,labs,locations,onSaved}:{
+ open:boolean;onOpenChange:(value:boolean)=>void;session:Session;labs:Named[];locations:Named[];onSaved:()=>void;
+}) {
+ return <ReviewSheet open={open} onOpenChange={onOpenChange} title="Add items to inventory"
+  description="Record equipment received at your laboratory. You can identify each physical unit later.">
+   <MutationForm title="Save received items" path="receipts" session={session}
+    onSaved={()=>{onSaved();onOpenChange(false);}}
+    build={d=>({itemId:d.get('receiptItem'),labId:d.get('receiptLab'),locationId:d.get('receiptLocation'),
+      quantity:Number(d.get('receiptQuantity')),provenance:d.get('provenance')})}>
+    <p className="inventory-form-guidance">Choose an existing equipment type, enter how many units arrived
+      and where they are stored. Individual serial numbers can be recorded later, including at handover.
+      Identifying a unit does not increase stock.</p>
+    <ReceiptFields labs={labs} locations={locations}/>
+   </MutationForm>
+ </ReviewSheet>;
+}
+
 export function StockOperations({
   session,
   items: catalogueItems,
@@ -578,7 +595,7 @@ export function StockOperations({
       {itemLookup.error && <ErrorNotice message={itemLookup.error} />}{' '}
       {stock.error && <ErrorNotice message={stock.error} />}
       <section className="records p-4">
-        <h2>Current stock cells</h2>
+        <h2>Stock by location</h2>
         <label htmlFor="cell-location">Filter loaded stock by location</label>
         <select
           id="cell-location"
@@ -656,38 +673,18 @@ export function StockOperations({
           <Button className="justify-self-start" onClick={() => setReceiptOpen(true)}>
             Receive stock
           </Button>
-          <ReviewSheet
-            open={receiptOpen}
-            onOpenChange={setReceiptOpen}
-            title="Receive stock"
-            description="Record a physical receipt into its laboratory and stock location."
-          >
-            <MutationForm
-              title="Receive stock"
-              path="receipts"
-              session={session}
-              onSaved={onSaved}
-              build={(data) => ({
-                itemId: data.get('receiptItem'),
-                labId: data.get('receiptLab'),
-                locationId: data.get('receiptLocation'),
-                quantity: Number(data.get('receiptQuantity')),
-                provenance: data.get('provenance'),
-              })}
-            >
-              <ReceiptFields labs={labs} locations={locations} />
-            </MutationForm>
-          </ReviewSheet>
+          <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
+            session={session} labs={labs} locations={locations} onSaved={onSaved} />
           <section className="border bg-white p-4">
-            <h2>Select a stock cell for a controlled operation</h2>
-            <label htmlFor="stock-cell">Stock cell</label>
+            <h2>Select equipment and location</h2>
+            <label htmlFor="stock-cell">Equipment / location / stock state</label>
             <select
               id="stock-cell"
               className={selectionClass}
               value={cellId}
               onChange={(event) => setCellId(event.target.value)}
             >
-              <option value="">Select stock cell</option>
+              <option value="">Choose equipment and location</option>
               {stock.data?.items
                 .filter((row) => ['AVAILABLE', 'INSPECTION', 'MAINTENANCE'].includes(row.state))
                 .map((row) => (

@@ -4426,3 +4426,23 @@ body [data-slot="dialog-content"].review-sheet {
   body [data-slot="dialog-content"], body [data-slot="alert-dialog-content"] { animation: none !important; }
   body [data-slot="dialog-overlay"], body [data-slot="sheet-overlay"] { backdrop-filter: none; }
 }
+
+/* Unify equipment operations; bulk import is contextual rather than a full tab. */
+.officer-inventory-toolbar {display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding:18px;border:1px solid #e2e6ed;border-radius:10px;background:#fff}
+.officer-inventory-toolbar h2 {font-size:15px;font-weight:730}
+.officer-inventory-toolbar p {font-size:12px;color:#687488;margin:4px 0 0}
+.officer-inventory-actions {display:flex;gap:9px;flex-wrap:wrap}
+.inventory-form-guidance {font-size:12px;line-height:1.6;color:#566273;background:#f7f8fa;border-left:3px solid #8c1823;padding:12px 14px;border-radius:6px}
+@media(max-width:680px){.officer-inventory-actions{width:100%}.officer-inventory-actions [data-slot="button"]{flex:1}}
+/* A separate transform animation and Radix transforms had displaced tall dialogs.
+   Fix position at viewport center, and scroll content rather than the whole dialog. */
+body [data-slot="dialog-content"].review-sheet {
+ position:fixed;top:50%;left:50%;translate:none;transform:translate(-50%,-50%);
+ width:min(940px,calc(100vw - 30px));max-height:min(90dvh,940px);
+ display:flex;flex-direction:column;overflow:hidden;animation:none
+}
+body [data-slot="dialog-content"].review-sheet > [data-slot="dialog-header"],
+body [data-slot="dialog-content"].review-sheet > .review-sheet-footer{flex:none}
+body [data-slot="dialog-content"].review-sheet > .review-sheet-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+body [data-slot="dialog-content"],body [data-slot="alert-dialog-content"]{animation:none !important}
+@media(max-width:680px){body [data-slot="dialog-content"].review-sheet{width:calc(100vw - 18px);max-height:94dvh}}

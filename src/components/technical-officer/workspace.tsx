@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight } from 'lucide-react';
+import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight, Plus, FileSpreadsheet } from 'lucide-react';
 
 import type { Session } from '@/components/identity/api';
 
@@ -64,7 +64,7 @@ import type {
 
 import { useInventoryLookup } from '@/components/inventory/lookups';
 
-import { StockOperations, ImportPanel, ItemDetail } from '@/components/inventory/inventory';
+import { StockOperations, ImportPanel, ItemDetail, ReceiveItemsDialog } from '@/components/inventory/inventory';
 
 import type { Item, Named, Movement } from '@/components/inventory/api';
 
@@ -229,7 +229,7 @@ export function OfficerWorkspace({
         handovers: 'activity',
         returns: 'inspections',
         inspections: 'inventory',
-        inventory: 'stock',
+        inventory: 'activity',
         stock: 'activity',
         imports: 'stock',
         borrowed: 'requests',
@@ -243,7 +243,7 @@ export function OfficerWorkspace({
         handovers: 'View handover history',
         returns: 'View inspection queue',
         inspections: 'Inventory status',
-        inventory: 'Record receipt',
+        inventory: 'View inventory history',
         stock: 'View stock movements',
         imports: 'Stock operations',
         borrowed: 'My Requests',
@@ -273,11 +273,11 @@ export function OfficerWorkspace({
                 <Button onClick={() => setCreating(!creating)}>
                   {creating ? 'View my requests' : 'New borrowing request'}
                 </Button>
-              ) : (
+              ) : current !== 'inventory' && current !== 'imports' ? (
                 <Button asChild>
                   <Link href={officerHref(destination)}>{actionLabel}</Link>
                 </Button>
-              )}
+              ) : null}
             </>
           </>
         }
@@ -296,14 +296,14 @@ export function OfficerWorkspace({
           refresh={refresh}
         />
       ) : ['inventory', 'stock', 'imports', 'activity'].includes(current) ? (
-        <Tabs value={current} onValueChange={(value) => router.push(officerHref(value as OfficerView))}>
-          <TabsList variant="line" className="officer-section-tabs" aria-label="Inventory and stock operations">
+        <Tabs value={current === 'imports' ? 'inventory' : current}
+          onValueChange={(value) => router.push(officerHref(value as OfficerView))}>
+          <TabsList variant="line" className="officer-section-tabs" aria-label="Inventory">
             <TabsTrigger value="inventory">Equipment</TabsTrigger>
-            <TabsTrigger value="stock">Stock operations</TabsTrigger>
-            <TabsTrigger value="imports">Receipt imports</TabsTrigger>
-            <TabsTrigger value="activity">Activity & history</TabsTrigger>
+            <TabsTrigger value="stock">Manage stock</TabsTrigger>
+            <TabsTrigger value="activity">Inventory history</TabsTrigger>
           </TabsList>
-          <TabsContent value={current} className="pt-3">
+          <TabsContent value={current === 'imports' ? 'inventory' : current} className="pt-3">
             {current === 'activity'
               ? <OperationsActivity revision={revision} />
               : <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />}
@@ -781,7 +781,7 @@ function HandoverForm({
             value={asset}
             onChange={setAsset}
             options={[
-              { value: 'anonymous', label: 'Identify from anonymous reserved stock' },
+              { value: 'anonymous', label: 'Assign an identity to one reserved unit' },
               ...(assets.data?.items ?? []).map((a) => ({
                 value: a.assetId,
                 label: a.assetId + (a.serial ? ' / ' + a.serial : ''),
@@ -790,13 +790,14 @@ function HandoverForm({
           />
           {asset === 'anonymous' && (
             <Field>
-              <FieldLabel htmlFor="handover-serial">Manufacturer serial (optional)</FieldLabel>
+              <FieldLabel htmlFor="handover-serial">Manufacturer serial / reference (if present)</FieldLabel>
               <Input id="handover-serial" name="serial" maxLength={120} />
             </Field>
           )}
           <Notice>
-            Identifying an anonymous reserved unit does not increase total stock. The server
-            verifies the selected unit is eligible.
+            The system assigns a permanent internal ID to this unit, with a manufacturer serial
+            when available. Use the same identity for its return and inspections.
+            Identifying it does not increase the total quantity.
           </Notice>
         </>
       )}
@@ -1081,10 +1082,10 @@ function InventoryArea({
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [detail, setDetail] = useState<Item>();
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(view === 'imports');
 
   const labs = summary.data?.laboratories ?? [];
-
-  if (view === 'imports') return <ImportPanel session={session} onSaved={refresh} />;
 
   if (view === 'stock')
     return (
@@ -1134,10 +1135,16 @@ function InventoryArea({
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
         ))}
-      <Notice>
-        Catalogue creation, editing and deactivation require administrator authority in the existing
-        API. Officers can review assigned inventory and record authorized stock operations.
-      </Notice>
+      <div className="officer-inventory-toolbar">
+        <div><h2>Equipment catalogue</h2>
+          <p>Search by equipment name and check availability in your authorized laboratories.</p></div>
+        <div className="officer-inventory-actions">
+          <Button onClick={() => setReceiptOpen(true)}><Plus className="size-4"/>Add items</Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileSpreadsheet className="size-4"/>Import Excel
+          </Button>
+        </div>
+      </div>
       <Records
         filtered={Boolean(query || category !== 'all' || lab !== 'all')}
         onReset={() => {
@@ -1216,11 +1223,19 @@ function InventoryArea({
           },
         ]}
       />
+      <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
+        session={session} labs={labs} locations={locations.data?.items ?? []} onSaved={refresh}/>
+      <ReviewSheet open={importOpen} onOpenChange={setImportOpen}
+        title="Import items from Excel"
+        description="Upload, validate and review a spreadsheet receipt before updating quantities.">
+        <ImportPanel session={session} onSaved={refresh}/>
+      </ReviewSheet>
       <ReviewSheet
         open={Boolean(detail)}
         onOpenChange={(open) => {
           if (!open) setDetail(undefined);
         }}
+        variant="equipment"
         title={detail?.name ?? 'Equipment details'}
         description="Locations, policies, assets and recorded movements."
       >
