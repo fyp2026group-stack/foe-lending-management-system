@@ -52,7 +52,7 @@ CREATE FUNCTION lab.lending_call(token text,csrf text,op text,p jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,lab,public,pg_temp AS $$
 DECLARE actor uuid; roles text[]; request_row lab.lend_requests; line_row lab.lend_lines;
- old lab.lend_commands; cmd uuid; result jsonb; changed integer:=0; derived uuid;
+ old lab.lend_commands; cmd uuid; result jsonb; changed integer:=0; derived uuid; target_request uuid;
 BEGIN
  IF op NOT IN('order-decisions','decisions','issues') THEN
   RETURN lab.lending_call_before_order(token,csrf,op,p);
@@ -84,13 +84,14 @@ BEGIN
   -- Legacy line commands stay authorised, but no single line may release an
   -- order before all other lines are approved.
   SELECT l.* INTO line_row FROM lab.lend_lines l WHERE l.id=(p->>'lineId')::uuid;
+  target_request:=line_row.request_id;
   result:=lab.lending_call_before_order(token,csrf,op,p);
   IF result ? 'status' THEN RETURN result;END IF;
   IF line_row.id IS NOT NULL AND EXISTS(SELECT 1 FROM lab.lend_order_controls WHERE request_id=line_row.request_id)
     AND NOT EXISTS(SELECT 1 FROM lab.lend_lines
-     WHERE request_id=line_row.request_id AND stage<>'APPROVED') THEN
+     WHERE request_id=target_request AND stage<>'APPROVED') THEN
     FOR line_row IN SELECT * FROM lab.lend_lines
-     WHERE request_id=line_row.request_id AND stage='APPROVED' ORDER BY id LOOP
+     WHERE request_id=target_request AND stage='APPROVED' ORDER BY id LOOP
       PERFORM lab.lend_reserve(actor,line_row.id);
     END LOOP;
   END IF;
@@ -112,6 +113,49 @@ BEGIN
  IF request_row.id IS NULL OR request_row.borrower_id=actor
  OR NOT EXISTS(SELECT 1 FROM lab.lend_order_controls WHERE request_id=request_row.id)
  THEN RETURN '{"status":403,"code":"DENIED"}';END IF;
+ IF (p->>'expectedVersion') IS NULL OR (p->>'expectedVersion')!~'^[0-9]+
+ THEN RETURN '{"status":409,"code":"STALE_VERSION"}';END IF;
+ FOR line_row IN SELECT * FROM lab.lend_lines WHERE request_id=request_row.id
+  AND ((stage='LECTURER' AND lecturer_id=actor AND 'LECTURER'=ANY(roles)
+    AND EXISTS(SELECT 1 FROM lab.staff_labs WHERE user_id=actor AND laboratory_id=lab_id))
+   OR (stage='HOD' AND hod_id=actor AND 'ADMIN'=ANY(roles)))
+  ORDER BY id LOOP
+  derived:=md5(cmd::text||line_row.id::text)::uuid;
+  result:=lab.lending_call_before_order(token,csrf,'decisions',
+   jsonb_build_object('commandId',derived,'lineId',line_row.id,
+    'expectedVersion',line_row.version,'decision',p->>'decision','remarks',p->>'remarks'));
+  IF result ? 'status' THEN RAISE EXCEPTION 'ORDER_DECISION_FAILED';END IF;
+  changed:=changed+1;
+ END LOOP;
+ IF changed=0 THEN RETURN '{"status":403,"code":"DENIED"}';END IF;
+ IF p->>'decision'='REJECT' THEN
+  -- No line in a rejected unissued order is allowed to progress.
+  UPDATE lab.lend_lines SET stage='REJECTED'
+  WHERE request_id=request_row.id AND stage IN('LECTURER','HOD','APPROVED');
+ ELSE
+  IF NOT EXISTS(SELECT 1 FROM lab.lend_lines WHERE request_id=request_row.id AND stage<>'APPROVED')
+  THEN
+   FOR line_row IN SELECT * FROM lab.lend_lines WHERE request_id=request_row.id ORDER BY id LOOP
+    PERFORM lab.lend_reserve(actor,line_row.id);
+   END LOOP;
+  END IF;
+ END IF;
+ result:=jsonb_build_object('requestId',request_row.id,'decidedLines',changed,
+   'decision',p->>'decision');
+ INSERT INTO lab.lend_commands(actor_id,command_id,operation,payload,result)
+ VALUES(actor,cmd,op,p,result);
+ INSERT INTO lab.audit(id,actor_id,action,target_id,details)
+ VALUES(gen_random_uuid(),actor,'LENDING_ORDER_DECISION',request_row.id,
+  jsonb_build_object('decision',p->>'decision','lines',changed,'commandId',cmd));
+ RETURN result;
+EXCEPTION WHEN OTHERS THEN
+ RETURN jsonb_build_object('status',422,'code','ORDER_DECISION_FAILED');
+END $$;
+ALTER FUNCTION lab.lending_call(text,text,text,jsonb) OWNER TO lab_identity_functions;
+REVOKE ALL ON FUNCTION lab.lending_call(text,text,text,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lab.lending_call(text,text,text,jsonb) TO lab_runtime;
+COMMIT;
+ THEN RETURN '{"status":422,"code":"INVALID"}';END IF;
  IF request_row.version<>(p->>'expectedVersion')::integer
  THEN RETURN '{"status":409,"code":"STALE_VERSION"}';END IF;
  FOR line_row IN SELECT * FROM lab.lend_lines WHERE request_id=request_row.id
