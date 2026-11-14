@@ -14,7 +14,7 @@ before(async () => {
   });
   const port = reservation.address().port;
   await new Promise((resolve) => reservation.close(resolve));
-  baseUrl = `http://127.0.0.1:${port}`;
+  baseUrl = 'http://127.0.0.1:' + port;
   child = spawn(
     process.execPath,
     ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', String(port)],
@@ -27,7 +27,7 @@ before(async () => {
   await new Promise((resolve, reject) => {
     let output = '';
     const timeout = setTimeout(
-      () => reject(new Error(`Local server did not become ready: ${output}`)),
+      () => reject(new Error('Local server did not become ready: ' + output)),
       25000
     );
     const receive = (chunk) => {
@@ -45,31 +45,33 @@ before(async () => {
     });
     child.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Local server exited ${code}: ${output}`));
+      reject(new Error('Local server exited ' + code + ': ' + output));
     });
   });
 });
-
 after(() => {
   child?.kill();
 });
 
-test('production page renders the synthetic preview and skip-link destination', async () => {
-  const response = await fetch(baseUrl);
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get('content-type'), /text\/html/);
+test('root redirects to the authenticated workspace; sign-in retains accessible entry', async () => {
+  const response = await fetch(baseUrl, { redirect: 'manual' });
+  assert.ok([307, 308].includes(response.status), 'Unexpected redirect: ' + response.status);
+  assert.equal(new URL(response.headers.get('location'), baseUrl).pathname, '/workspace');
   assert.equal(response.headers.get('set-cookie'), null);
   assert.equal(response.headers.get('x-powered-by'), null);
-  const html = await response.text();
-  assert.match(html, /Synthetic demonstration/);
-  assert.match(html, /Example laboratories/);
+
+  const login = await fetch(baseUrl + '/login');
+  assert.equal(login.status, 200);
+  assert.match(login.headers.get('content-type'), /text\/html/);
+  const html = await login.text();
   assert.match(html, /href="#main"/);
   assert.match(html, /id="main"/);
-  assert.doesNotMatch(html, /<form\b/i);
-  assert.doesNotMatch(html, /(?:src|href)="https?:\/\//i);
+  assert.match(html, /<form\b/i);
+  assert.match(html, /Sign in/);
+  assert.equal(login.headers.get('x-powered-by'), null);
 });
 
-test('operational command routes are unavailable', async () => {
+test('legacy unauthenticated command endpoints fail closed', async () => {
   for (const route of [
     '/api/v1/handovers',
     '/api/v1/return-receipts',
@@ -77,24 +79,22 @@ test('operational command routes are unavailable', async () => {
     '/api/v1/requests/example/submissions',
     '/api/v1/approval-assignments/example/decisions',
   ]) {
-    const response = await fetch(`${baseUrl}${route}`, {
+    const response = await fetch(baseUrl + route, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{}',
     });
-    assert.ok([404, 405].includes(response.status), `${route}: ${response.status}`);
+    assert.ok(response.status >= 400 && response.status < 500, route + ': ' + response.status);
+    assert.equal(response.headers.get('set-cookie'), null);
   }
 });
 
-test('all four previews render as non-operational synthetic layouts', async () => {
+test('legacy preview URLs redirect to real borrowing screens rather than synthetic previews', async () => {
   for (const flow of ['requests', 'approvals', 'collection', 'returns']) {
-    const response = await fetch(`${baseUrl}/preview/${flow}`);
-    assert.equal(response.status, 200, flow);
-    const html = await response.text();
-    assert.match(html, /Synthetic layout preview/);
-    assert.match(html, /all workflow actions unavailable/);
-    assert.match(html, /<caption\b/);
-    assert.doesNotMatch(html, /<form\b/i);
-    assert.doesNotMatch(html, /(?:src|href)="https?:\/\//i);
+    const response = await fetch(baseUrl + '/preview/' + flow, { redirect: 'manual' });
+    assert.ok([307, 308].includes(response.status), flow + ': ' + response.status);
+    const destination = new URL(response.headers.get('location'), baseUrl);
+    assert.equal(destination.pathname, '/borrowing', flow);
+    assert.equal(destination.searchParams.get('view'), flow, flow);
   }
 });
