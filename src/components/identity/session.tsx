@@ -36,7 +36,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { officerLabels, officerHref, type OfficerView } from '@/components/technical-officer/model';
 import { lecturerHref, lecturerLabels, lecturerViews } from '@/components/lecturer/model';
-import { adminGroups, adminHref, adminLabels, type AdminView } from '@/components/hod-admin/model';
+import { adminHref, adminLabels, type AdminView } from '@/components/hod-admin/model';
 import { useLendingChoices } from '@/components/lending/shared';
 import type { Allocation, Loan } from '@/components/lending/api';
 import { isStudent } from '@/components/lending/student-model';
@@ -265,14 +265,22 @@ function AdminNavigation({ pathname }: { pathname: string }) {
   const { setOpenMobile } = useSidebar();
   return (
     <nav aria-label="HOD and administrator navigation">
-      {adminGroups.map((group) => (
+      {[
+        { label: 'Department', views: ['overview', 'reports', 'inventory'] as AdminView[] },
+        { label: 'Approvals', views: ['approvals'] as AdminView[] },
+        { label: 'Administration', views: ['users'] as AdminView[] },
+        { label: 'Governance & Personal', views: ['audit', 'borrowing'] as AdminView[] },
+      ].map((group) => (
         <SidebarGroup key={group.label}>
           <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {group.views.map((view) => {
                 const href = adminHref(view);
-                const active = pathname === href;
+                const section = pathname.split('/')[2];
+                const active = pathname === href ||
+                  (view === 'users' && ['batches', 'laboratories', 'policies'].includes(section)) ||
+                  (view === 'inventory' && section === 'adjustments');
                 const icon: IconName = (
                   {
                     overview: 'dashboard',
@@ -290,14 +298,14 @@ function AdminNavigation({ pathname }: { pathname: string }) {
                 )[view];
                 return (
                   <SidebarMenuItem key={view}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={adminLabels[view]}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={view === 'users' ? 'Administration' : adminLabels[view]}>
                       <Link
                         href={href}
                         onClick={() => setOpenMobile(false)}
                         aria-current={active ? 'page' : undefined}
                       >
                         <Icon name={icon} />
-                        <span>{adminLabels[view]}</span>
+                        <span>{view === 'users' ? 'Administration' : adminLabels[view]}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

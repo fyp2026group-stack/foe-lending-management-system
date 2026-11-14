@@ -62,12 +62,14 @@ export function AdminWorkspace({
   if ((['users', 'batches', 'laboratories'] as AdminView[]).includes(view))
     return (
       <div className="admin-page">
+        <AdminSectionNav active={view} section="administration" />
         <AdminResourceWorkspace resource={view as Resource} session={session} />
       </div>
     );
   if (view === 'inventory')
     return (
       <div className="admin-page">
+        <AdminSectionNav active={view} section="inventory" />
         <CatalogueWorkspace session={session} oversight />
       </div>
     );
@@ -82,14 +84,36 @@ export function AdminWorkspace({
         <Requests approvals session={session} revision={revision} refresh={refresh} />
       </AdminPage>
     );
-  if (view === 'adjustments') return <Adjustments revision={revision} refresh={refresh} />;
+  if (view === 'adjustments')
+    return <div className="admin-page"><AdminSectionNav active={view} section="inventory" /><Adjustments revision={revision} refresh={refresh} /></div>;
   if (view === 'policies')
-    return <Policies session={session} revision={revision} refresh={refresh} />;
+    return <div className="admin-page"><AdminSectionNav active={view} section="administration" /><Policies session={session} revision={revision} refresh={refresh} /></div>;
   if (view === 'audit') return <Audit />;
   if (view === 'borrowing')
     return <MyBorrowing session={session} revision={revision} refresh={refresh} />;
   if (view === 'reports') return <Reports />;
   return <Overview session={session} revision={revision} />;
+}
+
+
+function AdminSectionNav({ active, section }: {
+  active: AdminView;
+  section: 'administration' | 'inventory';
+}) {
+  const views: AdminView[] = section === 'inventory'
+    ? ['inventory', 'adjustments']
+    : ['users', 'batches', 'laboratories', 'policies'];
+  return (
+    <nav className="admin-context-nav" aria-label={section === 'inventory' ? 'Inventory oversight sections' : 'Administration sections'}>
+      {views.map((view) => (
+        <Button key={view} asChild size="sm" variant={active === view ? 'default' : 'ghost'}>
+          <Link href={adminHref(view)} aria-current={active === view ? 'page' : undefined}>
+            {adminLabels[view]}
+          </Link>
+        </Button>
+      ))}
+    </nav>
+  );
 }
 
 function AdminPage({

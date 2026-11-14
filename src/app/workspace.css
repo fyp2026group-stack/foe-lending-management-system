@@ -4184,3 +4184,9 @@ body:has(.officer-shell)
   .workspace .workspace-role-trigger { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
   .workspace .officer-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* HOD contextual navigation exposes secondary operations without 11 sidebar links. */
+.admin-context-nav { display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:7px; margin-bottom:18px; border:1px solid #e7e2e3; border-radius:12px; background:#fff; width:fit-content; max-width:100%; }
+.admin-context-nav [data-slot='button'] { border-radius:8px; font-size:12px; }
+.admin-page:has(> .admin-context-nav) > .admin-page { padding:0; }
+@media(max-width:600px) { .admin-context-nav {width:100%;} .admin-context-nav [data-slot='button'] {flex:1 1 auto;} }
