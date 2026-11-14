@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { transaction } from '@/lib/server/db';
+import { canOpenBorrowingView } from '@/lib/role-policy';
 
 type Role = 'STUDENT' | 'LECTURER' | 'TECHNICAL_OFFICER' | 'ADMIN';
 type Profile = { user?: { id?: string; roles?: Role[] }; status?: number };
@@ -28,10 +29,4 @@ export async function requirePageRole(allowed: readonly Role[] = PAGE_ROLES): Pr
   return profile;
 }
 
-export function allowedBorrowingView(view: string, roles: readonly Role[]): boolean {
-  if (['approvals'].includes(view))
-    return roles.includes('LECTURER') || roles.includes('ADMIN');
-  if (['collection', 'returns'].includes(view))
-    return roles.includes('TECHNICAL_OFFICER');
-  return ['requests', 'new', 'loans', 'history', 'policies'].includes(view);
-}
+export const allowedBorrowingView = canOpenBorrowingView;
