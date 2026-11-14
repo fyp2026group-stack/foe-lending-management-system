@@ -13,7 +13,7 @@ import { Requests } from '@/components/lending/request-workspace';
 import { RequestBuilder } from '@/components/lending/request-builder';
 import { StudentBorrowed, StudentHistory } from '@/components/lending/student-borrowed';
 import { useLendingChoices, ActionForm } from '@/components/lending/shared';
-import type { BorrowRequest, HistoryEvent, Policy } from '@/components/lending/api';
+import type { BorrowRequest, HistoryEvent, Loan, Policy } from '@/components/lending/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
