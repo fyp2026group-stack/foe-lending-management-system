@@ -4153,3 +4153,34 @@ body:has(.officer-shell)
 .admin-record-option:hover, .admin-record-option:focus-visible { background: #f7e9eb; color: #841826; outline: none; }
 .admin-record-option span { overflow-wrap: anywhere; }
 .admin-report-filter-form .admin-advanced-filters > div { align-items: end; }
+
+/* Shared design refinement: restrained institutional surfaces, legible information,
+   and motion that reinforces interactions without turning tables into decoration. */
+.workspace .workspace-role-trigger { gap: 8px; border-color: #e2d4d6; background: #fff; color: #76212b; font-weight: 650; border-radius: 9px; white-space: nowrap; }
+.workspace .workspace-role-trigger:hover { background: #faf2f3; border-color: #d5b9be; }
+.workspace .page-frame { max-width: 1680px; width: 100%; }
+.workspace .app-page-header h1 { letter-spacing: -0.025em; }
+.workspace :is(.student-card, .officer-records, .admin-report-card) { border-color: #e3e6eb; box-shadow: 0 1px 3px rgb(28 35 45 / 0.045); }
+.workspace [data-slot="card"] { box-shadow: 0 1px 2px rgb(28 35 45 / 0.045); }
+.workspace :is(.officer-metrics, .admin-metrics, .lecturer-metrics) strong { font-variant-numeric: tabular-nums; }
+.workspace .officer-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.workspace .table-region [data-slot="table-row"]:hover { background: #fbf7f8; }
+.workspace [data-slot="sidebar-menu-button"][data-active="true"] { box-shadow: inset 3px 0 0 #8c1823; font-weight: 650; }
+.workspace :is(button, a):focus-visible { outline: 2px solid #8c1823; outline-offset: 2px; }
+.workspace :is(.admin-filter-field, .admin-record-picker) [data-slot="select-trigger"] { min-width: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes foe-page-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+  .workspace .app-page-header { animation: foe-page-in 210ms cubic-bezier(.2,.75,.3,1) both; }
+  .workspace :is([data-slot="button"], [data-slot="sidebar-menu-button"], .officer-metric, .student-action-tile) {
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+  .workspace :is(.officer-metric, .student-action-tile):hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgb(38 38 49 / 0.07); border-color: #dbc5ca; }
+  .workspace .table-region [data-slot="table-row"] { transition: background-color 135ms ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace *, .workspace *::before, .workspace *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+@media (max-width: 620px) {
+  .workspace .workspace-role-trigger { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+  .workspace .officer-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
