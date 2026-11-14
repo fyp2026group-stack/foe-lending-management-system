@@ -87,6 +87,11 @@ BEGIN
   target_request:=line_row.request_id;
   result:=lab.lending_call_before_order(token,csrf,op,p);
   IF result ? 'status' THEN RETURN result;END IF;
+  IF result->>'stage'='REJECTED' AND target_request IS NOT NULL
+     AND EXISTS(SELECT 1 FROM lab.lend_order_controls WHERE request_id=target_request) THEN
+    UPDATE lab.lend_lines SET stage='REJECTED'
+     WHERE request_id=target_request AND stage IN('LECTURER','HOD','APPROVED');
+  END IF;
   IF line_row.id IS NOT NULL AND EXISTS(SELECT 1 FROM lab.lend_order_controls WHERE request_id=line_row.request_id)
     AND NOT EXISTS(SELECT 1 FROM lab.lend_lines
      WHERE request_id=target_request AND stage<>'APPROVED') THEN
