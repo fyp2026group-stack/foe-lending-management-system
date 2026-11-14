@@ -108,12 +108,16 @@ export function ReviewSheet({
   title,
   description,
   children,
+  footer,
+  variant = 'default',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
   children: ReactNode;
+  footer?: ReactNode;
+  variant?: 'default' | 'equipment';
 }) {
   const [locks, setLocks] = useState<Set<string>>(() => new Set());
   const update = useCallback(
@@ -133,14 +137,24 @@ export function ReviewSheet({
         if (!locks.size) onOpenChange(value);
       }}
     >
-      <DialogContent className="review-sheet">
+      <DialogContent
+        className={variant === 'equipment' ? 'review-sheet equipment-detail-dialog' : 'review-sheet'}
+        onEscapeKeyDown={(event) => { if (locks.size) event.preventDefault(); }}
+        onPointerDownOutside={(event) => { if (locks.size) event.preventDefault(); }}
+      >
         <DialogHeader>
+          {variant === 'equipment' && <p className="dialog-eyebrow">INVENTORY / EQUIPMENT DETAILS</p>}
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="review-sheet-body">
+        <div className="review-sheet-body" tabIndex={0}>
           <ReviewLock.Provider value={update}>{children}</ReviewLock.Provider>
         </div>
+        {footer && (
+          <footer className="review-sheet-footer">
+            {footer}
+          </footer>
+        )}
       </DialogContent>
     </Dialog>
   );

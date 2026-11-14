@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { CatalogueWorkspace } from './catalogue-workspace';
 import { stockLabel } from './catalogue-model';
+import { Boxes, ClipboardList, History, MapPin, PackageOpen } from 'lucide-react';
 import {
   inventoryRead,
   inventoryWrite,
@@ -235,53 +236,50 @@ export function ItemDetail({
   labId?: string;
   physical?: boolean;
 }) {
+  const kind = item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable';
   return (
-    <div className="grid gap-4">
-      <dl className="review-facts">
-        <div>
-          <dt>Item type</dt>
-          <dd>{item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable'}</dd>
+    <div className="equipment-detail">
+      <div className="equipment-detail-chips">
+        <Badge variant="secondary"><Boxes className="size-3.5" aria-hidden="true" />{kind}</Badge>
+        <Badge variant="outline" className={item.active === false ? 'equipment-muted-badge' : 'equipment-active-badge'}>
+          <span aria-hidden="true" className="equipment-status-dot" />
+          {item.active === false ? 'Inactive' : 'Active'}
+        </Badge>
+      </div>
+      <section className="equipment-detail-section" aria-labelledby="equipment-overview-heading">
+        <div className="equipment-section-heading">
+          <ClipboardList className="size-4" aria-hidden="true" />
+          <h2 id="equipment-overview-heading">Equipment overview</h2>
         </div>
-        <div>
-          <dt>Unit</dt>
-          <dd>{item.uom ?? 'Not specified'}</dd>
-        </div>
-        <div>
-          <dt>Available</dt>
-          <dd>{item.available ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Reserved</dt>
-          <dd>{item.reserved ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Borrowed equipment</dt>
-          <dd>{item.borrowed ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Catalogue status</dt>
-          <dd>{item.active === false ? 'Inactive' : 'Active'}</dd>
-        </div>
-      </dl>
+        <dl className="equipment-facts">
+          <div><dt>Item type</dt><dd>{kind}</dd></div>
+          <div><dt>Unit of measure</dt><dd>{item.uom ?? 'Not specified'}</dd></div>
+          <div><dt>Available</dt><dd>{item.available ?? 'Not disclosed'}</dd></div>
+          <div><dt>Reserved</dt><dd>{item.reserved ?? 'Not disclosed'}</dd></div>
+          <div><dt>Borrowed</dt><dd>{item.borrowed ?? 'Not disclosed'}</dd></div>
+          <div><dt>Awaiting inspection</dt><dd>{item.inspection ?? 'Not disclosed'}</dd></div>
+          <div><dt>In maintenance</dt><dd>{item.maintenance ?? 'Not disclosed'}</dd></div>
+          <div><dt>Catalogue status</dt><dd>{item.active === false ? 'Inactive' : 'Active'}</dd></div>
+        </dl>
+      </section>
       {item.specifications && Object.keys(item.specifications).length > 0 && (
-        <>
-          <h2>Specifications</h2>
-          <dl className="review-facts">
+        <section className="equipment-detail-section" aria-labelledby="equipment-specifications-heading">
+          <div className="equipment-section-heading">
+            <ClipboardList className="size-4" aria-hidden="true" />
+            <h2 id="equipment-specifications-heading">Specifications</h2>
+          </div>
+          <dl className="equipment-facts">
             {Object.entries(item.specifications).map(([key, value]) => (
-              <div key={key}>
-                <dt>{key}</dt>
-                <dd>{value}</dd>
-              </div>
+              <div key={key}><dt>{key}</dt><dd>{value}</dd></div>
             ))}
           </dl>
-        </>
+        </section>
       )}
       {physical ? (
         <PhysicalItemDetail item={item} revision={revision} labId={labId} />
       ) : (
-        <p className="muted">
-          Detailed stock locations and movement history are available to authorized laboratory
-          staff.
+        <p className="equipment-detail-private">
+          Location-specific balances and movement history are restricted to authorized laboratory staff.
         </p>
       )}
     </div>
@@ -296,79 +294,102 @@ function PhysicalItemDetail({
   revision: number;
   labId: string;
 }) {
-  const query =
-    'itemId=' + encodeURIComponent(item.id) + (labId ? '&labId=' + encodeURIComponent(labId) : '');
+  const query = 'itemId=' + encodeURIComponent(item.id) + (labId ? '&labId=' + encodeURIComponent(labId) : '');
   const stock = useInventoryLookup<Stock>('stock?' + query, revision);
   const assets = useInventoryLookup<Asset>('assets?' + query, revision);
   const movements = useInventoryLookup<Movement>('movements?' + query, revision);
   const locations = useInventoryLookup<Named>(
-    'locations' + (labId ? '?labId=' + encodeURIComponent(labId) : ''),
-    revision
+    'locations' + (labId ? '?labId=' + encodeURIComponent(labId) : ''), revision
   );
+  const positive = stock.data?.items.filter((row) => row.quantity > 0) ?? [];
   return (
     <>
-      <h2>Stock by location and state</h2>
-      {[stock.error, assets.error, movements.error, locations.error]
-        .filter(Boolean)
-        .map((error, index) => (
-          <ErrorNotice key={index} message={error!} />
-        ))}
-      {!stock.data && !stock.error && <p role="status">Loading balances?</p>}
-      {stock.data?.items
-        .filter((row) => row.quantity > 0)
-        .map((row) => (
-          <div key={row.id} className="stock-balance">
-            <div>
-              <Badge variant="secondary">{stockLabel(row.state)}</Badge>
-              <p className="muted">
-                {locations.data?.items.find((location) => location.id === row.locationId)?.name ??
-                  'Stock location'}
-              </p>
-            </div>
-            <strong>
-              {row.quantity} {item.uom}
-            </strong>
-            <small>Version {row.version}</small>
+      <section className="equipment-detail-section" aria-labelledby="equipment-stock-heading">
+        <div className="equipment-section-heading">
+          <MapPin className="size-4" aria-hidden="true" />
+          <h2 id="equipment-stock-heading">Stock by location and state</h2>
+        </div>
+        {[stock.error, assets.error, movements.error, locations.error]
+          .filter(Boolean).map((error, index) => <ErrorNotice key={index} message={error!} />)}
+        {!stock.data && !stock.error && <p role="status" className="equipment-loading">Loading stock balances…</p>}
+        {positive.length > 0 && (
+          <div className="equipment-stock-table" role="region" aria-label="Stock balances by location">
+            <table>
+              <thead><tr><th scope="col">State</th><th scope="col">Location</th><th scope="col">Quantity</th><th scope="col">Record version</th></tr></thead>
+              <tbody>{positive.map((row) => (
+                <tr key={row.id}>
+                  <td><Badge variant="secondary">{stockLabel(row.state)}</Badge></td>
+                  <td>{locations.data?.items.find((location) => location.id === row.locationId)?.name ?? 'Stock location'}</td>
+                  <td className="equipment-quantity">{row.quantity} {item.uom ?? 'units'}</td>
+                  <td className="equipment-version">v{row.version}</td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
-        ))}
-      {stock.data && !stock.data.items.some((row) => row.quantity > 0) && (
-        <p>No current stock in this scope.</p>
-      )}
+        )}
+        {stock.data && !positive.length && <p className="equipment-empty-inline">No current stock in this scope.</p>}
+      </section>
       {item.kind !== 'CONSUMABLE' && (
-        <>
-          <h2>Physical assets</h2>
-          {!assets.data && !assets.error && <p role="status">Loading physical assets?</p>}
-          {assets.data && !assets.data.items.length && <p>No identified assets recorded.</p>}
-          {assets.data?.items.map((asset) => (
-            <article key={asset.id} className="asset-record">
-              <strong>{asset.serial || 'Serial not recorded'}</strong>
-              <Badge variant="secondary">
-                {asset.state ? stockLabel(asset.state) : 'See stock state'}
-              </Badge>
-              <span className="asset-reference">Permanent asset ID: {asset.id}</span>
-            </article>
-          ))}
-        </>
+        <section className="equipment-detail-section" aria-labelledby="equipment-assets-heading">
+          <div className="equipment-section-heading">
+            <Boxes className="size-4" aria-hidden="true" />
+            <h2 id="equipment-assets-heading">Physical assets</h2>
+          </div>
+          {!assets.data && !assets.error && <p role="status" className="equipment-loading">Loading physical assets…</p>}
+          {assets.data && !assets.data.items.length && (
+            <div className="equipment-assets-empty">
+              <PackageOpen className="size-6" aria-hidden="true" />
+              <strong>No individually identified assets recorded</strong>
+              <p>Equipment can be tracked by quantity until an individual asset is identified.</p>
+            </div>
+          )}
+          {assets.data && assets.data.items.length > 0 && (
+            <div className="equipment-assets-list">
+              {assets.data.items.map((asset) => (
+                <article key={asset.id} className="equipment-asset-row">
+                  <div><strong>{asset.serial || 'Serial number not recorded'}</strong>
+                    <span className="asset-reference">Asset ID: {asset.id}</span></div>
+                  <Badge variant="secondary">{asset.state ? stockLabel(asset.state) : 'State unavailable'}</Badge>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       )}
-      <h2>Movement history</h2>
-      {!movements.data && !movements.error && <p role="status">Loading movement history?</p>}
-      {movements.data?.items.map((row) => (
-        <article key={row.id} className="movement-record">
-          <strong>{stockLabel(row.kind)}</strong>
-          <time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString('en-GB')}</time>
-          <p>{row.reason}</p>
-          <ul>
-            {row.entries?.map((entry, index) => (
-              <li key={index}>
-                {entry.locationName ?? (entry.cellId ? 'Stock location' : 'External account')}
-                {entry.state ? ' ? ' + stockLabel(entry.state) : ''}: {entry.delta > 0 ? '+' : ''}
-                {entry.delta}
+      <section className="equipment-detail-section" aria-labelledby="equipment-movements-heading">
+        <div className="equipment-section-heading">
+          <History className="size-4" aria-hidden="true" />
+          <h2 id="equipment-movements-heading">Movement history</h2>
+        </div>
+        {!movements.data && !movements.error && <p role="status" className="equipment-loading">Loading movement history…</p>}
+        {movements.data && !movements.data.items.length && (
+          <p className="equipment-empty-inline">No recorded movements for this equipment.</p>
+        )}
+        {movements.data && movements.data.items.length > 0 && (
+          <ol className="equipment-movement-timeline">
+            {movements.data.items.map((row) => (
+              <li key={row.id} className="equipment-movement">
+                <div className="equipment-movement-meta">
+                  <Badge variant="secondary">{stockLabel(row.kind)}</Badge>
+                  <time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString('en-GB')}</time>
+                </div>
+                <p className="equipment-movement-reason">{row.reason || 'Stock movement recorded'}</p>
+                {Boolean(row.entries?.length) && (
+                  <ul className="equipment-movement-entries">
+                    {row.entries?.map((entry, index) => (
+                      <li key={index}>
+                        {entry.locationName ?? (entry.cellId ? 'Stock location' : 'External account')}
+                        {entry.state ? ' · ' + stockLabel(entry.state) : ''}:
+                        <strong>{entry.delta > 0 ? '+' : ''}{entry.delta}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
-          </ul>
-        </article>
-      ))}
-      {movements.data && !movements.data.items.length && <p>No movements recorded.</p>}
+          </ol>
+        )}
+      </section>
     </>
   );
 }

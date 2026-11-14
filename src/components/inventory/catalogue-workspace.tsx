@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs } from '@/components/ui/module-tabs';
-import { ReviewPanel, ReviewWorkspace } from '@/components/ui/review-sheet';
+import { ReviewSheet } from '@/components/ui/review-sheet';
 import {
   Table,
   TableHeader,
@@ -181,8 +181,7 @@ export function CatalogueWorkspace({
                 : 'Availability is supplied by the catalogue. A dash means this balance is not disclosed to your role.'}{' '}
               Quantities use each item’s unit of measure.
             </p>
-            <ReviewWorkspace>
-              <section className="records inventory-records">
+            <section className="records inventory-records">
                 <form
                   className="inventory-toolbar"
                   onSubmit={(event) => {
@@ -468,35 +467,40 @@ export function CatalogueWorkspace({
                   )
                 )}
               </section>
-              {currentDetail && (
-                <ReviewPanel
-                  open
-                  onOpenChange={(open) => {
-                    if (!open) {
-                      setDetail(null);
-                      requestAnimationFrame(() =>
-                        (origin.current?.isConnected ? origin.current : search.current)?.focus()
-                      );
-                    }
-                  }}
-                  title={currentDetail.name}
-                  description="Availability, physical assets and recorded stock movements."
-                >
-                  <ItemDetail
-                    key={currentDetail.id}
-                    item={currentDetail}
-                    revision={revision}
-                    labId={filters.labId}
-                    physical={physical}
-                  />
-                  {admin && (
-                    <Button variant="outline" onClick={() => setEditing(currentDetail)}>
-                      Edit catalogue details
+            <ReviewSheet
+              open={Boolean(currentDetail)}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setDetail(null);
+                  requestAnimationFrame(() =>
+                    (origin.current?.isConnected ? origin.current : search.current)?.focus()
+                  );
+                }
+              }}
+              title={currentDetail?.name ?? 'Equipment details'}
+              description="Locations, approval policy, physical assets and recorded movements."
+              variant="equipment"
+              footer={
+                <>
+                  <Button variant="outline" onClick={() => setDetail(null)}>Close</Button>
+                  {admin && currentDetail && (
+                    <Button onClick={() => { setDetail(null); setEditing(currentDetail); }}>
+                      Edit equipment details
                     </Button>
                   )}
-                </ReviewPanel>
+                </>
+              }
+            >
+              {currentDetail && (
+                <ItemDetail
+                  key={currentDetail.id}
+                  item={currentDetail}
+                  revision={revision}
+                  labId={filters.labId}
+                  physical={physical}
+                />
               )}
-            </ReviewWorkspace>
+            </ReviewSheet>
           </>
         )}
         {tab === 'definitions' && (
