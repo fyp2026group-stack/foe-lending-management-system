@@ -69,7 +69,6 @@ export function AdminWorkspace({
   if (view === 'inventory')
     return (
       <div className="admin-page">
-        <AdminSectionNav active={view} section="inventory" />
         <CatalogueWorkspace session={session} oversight />
       </div>
     );

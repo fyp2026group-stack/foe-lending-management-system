@@ -4505,3 +4505,19 @@ body [data-slot="dialog-content"].inventory-receipt-dialog {width:min(690px,calc
 .import-format-help p{margin:8px 0 0}
 body [data-slot="dialog-content"].stock-control-dialog{max-width:890px}
 @media(max-width:700px){.inventory-catalogue-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Admin inventory: clear single-action catalogue and secondary scoped filters. */
+.admin-inventory-summary {border-radius:11px;}
+.admin-inventory-records {overflow:visible;}
+.admin-inventory-records .inventory-toolbar {align-items:end;gap:12px;}
+.admin-inventory-records .inventory-toolbar>.admin-inventory-primary-filter {flex:1 1 180px;}
+.admin-inventory-more-filters {flex:1 1 100%;order:10;border:1px solid #e5e9ef;border-radius:8px;background:#fafbfc;padding:9px 13px;}
+.admin-inventory-more-filters>summary {cursor:pointer;color:#465367;font-size:12px;font-weight:680;}
+.admin-inventory-more-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:13px;padding-top:12px;}
+.admin-inventory-more-grid>div {min-width:0;display:grid;gap:6px;}
+.admin-inventory-more-grid label {font-size:12px;}
+.admin-inventory-more-grid select {width:100%;min-height:38px;}
+.admin-inventory-records .inventory-toolbar>button[type="submit"]{order:9;}
+.admin-inventory-records .inventory-item-meta{color:#778292;font-size:11px;}
+@media(max-width:700px){.admin-inventory-more-grid{grid-template-columns:1fr;}.admin-inventory-records .inventory-toolbar>button[type="submit"]{width:auto;}}

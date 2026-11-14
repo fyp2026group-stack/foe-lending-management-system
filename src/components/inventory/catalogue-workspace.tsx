@@ -47,6 +47,7 @@ export function CatalogueWorkspace({
   const [tab, setTab] = useState<string>(initialTab);
   const [detail, setDetail] = useState<Item | null>(null);
   const [editing, setEditing] = useState<Item | null>(null);
+  const [creating, setCreating] = useState(false);
   const origin = useRef<HTMLButtonElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const query = new URLSearchParams();
@@ -120,15 +121,17 @@ export function CatalogueWorkspace({
   return (
     <>
       <PageHeader
-        eyebrow={oversight ? 'Department stock position' : 'Inventory management'}
+        eyebrow={oversight ? 'Department / equipment' : 'Inventory management'}
         title={oversight ? 'Inventory Oversight' : 'Laboratory inventory'}
         description={
           oversight
-            ? 'Review catalogue, laboratory balances, assets, movements and explicit approval policies across the authorized department scope.'
+            ? 'Review equipment types, laboratory availability, identified units and related inventory records.'
             : 'Check availability, review equipment and keep laboratory stock accurate.'
         }
         actions={
-          admin ? (
+          admin && oversight && tab === 'catalogue' ? (
+            <Button onClick={() => setCreating(true)}>Add equipment type</Button>
+          ) : admin && !oversight ? (
             <Button onClick={() => setTab('definitions')}>Manage catalogue</Button>
           ) : undefined
         }
@@ -140,7 +143,10 @@ export function CatalogueWorkspace({
           setDetail(null);
         }}
         label="Inventory sections"
-        items={[
+        items={oversight ? [
+          { value: 'catalogue', label: 'Equipment' },
+          { value: 'definitions', label: 'Categories & locations' },
+        ] : [
           { value: 'catalogue', label: 'Inventory' },
           ...(admin ? [{ value: 'definitions', label: 'Catalogue setup' }] : []),
           ...(physical ? [{ value: 'stock operations', label: 'Stock operations' }] : []),
@@ -157,31 +163,33 @@ export function CatalogueWorkspace({
         ))}
         {tab === 'catalogue' && (
           <>
-            <dl className="inventory-summary" aria-label="Stock totals for filtered items">
-              <div>
-                <dt>Catalogue items</dt>
-                <dd>{ready ? rows.length : '—'}</dd>
-              </div>
-              <div>
-                <dt>Available units</dt>
-                <dd>{ready ? totals.available : '—'}</dd>
-              </div>
-              <div>
-                <dt>Reserved units</dt>
-                <dd>{ready && disclosed('reserved') ? totals.reserved : '—'}</dd>
-              </div>
-              <div>
-                <dt>Borrowed equipment</dt>
-                <dd>{ready && disclosed('borrowed') ? totals.borrowed : '—'}</dd>
-              </div>
-            </dl>
-            <p className="muted inventory-scope">
-              {physical
-                ? 'Balances reflect stock in your authorized laboratories and current filters.'
-                : 'Availability is supplied by the catalogue. A dash means this balance is not disclosed to your role.'}{' '}
-              Quantities use each item’s unit of measure.
-            </p>
-            <section className="records inventory-records">
+            {oversight ? (
+              <>
+                <dl className="inventory-summary admin-inventory-summary" aria-label="Equipment types in the current filter">
+                  <div><dt>Equipment types</dt><dd>{ready ? rows.length : '—'}</dd></div>
+                  <div><dt>Returnable types</dt><dd>{ready ? rows.filter(row => row.item.kind === 'RETURNABLE').length : '—'}</dd></div>
+                  <div><dt>Consumable types</dt><dd>{ready ? rows.filter(row => row.item.kind === 'CONSUMABLE').length : '—'}</dd></div>
+                  <div><dt>Types needing attention</dt><dd>{ready ? rows.filter(row => (row.item.inspection ?? 0) + (row.item.maintenance ?? 0) > 0).length : '—'}</dd></div>
+                </dl>
+                <p className="muted inventory-scope">Counts represent equipment types. Available and borrowed quantities are shown per item below; different units of measure are not added together.</p>
+              </>
+            ) : (
+              <>
+                <dl className="inventory-summary" aria-label="Stock totals for filtered items">
+                  <div><dt>Catalogue items</dt><dd>{ready ? rows.length : '—'}</dd></div>
+                  <div><dt>Available units</dt><dd>{ready ? totals.available : '—'}</dd></div>
+                  <div><dt>Reserved units</dt><dd>{ready && disclosed('reserved') ? totals.reserved : '—'}</dd></div>
+                  <div><dt>Borrowed equipment</dt><dd>{ready && disclosed('borrowed') ? totals.borrowed : '—'}</dd></div>
+                </dl>
+                <p className="muted inventory-scope">
+                  {physical
+                    ? 'Balances reflect stock in your authorized laboratories and current filters.'
+                    : 'Availability is supplied by the catalogue. A dash means this balance is not disclosed to your role.'}{' '}
+                  Quantities use each item’s unit of measure.
+                </p>
+              </>
+            )}
+            <section className={oversight ? 'records inventory-records admin-inventory-records' : 'records inventory-records'}>
                 <form
                   className="inventory-toolbar"
                   onSubmit={(event) => {
@@ -217,20 +225,8 @@ export function CatalogueWorkspace({
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label htmlFor="inventory-type">Type</label>
-                    <select
-                      id="inventory-type"
-                      value={draft.kind}
-                      onChange={(e) => setDraft({ ...draft, kind: e.target.value })}
-                    >
-                      <option value="">All types</option>
-                      <option value="RETURNABLE">Returnable equipment</option>
-                      <option value="CONSUMABLE">Consumables</option>
-                    </select>
-                  </div>
                   {physical && (
-                    <div>
+                    <div className={oversight ? 'admin-inventory-primary-filter' : undefined}>
                       <label htmlFor="inventory-lab">Laboratory</label>
                       <select
                         id="inventory-lab"
@@ -246,6 +242,21 @@ export function CatalogueWorkspace({
                       </select>
                     </div>
                   )}
+                  {oversight && <details className="admin-inventory-more-filters">
+                    <summary>More filters</summary>
+                    <div className="admin-inventory-more-grid">}
+                  <div>
+                    <label htmlFor="inventory-type">Type</label>
+                    <select
+                      id="inventory-type"
+                      value={draft.kind}
+                      onChange={(e) => setDraft({ ...draft, kind: e.target.value })}
+                    >
+                      <option value="">All types</option>
+                      <option value="RETURNABLE">Returnable equipment</option>
+                      <option value="CONSUMABLE">Consumables</option>
+                    </select>
+                  </div>
                   <div>
                     <label htmlFor="inventory-status">Stock status</label>
                     <select
@@ -279,7 +290,8 @@ export function CatalogueWorkspace({
                       </select>
                     </div>
                   )}
-                  <Button type="submit">Apply</Button>
+                  {oversight && </div></details>}
+                  <Button type="submit">Apply filters</Button>
                 </form>
                 {active.length > 0 && (
                   <div className="active-filters" aria-label="Active inventory filters">
@@ -393,16 +405,11 @@ export function CatalogueWorkspace({
                                       }}
                                       aria-label={`Review ${item.name}`}
                                     >
-                                      Review
+                                      {oversight ? 'View details' : 'Review'}
                                     </Button>
-                                    {admin && (
-                                      <Button
-                                        variant="ghost"
-                                        onClick={() => setEditing(item)}
-                                        aria-label={`Edit ${item.name}`}
-                                      >
-                                        Edit
-                                      </Button>
+                                    {admin && !oversight && (
+                                      <Button variant="ghost" onClick={() => setEditing(item)}
+                                        aria-label={`Edit ${item.name}`}>Edit</Button>
                                     )}
                                   </div>
                                 </TableCell>
@@ -415,11 +422,7 @@ export function CatalogueWorkspace({
                         <div className="empty-state" role="status">
                           <h3>No matching inventory</h3>
                           <p>Try a broader search or clear your filters.</p>
-                          {active.length > 0 && (
-                            <Button variant="outline" onClick={clear}>
-                              Clear filters
-                            </Button>
-                          )}
+
                         </div>
                       )}
                       <div className="pagination">
@@ -511,6 +514,7 @@ export function CatalogueWorkspace({
             labs={labs}
             onSaved={reload}
             revision={revision}
+            mode={oversight ? 'categoriesAndLocations' : 'all'}
           />
         )}
         {tab === 'stock operations' && (
@@ -525,6 +529,12 @@ export function CatalogueWorkspace({
         )}
         {tab === 'imports' && <ImportPanel session={session} onSaved={reload} />}
       </Tabs>
+      {creating && (
+        <DefinitionEditor key="new-admin-equipment" resource="items" session={session}
+          categories={categories.data?.items ?? []} labs={labs}
+          onClose={() => setCreating(false)}
+          onSaved={() => { setCreating(false); reload(); }} />
+      )}
       {editing && (
         <DefinitionEditor
           resource="items"
