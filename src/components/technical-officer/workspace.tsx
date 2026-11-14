@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight, Plus, FileSpreadsheet } from 'lucide-react';
+import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight, Plus, FileSpreadsheet, SlidersHorizontal } from 'lucide-react';
 
 import type { Session } from '@/components/identity/api';
 
@@ -64,7 +64,8 @@ import type {
 
 import { useInventoryLookup } from '@/components/inventory/lookups';
 
-import { StockOperations, ImportPanel, ItemDetail, ReceiveItemsDialog } from '@/components/inventory/inventory';
+import { ImportPanel, ItemDetail, ReceiveItemsDialog } from '@/components/inventory/inventory';
+import { OfficerStockActions } from '@/components/inventory/officer-stock-actions';
 
 import type { Item, Named, Movement } from '@/components/inventory/api';
 
@@ -296,14 +297,13 @@ export function OfficerWorkspace({
           refresh={refresh}
         />
       ) : ['inventory', 'stock', 'imports', 'activity'].includes(current) ? (
-        <Tabs value={current === 'imports' ? 'inventory' : current}
+        <Tabs value={current === 'imports' || current === 'stock' ? 'inventory' : current}
           onValueChange={(value) => router.push(officerHref(value as OfficerView))}>
           <TabsList variant="line" className="officer-section-tabs" aria-label="Inventory">
             <TabsTrigger value="inventory">Equipment</TabsTrigger>
-            <TabsTrigger value="stock">Manage stock</TabsTrigger>
             <TabsTrigger value="activity">Inventory history</TabsTrigger>
           </TabsList>
-          <TabsContent value={current === 'imports' ? 'inventory' : current} className="pt-3">
+          <TabsContent value={current === 'imports' || current === 'stock' ? 'inventory' : current} className="pt-3">
             {current === 'activity'
               ? <OperationsActivity revision={revision} />
               : <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />}
@@ -1084,29 +1084,9 @@ function InventoryArea({
   const [detail, setDetail] = useState<Item>();
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(view === 'imports');
+  const [stockOpen, setStockOpen] = useState(view === 'stock');
 
   const labs = summary.data?.laboratories ?? [];
-
-  if (view === 'stock')
-    return (
-      <>
-        {summary.error && <ErrorNotice message={summary.error} />}
-        {!summary.data && !summary.error && <p role="status">Loading assigned laboratories...</p>}
-        <Notice>
-          Use Inspections for returned equipment clearance. Adjustment proposals require independent
-          authorization.
-        </Notice>
-        <StockOperations
-          session={session}
-          items={items.data?.items ?? []}
-          labs={labs}
-          locations={locations.data?.items ?? []}
-          onSaved={refresh}
-          revision={revision}
-          inspectionWorkflow
-        />
-      </>
-    );
 
   const rows = items.data?.items.filter(
     (i) =>
@@ -1142,6 +1122,9 @@ function InventoryArea({
           <Button onClick={() => setReceiptOpen(true)}><Plus className="size-4"/>Add items</Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileSpreadsheet className="size-4"/>Import Excel
+          </Button>
+          <Button variant="outline" onClick={() => setStockOpen(true)}>
+            <SlidersHorizontal className="size-4"/>Manage units & corrections
           </Button>
         </div>
       </div>
@@ -1225,6 +1208,13 @@ function InventoryArea({
       />
       <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
         session={session} labs={labs} locations={locations.data?.items ?? []} onSaved={refresh}/>
+      <ReviewSheet open={stockOpen} onOpenChange={setStockOpen}
+        title="Manage units & stock corrections"
+        description="Identify a particular returnable unit or report a verified quantity discrepancy."
+        variant="equipment">
+        <OfficerStockActions session={session} items={items.data?.items ?? []}
+          labs={labs} locations={locations.data?.items ?? []} revision={revision} onSaved={refresh}/>
+      </ReviewSheet>
       <ReviewSheet open={importOpen} onOpenChange={setImportOpen}
         title="Import items from Excel"
         description="Upload, validate and review a spreadsheet receipt before updating quantities.">

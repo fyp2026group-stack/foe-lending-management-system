@@ -4446,3 +4446,28 @@ body [data-slot="dialog-content"].review-sheet > .review-sheet-footer{flex:none}
 body [data-slot="dialog-content"].review-sheet > .review-sheet-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
 body [data-slot="dialog-content"],body [data-slot="alert-dialog-content"]{animation:none !important}
 @media(max-width:680px){body [data-slot="dialog-content"].review-sheet{width:calc(100vw - 18px);max-height:94dvh}}
+
+/* Technical Officer: one focused stock-control surface, no database-centric dashboard. */
+.officer-stock-focus {display:grid;gap:18px}
+.stock-focus-intro {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stock-focus-intro p {margin:0;border:1px solid #e3e7ed;background:#f8f9fb;border-radius:8px;padding:14px;font-size:12px;line-height:1.6;color:#546173}
+.stock-focus-intro strong{color:#263243}
+.stock-focus-toolbar{display:grid;gap:7px;max-width:390px}
+.stock-focus-toolbar label{font-size:12px;font-weight:650;color:#344054}
+.stock-focus-table{overflow-x:auto;border:1px solid #e3e7ed;border-radius:9px}
+.stock-focus-table table{min-width:690px}
+.stock-row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.stock-focus-empty{font-size:12px;color:#6e798a;padding:20px}
+.stock-focus-form{border:1px solid #d9dfe7;border-radius:10px;padding:18px;background:#fbfcfd;display:grid;gap:14px}
+.stock-focus-form-header{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.stock-focus-form-header h3{font-size:16px;font-weight:740}
+.stock-focus-form-header p{font-size:12px;color:#667386}
+.stock-focus-form-header .stock-focus-kicker{font-size:10px;letter-spacing:.1em;color:#8b1726;font-weight:740}
+.stock-focus-form .operation-form{border:0;background:transparent;box-shadow:none;padding:0}
+.stock-correction-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stock-correction-fields>div{display:grid;gap:6px}
+.stock-form-help{font-size:12px;color:#586476;margin:0}
+.stock-pending{border-top:1px solid #e6e9ee;padding-top:15px}
+.stock-pending h3{font-size:13px;font-weight:700;margin-bottom:8px}
+.stock-pending p,.stock-pending small{font-size:12px;color:#586476}
+@media(max-width:650px){.stock-focus-intro,.stock-correction-fields{grid-template-columns:1fr}}
