@@ -137,7 +137,9 @@ test('owned workspace uses full-page review, versioned approval and borrowing te
   );
   assert.match(workspace, /expectedVersion\s*:\s*line\.version/);
   assert.match(workspace, /predecessorId/);
-  assert.match(workspace, /Expected Return Date/);
+  assert.match(workspace, /Expected return/);
+  assert.match(workspace, /request-detail-progress/);
+  assert.match(workspace, /<ReviewSheet/);
   assert.doesNotMatch(workspace, /ReviewPanel/);
   assert.doesNotMatch(workflow, /Loans and overdue|Loan status|Loan reference|equipment custody/);
 });
