@@ -66,6 +66,8 @@ jobs:
       - name: Prisma schema validation
         run: npm run prisma:validate
       - name: PostgreSQL lifecycle and security integration
+        id: sql_tests
+        continue-on-error: true
         run: |
           node --env-file=.verification/m2.env --test --test-concurrency=1 \
             tests/application-lending.integration.mjs \
@@ -80,7 +82,14 @@ jobs:
             tests/physical-lifecycle.integration.mjs \
             tests/workflow-basic.integration.mjs
       - name: Authenticated HTTP workflow regression
+        id: http_tests
+        continue-on-error: true
         run: node --env-file=.verification/m2.env tests/workflow-run.integration.mjs
+      - name: Assert all integration suites passed
+        if: always()
+        run: |
+          test "${{ steps.sql_tests.outcome }}" = "success"
+          test "${{ steps.http_tests.outcome }}" = "success"
       - name: Stop isolated database
         if: always()
         run: npm run db:down
