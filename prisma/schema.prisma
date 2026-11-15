@@ -1,6 +1,7 @@
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
+  // Temporary compatibility generator for Next.js/Turbopack API compilation.
+  // The default TypeScript-source generator was not resolved at runtime.
+  provider        = "prisma-client-js"
   previewFeatures = ["partialIndexes"]
 }
 
