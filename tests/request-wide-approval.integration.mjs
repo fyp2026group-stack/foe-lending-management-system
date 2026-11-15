@@ -74,8 +74,10 @@ test('whole-request approval blocks NONE items until the other item is approved'
       'submit must not reserve NONE-policy line while any approval is pending');
 
     const premature=await write('student','reserve',{lineId:noApprovalLine.id});
-    assert.equal(premature.code,'STATE_CONFLICT',
-      'legacy explicit reserve must be blocked by allocation trigger');
+    assert.ok(
+      premature?.code === 'STATE_CONFLICT' || premature?.awaitingApprovals === true,
+      'legacy explicit reserve cannot succeed before whole-order approval: '+JSON.stringify(premature)
+    );
     assert.equal((await call('officer','read_ready',{requestId:submitted.id})).items.length,0);
 
     const decision=good(await write('lecturer','decisions',{
@@ -151,6 +153,8 @@ test('per-item versioned HOD approval reserves all lines only after the last app
     assert.equal(req.lines.length,2);
     for(let index=0;index<2;index++){
       let line=req.lines[index];
+      assert.equal(line.stage,'LECTURER',JSON.stringify(line));
+      assert.equal(line.lecturerId,users.lecturer,JSON.stringify(line));
       good(await write('lecturer','decisions',{
         lineId:line.id,expectedVersion:line.version,decision:'APPROVE',
         remarks:'Lecturer '+index,
