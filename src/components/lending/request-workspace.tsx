@@ -402,121 +402,113 @@ export function Requests({
                 <div className="request-detail-intro">
                   <span className={'request-inbox-status status-' + requestGroup(selected)}>{selected.summary.replaceAll('_', ' ')}</span>
                   <h3>{selected.purpose}</h3>
-                  <p>Requested by {selected.borrower} · {date(selected.createdAt)}</p>
+                  <p>{date(selected.createdAt)}</p>
                 </div>
-                <div className="request-detail-progress" aria-label="Request stages">
-                  {['Submitted','Approved','Reserved','Collected'].map((label, index) => {
-                    const complete = index === 0 ||
-                      (index === 1 && selected.lines.every(line => line.stage === 'APPROVED')) ||
-                      (index === 2 && ['READY','FULFILLED','PARTIALLY_FULFILLED'].includes(selected.summary)) ||
-                      (index === 3 && selected.summary === 'FULFILLED');
-                    return <div key={label} className={complete ? 'is-done' : ''}>
-                      <span>{complete ? <Check size={14} aria-hidden="true"/> : index + 1}</span>
+                <div className="request-detail-progress" aria-label="Request progress">
+                  {['Submitted', 'Approved', 'Ready', 'Collected'].map((label, index) => {
+                    const done = index === 0 ||
+                      (index === 1 && selected.lines.every(line => ['APPROVED'].includes(line.stage))) ||
+                      (index === 2 && selected.lines.every(line =>
+                        line.reservedQuantity + line.issuedQuantity >= line.quantity - line.cancelledQuantity &&
+                        !['LECTURER', 'HOD', 'REJECTED'].includes(line.stage))) ||
+                      (index === 3 && selected.lines.every(line =>
+                        line.issuedQuantity > 0 && line.issuedQuantity >= line.quantity - line.cancelledQuantity));
+                    return <div key={label} className={done ? 'is-done' : ''}>
+                      <span>{done ? <Check size={14} aria-hidden="true" /> : index + 1}</span>
                       <small>{label}</small>
                     </div>;
                   })}
                 </div>
                 <dl className="review-facts">
-                  <div>
-                    <dt>Requester</dt>
-                    <dd>{selected.borrower}</dd>
-                  </div>
-                  <div>
-                    <dt>Batch</dt>
-                    <dd>{selected.batchId || 'Not supplied'}</dd>
-                  </div>
-                  <div>
-                    <dt>Collection</dt>
-                    <dd>{date(selected.collectAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Expected Return Date</dt>
-                    <dd>{date(selected.returnAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Summary</dt>
-                    <dd>{selected.summary.replaceAll('_', ' ')}</dd>
-                  </div>
-                  <div>
-                    <dt>Revision</dt>
-                    <dd>
-                      {selected.revision} · version {selected.version}
-                    </dd>
-                  </div>
+                  <div><dt>Requester</dt><dd>{selected.borrower}</dd></div>
+                  {selected.batchId && <div><dt>Batch</dt><dd>{selected.batchId}</dd></div>}
+                  <div><dt>Collection</dt><dd>{date(selected.collectAt)}</dd></div>
+                  <div><dt>Expected return</dt><dd>{date(selected.returnAt)}</dd></div>
                 </dl>
-                <details>
-                  <summary>Request and revision lineage</summary>
-                  <p>{selected.id}</p>
-                  {selected.predecessorId && (
-                    <p>
-                      <Button
-                        variant="link"
-                        onClick={() => {
-                          setFocusRequest(selected.predecessorId!);
-                          setSelectedId(selected.predecessorId!);
-                          setCategory('all');
-                        }}
-                      >
-                        Open predecessor {selected.predecessorId}
-                      </Button>
-                    </p>
-                  )}
-                  <p>
-                    Earlier decisions remain immutable. See authorized request history and linked
-                    drafts for previous revisions.
-                  </p>
-                </details>
-                {selected.lines.map((line) => (
-                  <section className="request-detail-item" key={line.id}>
-                    <div className="request-detail-item-head"><h4>{line.item}</h4><Badge variant="secondary">{line.stage}</Badge></div>
-                    <p>{line.quantity} requested · {line.reservedQuantity} reserved · {line.issuedQuantity} issued</p>
-                    <p>Approval: {approvalPath(line.policy)}</p>
-                    <details className="request-detail-item-history">
-                      <summary>Decision history and technical details</summary>
-                      <p>Cancelled {line.cancelledQuantity} · Version {line.version}</p>
-                      <p>{line.lab || line.labId} / {line.location || line.locationId}</p>
-                    <h5>Decision history</h5>
-                    {!line.decisions.length &&
-                      (student ? (
-                        <StudentEmptyState kind="decisions" />
-                      ) : (
-                        <p>No academic decisions recorded.</p>
-                      ))}
-                    <ol>
-                      {line.decisions.map((decision) => (
-                        <li key={decision.id}>
-                          {date(decision.createdAt)} · {decision.actor} · {decision.stage}:{' '}
-                          {decision.decision}
-                          <p>{decision.remarks}</p>
-                        </li>
-                      ))}
-                    </ol>
-                    </details>
-                    {approvals && canDecide(selected, line) && (
-                      <ActionForm
-                        key={line.id + ':' + line.version}
-                        title="Record line decision"
-                        path="decisions"
-                        session={session}
-                        onSaved={refresh}
-                        body={(data) => ({
-                          lineId: line.id,
-                          expectedVersion: line.version,
-                          decision: data.get('decision'),
-                          remarks: data.get('remarks'),
-                        })}
-                      >
-                        <label>
-                          Decision
-                          <SelectControl name="decision" className={selectClass}>
-                            <option value="APPROVE">Approve remaining quantity</option>
-                            <option value="REJECT">Reject line</option>
-                          </SelectControl>
-                        </label>
-                        <Field name="remarks" label="Decision remarks" />
-                      </ActionForm>
-                    )}
-                    {selected.borrowerId === session.user.id && (
+                {selected.predecessorId && (
+                  <details className="request-detail-technical">
+                    <summary>Previous request</summary>
+                    <Button variant="link" onClick={() => {
+                      setFocusRequest(selected.predecessorId!);
+                      setSelectedId(selected.predecessorId!);
+                      setCategory('all');
+                    }}>View linked request</Button>
+                  </details>
+                )}
+                <div className="request-detail-section-heading">
+                  <h4>Equipment</h4><span>{selected.lines.length} {selected.lines.length === 1 ? 'type' : 'types'}</span>
+                </div>
+                {selected.lines.map((line) => {
+                  const outstanding = line.quantity - line.cancelledQuantity - line.issuedQuantity - line.reservedQuantity;
+                  return (
+                    <section className="request-detail-item" key={line.id}>
+                      <div className="request-detail-item-head">
+                        <h4>{line.item}</h4>
+                        <Badge variant="secondary">{line.stage.replaceAll('_', ' ')}</Badge>
+                      </div>
+                      <p>{line.quantity} requested · {line.reservedQuantity} reserved · {line.issuedQuantity} collected</p>
+                      {line.policy !== 'NONE' && <p>Approval: {approvalPath(line.policy)}</p>}
+                      {line.decisions.length > 0 && (
+                        <details className="request-detail-item-history">
+                          <summary>Approval history</summary>
+                          <ol>{line.decisions.map(decision =>
+                            <li key={decision.id}><strong>{decision.actor} · {decision.decision}</strong>
+                              <p>{date(decision.createdAt)}</p>
+                              {decision.remarks && <p>{decision.remarks}</p>}
+                            </li>)}</ol>
+                        </details>
+                      )}
+                      {approvals && canDecide(selected, line) && (
+                        <ActionForm
+                          compact
+                          key={line.id + ':' + line.version}
+                          title="Record decision"
+                          path="decisions"
+                          session={session}
+                          onSaved={refresh}
+                          body={(data) => ({
+                            lineId: line.id,
+                            expectedVersion: line.version,
+                            decision: data.get('decision'),
+                            remarks: data.get('remarks'),
+                          })}
+                        >
+                          <label>Decision
+                            <SelectControl name="decision" className={selectClass}>
+                              <option value="APPROVE">Approve</option><option value="REJECT">Reject</option>
+                            </SelectControl>
+                          </label>
+                          <Field name="remarks" label="Remarks" />
+                        </ActionForm>
+                      )}
+                      {selected.borrowerId === session.user.id && (
+                        <div className="request-detail-item-actions">
+                          {cancellableQuantity(line) > 0 && (
+                            <Button type="button" size="sm" variant="outline" onClick={() => setCancel({ line })}>
+                              Cancel unissued quantity
+                            </Button>
+                          )}
+                          {line.stage === 'APPROVED' && outstanding > 0 && (
+                            <details className="request-detail-optional-action">
+                              <summary>Stock unavailable? Retry reservation</summary>
+                              <ActionForm
+                                compact
+                                title="Retry reservation"
+                                path="reserve"
+                                session={session}
+                                onSaved={refresh}
+                                body={() => ({lineId: line.id, expectedVersion: line.version})}
+                              >
+                                <p>Check current stock availability.</p>
+                              </ActionForm>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
+                {selected.borrowerId === session.user.id && (
                       <>
                         {cancellableQuantity(line) > 0 && (
                           <Button variant="outline" onClick={() => setCancel({ line })}>
@@ -544,6 +536,7 @@ export function Requests({
                 {selected.borrowerId === session.user.id &&
                   selected.lines.some((line) => line.stage === 'REJECTED') && (
                     <ActionForm
+                      compact
                       title="Create correction draft"
                       path="revisions"
                       session={session}
@@ -558,14 +551,13 @@ export function Requests({
                         expectedVersion: selected.version,
                       })}
                     >
-                      <p>
-                        Copy only rejected lines into a linked editable draft. Original quantities,
-                        decisions and comments remain unchanged. Open the draft to correct and
-                        explicitly submit it.
-                      </p>
+                      <p>Create a new draft to correct rejected items.</p>
                     </ActionForm>
                   )}
-                <RequestDiscussion requestId={selected.id} session={session} revision={revision} />
+                <details className="request-detail-comments">
+                  <summary>Comments</summary>
+                  <RequestDiscussion compact requestId={selected.id} session={session} revision={revision} />
+                </details>
               </div>
             )}
           </ReviewSheet>
