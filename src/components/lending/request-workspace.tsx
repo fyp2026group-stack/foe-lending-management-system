@@ -407,7 +407,9 @@ export function Requests({
                 <div className="request-detail-progress" aria-label="Request progress">
                   {['Submitted', 'Approved', 'Ready', 'Collected'].map((label, index) => {
                     const done = index === 0 ||
-                      (index === 1 && selected.lines.every(line => ['APPROVED'].includes(line.stage))) ||
+                      (index === 1 && selected.lines.every(line =>
+                        line.stage === 'APPROVED' ||
+                        (line.issuedQuantity > 0 && line.issuedQuantity >= line.quantity - line.cancelledQuantity))) ||
                       (index === 2 && selected.lines.every(line =>
                         line.reservedQuantity + line.issuedQuantity >= line.quantity - line.cancelledQuantity &&
                         !['LECTURER', 'HOD', 'REJECTED'].includes(line.stage))) ||
@@ -484,9 +486,12 @@ export function Requests({
                       {selected.borrowerId === session.user.id && (
                         <div className="request-detail-item-actions">
                           {cancellableQuantity(line) > 0 && (
-                            <Button type="button" size="sm" variant="outline" onClick={() => setCancel({ line })}>
-                              Cancel unissued quantity
-                            </Button>
+                            <details className="request-detail-optional-action">
+                              <summary>Request actions</summary>
+                              <Button type="button" size="sm" variant="outline" onClick={() => setCancel({ line })}>
+                                Cancel unissued quantity
+                              </Button>
+                            </details>
                           )}
                           {line.stage === 'APPROVED' && outstanding > 0 && (
                             <details className="request-detail-optional-action">
