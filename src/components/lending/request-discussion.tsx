@@ -92,7 +92,7 @@ export function RequestDiscussion({
         </>
       )}
       </>}
-      <h3 className="font-semibold mt-4">{compact ? 'Comments' : 'Append-only comments'}</h3>
+      {!compact && <h3 className="font-semibold mt-4">Append-only comments</h3>}
       {!compact && <p className="muted">Corrections add a linked entry and preserve the original comment.</p>}
       {notice && <p role="status">{notice}</p>}
       {comments.error && <ErrorNotice message={comments.error} />}
@@ -114,6 +114,7 @@ export function RequestDiscussion({
           )}
         </>
       )}
+      {compact && comments.data?.items.length === 0 && <p className="request-comment-empty">No comments yet.</p>}
       {comments.data?.items.map((comment) => (
         <article key={comment.id} className="border-b py-3">
           <p>
@@ -145,11 +146,12 @@ export function RequestDiscussion({
         </article>
       ))}
       {comments.data && request.data?.items.length ? (
-        compact ? <details className="request-comment-composer">
+        compact ? <details className="request-comment-composer" key={currentCorrection?.id ?? 'new'} open={currentCorrection ? true : undefined}>
           <summary>Write a comment</summary>
           <ActionForm
           key={currentCorrection?.id ?? 'new-comment'}
           compact={compact}
+          requireAcknowledgement={false}
           title={currentCorrection ? 'Correct comment' : 'Post comment'}
           path="comments"
           session={session}
