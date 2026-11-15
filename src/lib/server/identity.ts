@@ -168,7 +168,7 @@ export async function handle(
     transaction(
       async (c) =>
         (
-          await c.query('SELECT lab.identity_call($1,$2,$3,$4,$5) AS result', [
+          await c.query('SELECT lab.identity_call($1,$2,$3,$4,$5::jsonb) AS result', [
             cookie(r),
             r.headers.get('x-csrf-token') ?? '',
             op,
@@ -181,7 +181,7 @@ export async function handle(
     transaction(
       async (c) =>
         (
-          await c.query('SELECT lab.admin_governance($1,$2,$3,$4,$5) AS result', [
+          await c.query('SELECT lab.admin_governance($1,$2,$3,$4,$5::jsonb) AS result', [
             cookie(r),
             r.headers.get('x-csrf-token') ?? '',
             op,
