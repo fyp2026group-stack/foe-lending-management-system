@@ -77,6 +77,7 @@ jobs:
             tests/lending-sources.integration.mjs \
             tests/officer-operations.integration.mjs \
             tests/physical-lifecycle.integration.mjs \
+            tests/request-wide-approval.integration.mjs \
             tests/workflow-basic.integration.mjs
       - name: Verify lecturer-to-HOD approval regression
         id: approval_regression
