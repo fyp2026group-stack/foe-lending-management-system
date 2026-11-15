@@ -35,6 +35,9 @@ jobs:
           set +a
           export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
           npm run prisma:introspect
+          echo '=== introspected asset and stock relations ==='
+          sed -n '85,145p' prisma/schema.prisma
+          grep -n -E 'inv_cells|inv_assets' prisma/schema.prisma | head -35
           npm run prisma:validate
           node -e 'const fs=require("fs");const s=fs.readFileSync("prisma/schema.prisma","utf8");const n=(s.match(/^model /gm)||[]).length;if(n<30)throw Error("Incomplete introspection: "+n+" Prisma models");console.log("Complete introspection:",n,"models")'
           npm run prisma:generate
