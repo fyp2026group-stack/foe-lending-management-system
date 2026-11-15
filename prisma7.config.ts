@@ -12,7 +12,7 @@ export default defineConfig({
   // Existing database/*.sql migrations remain authoritative. Do not run migrate
   // dev/deploy or db push against this database: protected SQL functions,
   // ownership, triggers and security policies are managed outside Prisma.
-  datasource: {
-    url: process.env.DATABASE_URL ?? '',
-  },
+  ...(process.env.DATABASE_URL
+    ? { datasource: { url: process.env.DATABASE_URL } }
+    : {}),
 });
