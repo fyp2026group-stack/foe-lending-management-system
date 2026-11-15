@@ -54,7 +54,7 @@ export function requestApprovalGate(
   }
 
   const active = lines.filter(line => line.cancelledQuantity < line.quantity);
-  const requirements: ApprovalRequirement[] = active.flatMap((line) => {
+  const allRequirements: ApprovalRequirement[] = lines.flatMap((line) => {
     switch (line.policy) {
       case 'NONE': return [];
       case 'LECTURER': return [{ lineId: line.id, role: 'LECTURER' as const }];
@@ -66,13 +66,12 @@ export function requestApprovalGate(
       default: throw new Error('INVALID_REQUEST_LINE');
     }
   });
-  if (active.length === 0) {
-    if (approvals.length) throw new Error('INVALID_APPROVAL');
-    return { state: 'EMPTY', requires: [], missing: [] };
-  }
-
-  const keyed = new Map<string, ApprovalDecision>();
+  const activeIds = new Set(active.map(line => line.id));
+  const requirements = allRequirements.filter(req => activeIds.has(req.lineId));
+  const allowedKeys = new Set(allRequirements.map(req => `${req.lineId}:${req.role}`));
   const requiredKeys = new Set(requirements.map(req => `${req.lineId}:${req.role}`));
+  const keyed = new Map<string, ApprovalDecision>();
+  const seen = new Set<string>();
   for (const approval of approvals) {
     if (
       !known.has(approval.lineId) ||
@@ -80,13 +79,13 @@ export function requestApprovalGate(
       !['APPROVE', 'REJECT'].includes(approval.decision)
     ) throw new Error('INVALID_APPROVAL');
     const key = `${approval.lineId}:${approval.role}`;
-    if (keyed.has(key)) throw new Error('INVALID_APPROVAL');
-    // Approval history may predate cancellation of a line. Ignore that
-    // cancelled line for the current request-wide readiness decision.
+    if (seen.has(key) || !allowedKeys.has(key)) throw new Error('INVALID_APPROVAL');
+    seen.add(key);
+    // An approval remains valid immutable history after cancellation, but
+    // cancelled items contribute no pending requirements or rejection veto.
     if (requiredKeys.has(key)) keyed.set(key, approval.decision);
-    else if (active.some(line => line.id === approval.lineId))
-      throw new Error('INVALID_APPROVAL');
   }
+  if (active.length === 0) return { state: 'EMPTY', requires: [], missing: [] };
   const missing = requirements.filter(req => !keyed.has(`${req.lineId}:${req.role}`));
   const state = [...keyed.values()].includes('REJECT')
     ? 'REJECTED'
