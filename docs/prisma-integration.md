@@ -151,6 +151,40 @@ least-privilege grants or RLS, concurrent stock conservation tests,
 idempotency checks, and a reversible deployment plan. Do not delete
 the legacy SQL functions or migration runner yet.
 
+## Request-wide approval and custody invariants
+
+The original line-by-line reservation behavior permitted the `NONE`-policy
+item of a multi-equipment request to reserve stock while a different item
+awaited lecturer or HOD approval. The new versioned Prisma migrations
+`20261115180500_request_wide_approval_guard` and
+`20261115181000_request_wide_allocation_guard` enforce the desired
+whole-order policy across legacy callers:
+
+- Every *active* request line must be `APPROVED` before any allocation.
+  A fully cancelled line does not block other lines.
+- The legacy explicit reservation route is covered by a database
+  `BEFORE INSERT` guard on `lend_allocations`.
+- Physical handover is independently guarded on `lend_loans`.
+- The final versioned approval attempts reservations for **all** approved
+  lines, including items not requiring separate academic approval.
+- An approval for one item never represents approval of a different item.
+  The TypeScript domain gate uses `lineId` + role as the approval key.
+- Existing audit records, stock movement history, and command idempotency
+  behavior are retained.
+
+Regression tests: `tests/prisma-request-gate.test.mjs` and
+`tests/request-wide-approval.integration.mjs`. These test multi-item
+lecturer/HOD sequencing, mixed `NONE`/approval policies, prohibition of
+early reservation, and automatic reservation after the last required
+approval. Existing single-item lifecycle tests remain mandatory.
+
+**Still needed before retiring DB functions:** migrate each write operation
+to authenticated Prisma transactions with a non-forgeable authorization
+context, row-level access controls, request/stock locking, and parity tests
+for command replay, concurrency, cancellations, returns, inspection,
+maintenance, immutable audit and history. Current SQL triggers deliberately
+protect direct Prisma writes once that transition occurs.
+
 ## Release gate
 
 Only deploy after the Prisma branch passes CI checks for Prisma validation,
