@@ -10,7 +10,7 @@ import type { Item, Named } from '@/components/inventory/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StudentDataTable, type StudentColumn } from './student-data-table';
 import { StudentSelect } from './student-controls';
@@ -67,7 +67,6 @@ export function StudentBrowse({
     (!available || (available === 'yes' ? source.availableQuantity > 0 : source.availableQuantity === 0))
   );
   const filterActive = Boolean(query || category || lab || available || kind);
-  const selectedCount = basket.reduce((sum, line) => sum + line.quantity, 0);
 
   function resetFilters() {
     setQuery('');
@@ -101,7 +100,7 @@ export function StudentBrowse({
   }
   function closeDetail() {
     setSelected('');
-    // Radix restores keyboard focus to the initiating control when the sheet closes.
+    // The dialog restores focus to the originating table action.
   }
   function add(source: LendingSource) {
     const max = Math.min(quantityLimit(source), source.availableQuantity);
@@ -130,7 +129,7 @@ export function StudentBrowse({
       cell: (source) => (
         <div className="browse-equipment-name">
           <span className="browse-equipment-icon"><Package size={17} aria-hidden="true" /></span>
-          <span><strong>{itemName(source)}</strong><small>{categoryFor(source)}</small></span>
+          <span><strong>{itemName(source)}</strong><small>{categoryFor(source)}</small>{basket.some((line) => sourceKey(line) === sourceKey(source)) && <em className="browse-equipment-row-selected">Selected</em>}</span>
         </div>
       ),
     },
@@ -190,48 +189,31 @@ export function StudentBrowse({
         }
       />
 
-      <div className="browse-equipment-overview" aria-live="polite">
-        <div><strong>{sources.data ? new Set(all.map((source) => source.itemId)).size : '—'}</strong><span>Equipment types</span></div>
-        <div><strong>{sources.data ? all.filter((source) => source.availableQuantity > 0).length : '—'}</strong><span>Available sources</span></div>
-        <div><strong>{basket.length}</strong><span>Selected types</span></div>
-      </div>
-
       {notice && <p role="status" className="browse-equipment-notice">{notice}</p>}
-      {basket.length > 0 && (
-        <div className="browse-equipment-selection" aria-label="Selected equipment">
-          <div className="browse-equipment-selection-label"><ShoppingBasket size={16} aria-hidden="true"/>
-            <strong>Selected for request</strong><span>{selectedCount} {selectedCount === 1 ? 'unit' : 'units'}</span>
-          </div>
-          <div className="browse-equipment-selected-items">
-            {basket.map((line) => (
-              <span className="browse-equipment-selection-chip" key={sourceKey(line)}>
-                {(() => { const source = all.find((value) => sourceKey(value) === sourceKey(line)); return source ? itemName(source) : 'Equipment'; })()} × {line.quantity}
-                <button type="button" aria-label="Remove selected equipment"
-                  onClick={() => updateBasket(basket.filter((value) => sourceKey(value) !== sourceKey(line)))}>
-                  <X size={13} aria-hidden="true"/>
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {[sources.error, catalogue.error, categories.error].filter(Boolean).map((error, index) =>
         <ErrorNotice key={index} message={error!}/>)}
 
       <section className="browse-equipment-catalogue" aria-label="Equipment catalogue">
         <div className="browse-equipment-toolbar">
-          <label className="browse-equipment-search">
-            <Search size={17} aria-hidden="true"/>
-            <span className="sr-only">Search equipment</span>
-            <Input placeholder="Search equipment by name or laboratory" aria-label="Search equipment"
-              value={query} onChange={(event) => setQuery(event.target.value)}/>
-          </label>
+          <div className="browse-equipment-search">
+            <Search size={17} aria-hidden="true" />
+            <Input
+              placeholder="Search equipment or laboratory"
+              aria-label="Search equipment or laboratory"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
           <Button size="sm" variant="outline" type="button" aria-expanded={showFilters}
             aria-controls="browse-equipment-advanced" onClick={() => setShowFilters((value) => !value)}>
             <SlidersHorizontal size={15} aria-hidden="true"/> Filters
           </Button>
-          {filterActive && <Button size="sm" variant="ghost" onClick={resetFilters}>Clear filters</Button>}
+          {filterActive && <Button size="sm" variant="ghost" onClick={resetFilters}>Clear</Button>}
+          <span className="browse-equipment-toolbar-spacer" aria-hidden="true" />
+          <span className="browse-equipment-toolbar-count">
+            {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+            {basket.length > 0 && ` · ${basket.length} selected`}
+          </span>
         </div>
 
         {showFilters && (
@@ -284,60 +266,56 @@ export function StudentBrowse({
         ) : null}
       </section>
 
-      <Sheet open={Boolean(chosen)} onOpenChange={(open) => { if (!open) closeDetail(); }}>
-        <SheetContent side="right" className="browse-equipment-sheet browse-equipment-sheet-refined">
-          <SheetHeader className="browse-equipment-sheet-heading browse-equipment-sheet-heading-refined">
-            <p className="browse-equipment-eyebrow">EQUIPMENT CATALOGUE</p>
+      <Dialog open={Boolean(chosen)} onOpenChange={(open) => { if (!open) closeDetail(); }}>
+        <DialogContent
+          className="browse-equipment-dialog"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocus.current?.focus();
+          }}
+        >
+          <DialogHeader className="browse-equipment-dialog-header">
+            <p className="browse-equipment-eyebrow">EQUIPMENT DETAILS</p>
             <div className="browse-equipment-identity">
-              <span className="browse-equipment-identity-icon"><Package size={28} aria-hidden="true" /></span>
+              <span className="browse-equipment-identity-icon"><Package size={24} aria-hidden="true" /></span>
               <div className="browse-equipment-identity-copy">
-                <SheetTitle>{chosen ? itemName(chosen) : 'Equipment details'}</SheetTitle>
-                <SheetDescription>
-                  {chosen ? categoryFor(chosen) : 'Catalogue item'}
-                  {chosen ? ' · Ref ' + chosen.itemId.slice(0, 8).toUpperCase() : ''}
-                </SheetDescription>
+                <DialogTitle>{chosen ? itemName(chosen) : 'Equipment details'}</DialogTitle>
+                <DialogDescription>{chosen ? categoryFor(chosen) : 'Equipment catalogue'}</DialogDescription>
               </div>
             </div>
-          </SheetHeader>
+          </DialogHeader>
           {chosen && (
-            <div className="browse-equipment-sheet-scroll browse-equipment-sheet-scroll-refined">
-              <section className="browse-equipment-availability-hero" aria-label="Availability">
-                <div className="browse-equipment-availability-caption">
-                  <div className="browse-equipment-availability-heading">
-                    <span className={chosen.availableQuantity > 0 ? 'browse-availability-dot is-available' : 'browse-availability-dot is-unavailable'} />
-                    <strong>{chosen.availableQuantity > 0 ? 'Available to request' : 'Currently unavailable'}</strong>
-                  </div>
-                  <p>{chosen.availableQuantity > 0
-                    ? 'Stock available at the selected laboratory'
-                    : 'No stock is available at this source'}</p>
+            <div className="browse-equipment-dialog-content">
+              <div className="browse-equipment-dialog-stock">
+                <div>
+                  <span className={chosen.availableQuantity > 0 ? 'browse-availability-dot is-available' : 'browse-availability-dot is-unavailable'}/>
+                  <strong>{chosen.availableQuantity > 0 ? 'In stock' : 'Currently unavailable'}</strong>
+                  <small>Available for borrowing</small>
                 </div>
-                <div className="browse-equipment-availability-value">
+                <div className="browse-equipment-dialog-stock-value">
                   <strong>{chosen.availableQuantity}</strong><span>{chosen.uom}</span>
                 </div>
-              </section>
-              <section className="browse-equipment-information" aria-labelledby="browse-equipment-information-heading">
-                <h3 id="browse-equipment-information-heading">Equipment information</h3>
-                <dl>
-                  <div><dt>Laboratory</dt><dd>{labName(chosen)}</dd></div>
-                  <div><dt>Equipment type</dt><dd>{chosen.kind === 'RETURNABLE' ? 'Returnable' : 'Consumable'}</dd></div>
-                  <div><dt>Approval required</dt><dd>{approvalPath(chosen.policy)}</dd></div>
-                </dl>
-              </section>
-              {itemFor(chosen)?.specifications && Object.entries(itemFor(chosen)!.specifications!).length > 0 && (
+              </div>
+              <dl className="browse-equipment-dialog-facts">
+                <div><dt>Laboratory</dt><dd>{labName(chosen)}</dd></div>
+                <div><dt>Type</dt><dd>{chosen.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable'}</dd></div>
+                <div><dt>Approval</dt><dd>{approvalPath(chosen.policy)}</dd></div>
+              </dl>
+              {itemFor(chosen)?.specifications && Object.keys(itemFor(chosen)!.specifications!).length > 0 && (
                 <details className="browse-equipment-specifications browse-equipment-specifications-refined">
-                  <summary>Technical specifications <ChevronRight size={16} aria-hidden="true" /></summary>
+                  <summary>Specifications <ChevronRight size={15} aria-hidden="true" /></summary>
                   <dl>{Object.entries(itemFor(chosen)!.specifications!).map(([key, value]) =>
                     <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>
                 </details>
               )}
-              <section className="browse-equipment-request-panel" aria-labelledby="browse-equipment-request-heading">
-                <div className="browse-equipment-request-intro">
-                  <div><h3 id="browse-equipment-request-heading">Add to your request</h3>
-                    <p>{detailMaximum > 0 ? `Choose up to ${detailMaximum} ${chosen.uom}` : 'This equipment cannot currently be selected'}</p>
-                  </div>
-                  {alreadyAdded && <span className="browse-equipment-already-added">Selected</span>}
+              <div className="browse-equipment-dialog-request">
+                <div className="browse-equipment-dialog-request-label">
+                  <div><strong>Request quantity</strong><small>{detailMaximum > 0
+                    ? `Up to ${detailMaximum} ${chosen.uom}`
+                    : 'This equipment is unavailable'}</small></div>
+                  {alreadyAdded && <span className="browse-equipment-row-selected">Already selected</span>}
                 </div>
-                <div className="browse-equipment-request-controls">
+                <div className="browse-equipment-dialog-actions">
                   <div className="browse-equipment-stepper" role="group" aria-label="Quantity to request">
                     <Button type="button" variant="outline" size="icon" aria-label="Decrease quantity"
                       disabled={detailMaximum < 1 || quantity <= 1}
@@ -357,15 +335,19 @@ export function StudentBrowse({
                   <Button className="browse-equipment-confirm-button" onClick={() => add(chosen)}
                     disabled={detailMaximum < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > detailMaximum}>
                     <ShoppingBasket size={16} aria-hidden="true" />
-                    {alreadyAdded ? 'Update quantity' : 'Add to request'}
+                    {alreadyAdded ? 'Update selection' : 'Add to request'}
                   </Button>
                 </div>
+                {alreadyAdded && <button type="button" className="browse-equipment-remove-selection"
+                  onClick={() => { updateBasket(basket.filter((line) => sourceKey(line) !== sourceKey(chosen))); closeDetail(); }}>
+                  Remove from selection
+                </button>}
                 {notice && <p className="browse-equipment-action-notice" role="status">{notice}</p>}
-              </section>
+              </div>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
