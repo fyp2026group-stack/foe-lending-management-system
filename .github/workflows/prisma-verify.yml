@@ -12,7 +12,7 @@ jobs:
   source-checks:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,19 +21,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      # npm install regenerates the lock on the first Prisma branch run. The
-      # resulting lockfile is committed so future runs can use npm ci.
-      - name: Install pinned dependencies and regenerate lockfile
-        run: npm install --no-audit --no-fund
-      - name: Commit updated npm lockfile (if required)
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore(prisma): synchronize npm dependency lockfile"
-            git push origin HEAD:prisma
-          fi
+      - name: Install locked dependencies
+        run: npm ci
       - name: Generate local-only configuration
         run: npm run local:config
       - name: Verify Prisma schema
@@ -58,7 +47,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: npm install --no-audit --no-fund
+      - run: npm ci
       - name: Create isolated environment and PostgreSQL
         run: |
           npm run local:config
