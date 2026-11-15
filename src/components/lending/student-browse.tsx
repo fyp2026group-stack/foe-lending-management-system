@@ -21,9 +21,9 @@ import type { LendingSource, DraftPayload } from './api';
 
 // Synthetic catalogue records sometimes contain UUIDs in their display names.
 // Keep their real identifiers for operations, but never present these as human-friendly names.
-const uuidInName = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b/gi;
+const uuidInName = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 function humanLabel(value: string | undefined, fallback: string) {
-  const clean = (value ?? '').replace(uuidInName, '').replace(/[-–—:]+\\s*$/, '').trim();
+  const clean = (value ?? '').replace(uuidInName, '').replace(/[-–—:]+\s*$/, '').trim();
   return !clean || /^(equipment|item|category|laboratory|lab)$/i.test(clean) ? fallback : clean;
 }
 export function StudentBrowse({
