@@ -63,7 +63,8 @@ try {
   }
   for (const [table,column] of [
     ['lab.inv_items','id'], ['lab.inv_items','name'],
-    ['lab.lend_policies','item_id'],['lab.lend_policies','policy'],['lab.lend_policies','hod_id']
+    ['lab.lend_policies','item_id'],['lab.lend_policies','policy'],['lab.lend_policies','hod_id'],
+    ['lab.inv_categories','id'],['lab.inv_categories','name'],['lab.inv_categories','active'],['lab.inv_categories','version']
   ]) {
     const { rows } = await c.query(
       'SELECT has_column_privilege(current_user,$1,$2,\'SELECT\') AS allowed',
