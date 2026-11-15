@@ -10,7 +10,7 @@ import Link from 'next/link';
 import type { Session } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
 import { Button } from '@/components/ui/button';
-import { Search, SlidersHorizontal, ChevronRight, Package, Check, Clock3, ClipboardList } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronRight, Package, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -164,7 +164,7 @@ export function Requests({
   };
   return (
     <section
-      className={isStudent(session.user.roles) ? 'cp2-requests student-requests' : 'cp2-requests'}
+      className={isStudent(session.user.roles) ? 'cp2-requests request-inbox student-requests' : 'cp2-requests request-inbox'}
     >
       <div className="request-inbox-heading">
         <div>
@@ -294,26 +294,31 @@ export function Requests({
               )}
             </>
           )}
-          {draftRows.map((draft) => (
-            <article className="records p-4" key={draft.id}>
-              <h3>{draft.payload.purpose || 'Untitled draft'}</h3>
-              <p>
-                {draft.payload.lines.length} items · Saved {date(draft.updatedAt)} · Version{' '}
-                {draft.version}
-              </p>
-              {draft.predecessorId && (
-                <p>Correction of request {draft.predecessorId}; original history is preserved.</p>
-              )}
-              <Button asChild>
-                <Link href={`/borrowing?view=new&draftId=${encodeURIComponent(draft.id)}`}>
-                  Open and edit draft
-                </Link>
-              </Button>{' '}
-              <Button variant="outline" onClick={() => setCancel({ draft })}>
-                Cancel draft
-              </Button>
-            </article>
-          ))}
+          {drafts.data && draftRows.length > 0 && (
+            <div className="request-inbox-table-area">
+              <div className="request-inbox-table-scroll" role="region" aria-label="Draft requests; horizontal scrolling available" tabIndex={0}>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Draft request</TableHead><TableHead>Items</TableHead>
+                    <TableHead>Saved</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                  <TableBody>{draftRows.map((draft) => (
+                    <TableRow key={draft.id}>
+                      <TableCell><div className="request-inbox-equipment">
+                        <span className="request-inbox-equipment-icon"><Package size={17} aria-hidden="true"/></span>
+                        <span><strong>{draft.payload.purpose || 'Untitled draft'}</strong>
+                          <small>#{draft.id.slice(0,8)} {draft.predecessorId ? '· Correction draft' : '· Draft'}</small></span>
+                      </div></TableCell>
+                      <TableCell>{draft.payload.lines.length} item types</TableCell>
+                      <TableCell className="request-inbox-date">{date(draft.updatedAt)}</TableCell>
+                      <TableCell><div className="request-inbox-draft-actions">
+                        <Button asChild size="sm"><Link href={`/borrowing?view=new&draftId=${encodeURIComponent(draft.id)}`}>Continue</Link></Button>
+                        <Button size="sm" variant="outline" onClick={() => setCancel({ draft })}>Cancel</Button>
+                      </div></TableCell>
+                    </TableRow>
+                  ))}</TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -461,19 +466,14 @@ export function Requests({
                   </p>
                 </details>
                 {selected.lines.map((line) => (
-                  <section className="request-line border p-4" key={line.id}>
-                    <h4>{line.item}</h4>
-                    <p>
-                      {line.lab || line.labId} / {line.location || line.locationId}
-                    </p>
-                    <Badge variant="secondary">{line.stage}</Badge>
-                    <p>
-                      Requested {line.quantity} · Cancelled {line.cancelledQuantity} · Handed over{' '}
-                      {line.issuedQuantity} · Reserved {line.reservedQuantity}
-                    </p>
-                    <p>
-                      Approval path: {approvalPath(line.policy)} · version {line.version}
-                    </p>
+                  <section className="request-detail-item" key={line.id}>
+                    <div className="request-detail-item-head"><h4>{line.item}</h4><Badge variant="secondary">{line.stage}</Badge></div>
+                    <p>{line.quantity} requested · {line.reservedQuantity} reserved · {line.issuedQuantity} issued</p>
+                    <p>Approval: {approvalPath(line.policy)}</p>
+                    <details className="request-detail-item-history">
+                      <summary>Decision history and technical details</summary>
+                      <p>Cancelled {line.cancelledQuantity} · Version {line.version}</p>
+                      <p>{line.lab || line.labId} / {line.location || line.locationId}</p>
                     <h5>Decision history</h5>
                     {!line.decisions.length &&
                       (student ? (
@@ -490,6 +490,7 @@ export function Requests({
                         </li>
                       ))}
                     </ol>
+                    </details>
                     {approvals && canDecide(selected, line) && (
                       <ActionForm
                         key={line.id + ':' + line.version}
