@@ -17,6 +17,18 @@ try {
    await db.query("INSERT INTO lab.sessions(token_hash,user_id,csrf_hash,expires_at,last_seen_at) VALUES($1,$2,$3,clock_timestamp()+interval '1 hour',clock_timestamp())",[sha(token),id,sha(csrf)]);
    actors[role]={token,csrf};
  }
+ // Isolated rollback-only instrumentation: temporarily include the underlying
+ // SQLERRM in audit details. Never change the production function or response.
+ const signature = 'lab.lending_call_cp2(text,text,text,jsonb)';
+ const sourceFn = (await db.query(
+   'SELECT pg_get_functiondef($1::regprocedure) AS source',[signature]
+ )).rows[0].source;
+ const diagnosticFn = sourceFn.replace(
+   /('sqlstate'\s*,\s*SQLSTATE)/i,
+   "$1,'debugMessage',SQLERRM"
+ );
+ if (diagnosticFn === sourceFn) throw Error('Approval SQL exception handler missing');
+ await db.query(diagnosticFn);
  const source = (await db.query("SELECT c.item_id,c.lab_id,c.location_id FROM lab.inv_cells c JOIN lab.inv_items i ON i.id=c.item_id WHERE i.name='Synthetic Multimeter' AND c.state='AVAILABLE' LIMIT 1")).rows[0];
  assert.ok(source,'seed stock required');
  await db.query('SET LOCAL ROLE lab_runtime');
@@ -31,7 +43,7 @@ try {
  await db.query('SET LOCAL ROLE lab_runtime');
  const decision = line ? await call('lecturer','decisions',{lineId:line.id,decision:'APPROVE',remarks:'diagnostic'}) : null;
  await db.query('RESET ROLE');
- const denied = (await db.query("SELECT action, details->>'operation' operation, details->>'sqlstate' sqlstate FROM lab.audit WHERE action='LENDING_DENIED' AND actor_id=$1 ORDER BY occurred_at DESC LIMIT 5",[users.lecturer])).rows;
+ const denied = (await db.query("SELECT action, details->>'operation' operation, details->>'sqlstate' sqlstate, details->>'debugMessage' message FROM lab.audit WHERE action='LENDING_DENIED' AND actor_id=$1 ORDER BY occurred_at DESC LIMIT 5",[users.lecturer])).rows;
  console.log(JSON.stringify({policy,request,line,decision,denied}));
  assert.equal(decision?.stage,'HOD','Approval must advance. Review denied sqlstate from protected function before changing code.');
 } finally {
