@@ -61,6 +61,26 @@ try {
       false, 'Sensitive data read must remain denied: ' + table
     );
   }
+  for (const [table,column] of [
+    ['lab.inv_items','id'], ['lab.inv_items','name'],
+    ['lab.lend_policies','item_id'],['lab.lend_policies','policy'],['lab.lend_policies','hod_id']
+  ]) {
+    const { rows } = await c.query(
+      'SELECT has_column_privilege(current_user,$1,$2,\'SELECT\') AS allowed',
+      [table,column]
+    );
+    assert.equal(rows[0].allowed, true, 'Missing typed-policy read privilege: ' + table + '.' + column);
+  }
+  assert.equal(
+    (await c.query('SELECT has_column_privilege(current_user,$1,$2,\'SELECT\') AS allowed',
+      ['lab.inv_items','specifications'])).rows[0].allowed,
+    false, 'Runtime must not read unrestricted item specification columns'
+  );
+  const replaySource = (await owner.query(
+    "SELECT pg_get_functiondef('lab.lending_call_cp2(text,text,text,jsonb)'::regprocedure) AS source"
+  )).rows[0].source;
+  assert.match(replaySource, /EXECUTE 'UPDATE lab\\.lend_commands c SET result=\\$1/);
+  assert.doesNotMatch(replaySource, /lending_call(?:_cp2)?\\.result/);
   await assert.rejects(c.query('SELECT count(*) FROM lab.users'), (e) => e.code === '42501');
   for (const sql of [
     'CREATE TABLE lab.forbidden(id int)',
