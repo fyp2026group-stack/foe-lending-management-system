@@ -117,7 +117,7 @@ export function ReviewSheet({
   description: string;
   children: ReactNode;
   footer?: ReactNode;
-  variant?: 'default' | 'equipment' | 'receipt' | 'stock';
+  variant?: 'default' | 'equipment' | 'receipt' | 'stock' | 'request';
 }) {
   const [locks, setLocks] = useState<Set<string>>(() => new Set());
   const update = useCallback(
@@ -138,7 +138,7 @@ export function ReviewSheet({
       }}
     >
       <DialogContent
-        className={variant === 'equipment' ? 'review-sheet equipment-detail-dialog' : variant === 'receipt' ? 'review-sheet inventory-receipt-dialog' : variant === 'stock' ? 'review-sheet stock-control-dialog' : 'review-sheet'}
+        className={variant === 'equipment' ? 'review-sheet equipment-detail-dialog' : variant === 'receipt' ? 'review-sheet inventory-receipt-dialog' : variant === 'stock' ? 'review-sheet stock-control-dialog' : variant === 'request' ? 'review-sheet request-detail-sheet' : 'review-sheet'}
         onEscapeKeyDown={(event) => { if (locks.size) event.preventDefault(); }}
         onPointerDownOutside={(event) => { if (locks.size) event.preventDefault(); }}
       >
