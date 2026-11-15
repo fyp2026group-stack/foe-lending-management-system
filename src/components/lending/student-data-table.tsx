@@ -34,6 +34,7 @@ export function StudentDataTable<T extends object>({
   label,
   emptyKind = 'requests',
   filtered = false,
+  compactToolbar = false,
   onReset,
 }: {
   data: T[];
@@ -44,6 +45,7 @@ export function StudentDataTable<T extends object>({
   label: string;
   emptyKind?: StudentEmptyKind;
   filtered?: boolean;
+  compactToolbar?: boolean;
   onReset?: () => void;
 }) {
   const definitions = useMemo(
@@ -81,9 +83,9 @@ export function StudentDataTable<T extends object>({
     );
   return (
     <>
-      <div className="student-result-bar">
+      {!compactToolbar && <div className="student-result-bar">
         <span>{table.getFilteredRowModel().rows.length} matching records</span>
-        <label>
+        <label className="student-table-sort">
           Sort by
           <StudentSelect
             value={table.state.sorting[0]?.id ?? ''}
@@ -101,7 +103,7 @@ export function StudentDataTable<T extends object>({
               ))}
           </StudentSelect>
         </label>
-      </div>
+      </div>}
       <div
         className="table-region"
         role="region"
@@ -154,8 +156,8 @@ export function StudentDataTable<T extends object>({
         </Table>
       </div>
       <CardFooter className="pagination">
-        <span>{table.getFilteredRowModel().rows.length} matching records</span>
-        <label>
+        {!compactToolbar && <span>{table.getFilteredRowModel().rows.length} matching records</span>}
+        <label className="student-page-size">
           Rows per page
           <StudentSelect
             value={table.state.pagination.pageSize}
