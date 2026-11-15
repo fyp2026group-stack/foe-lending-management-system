@@ -63,9 +63,11 @@ export function ActionForm({
   onSaved,
   confirmationContext,
   compact = false,
+  requireAcknowledgement = true,
 }: {
   confirmationContext?: ReactNode;
   compact?: boolean;
+  requireAcknowledgement?: boolean;
   title: string;
   path: string;
   session: Session;
@@ -121,9 +123,9 @@ export function ActionForm({
       >
         <fieldset disabled={busy} className="grid gap-4 mt-4">
           {children}
-          <label className="flex items-center gap-3 min-h-11">
+          {requireAcknowledgement && <label className="flex items-center gap-3 min-h-11">
             <input type="checkbox" required />{compact ? 'Confirm this action' : 'I have reviewed the details and confirm this action.'}
-          </label>
+          </label>}
           <Button type="submit">{busy ? 'Checking result...' : title}</Button>
         </fieldset>
       </ConfirmedForm>
