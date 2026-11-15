@@ -49,6 +49,23 @@ try {
     applied.includes('20261115070200_admin_catalogue_reads'),
     'Reference-read privilege migration must be applied'
   );
+  for (const name of [
+    '20261115180500_request_wide_approval_guard',
+    '20261115181000_request_wide_allocation_guard',
+  ]) {
+    assert.ok(applied.includes(name), 'Missing whole-order protection migration: ' + name);
+  }
+  const guards = (await owner.query(`
+    SELECT t.tgname
+    FROM pg_catalog.pg_trigger t
+    JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='lab' AND NOT t.tgisinternal
+      AND (c.relname='lend_allocations' OR c.relname='lend_loans')
+  `)).rows.map(row=>row.tgname);
+  for (const requiredGuard of ['lend_guard_allocation_approved','lend_guard_handover_approved']) {
+    assert.ok(guards.includes(requiredGuard),'Whole-request database guard missing: '+requiredGuard);
+  }
   for (const table of ['lab.batches', 'lab.laboratories', 'lab.staff_labs', 'lab.inv_locations', 'lab.user_batch_memberships']) {
     assert.equal(
       (await c.query('SELECT has_table_privilege(current_user,$1,\'SELECT\') AS allowed', [table])).rows[0].allowed,
