@@ -1,0 +1,86 @@
+name: Prisma migration validation
+
+on:
+  push:
+    branches: [prisma]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      # npm install regenerates the lock on the first Prisma branch run. The
+      # resulting lockfile is committed so future runs can use npm ci.
+      - name: Install pinned dependencies and regenerate lockfile
+        run: npm install --no-audit --no-fund
+      - name: Commit updated npm lockfile (if required)
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore(prisma): synchronize npm dependency lockfile"
+            git push origin HEAD:prisma
+          fi
+      - name: Generate local-only configuration
+        run: npm run local:config
+      - name: Verify Prisma schema
+        run: npm run prisma:validate
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+      - name: Unit and source tests
+        run: npm test
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    needs: source-checks
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: Create isolated environment and PostgreSQL
+        run: |
+          npm run local:config
+          npm run db:setup
+      - name: Prisma schema validation
+        run: npm run prisma:validate
+      - name: PostgreSQL lifecycle and security integration
+        run: |
+          node --env-file=.verification/m2.env --test --test-concurrency=1 \
+            tests/application-lending.integration.mjs \
+            tests/catalogue.integration.mjs \
+            tests/hod-admin-governance.integration.mjs \
+            tests/google-student-registration.integration.mjs \
+            tests/hod-admin-reports.integration.mjs \
+            tests/lending-authority.integration.mjs \
+            tests/lending-lifecycle.integration.mjs \
+            tests/lending-sources.integration.mjs \
+            tests/officer-operations.integration.mjs \
+            tests/physical-lifecycle.integration.mjs \
+            tests/workflow-basic.integration.mjs
+      - name: Authenticated HTTP workflow regression
+        run: node --env-file=.verification/m2.env tests/workflow-run.integration.mjs
+      - name: Stop isolated database
+        if: always()
+        run: npm run db:down
