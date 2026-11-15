@@ -22,8 +22,18 @@ import { draftSavePayload, draftSubmitPayload, CommandReplay } from './lifecycle
 import { isStudent, readSelection, basketKey, approvalPath } from './student-model';
 import { availablePerEquipment, resolveBorrowingSources, type BorrowSelection } from './request-source-selector';
 
-const stepNames = ['Choose equipment', 'Request details', 'Review & submit'] as const;
-const stepDescriptions = ['Build your list', 'Purpose and schedule', 'Final confirmation'] as const;
+const stepNames = ['Equipment', 'Request details', 'Review', 'Complete'] as const;
+function RequestProgress({ current }: { current: number }) {
+  return <nav className="borrowing-progress" aria-label="Borrowing request progress">
+    <ol>{stepNames.map((label, index) =>
+      <li key={label} className={index < current ? 'is-done' : index === current ? 'is-current' : 'is-upcoming'}
+        aria-current={index === current ? 'step' : undefined}>
+        <span className="borrowing-progress-dot" aria-hidden="true">{index < current || current === 3 ? <Check className="size-5" /> : index + 1}</span>
+        <span className="borrowing-progress-label">{label}</span>
+      </li>
+    )}</ol>
+  </nav>;
+}
 const toLocal = (date?: string) =>
   date ? new Date(new Date(date).getTime() - new Date(date).getTimezoneOffset() * 60000)
     .toISOString().slice(0,16) : '';
@@ -180,7 +190,7 @@ export function RequestBuilder({
         <div className="request-complete-icon" aria-hidden="true"><Check className="size-9" /></div>
         <div className="request-complete-intro" role="status">
           <span className="request-complete-kicker"><CheckCircle2 className="size-4" /> Successfully submitted</span>
-          <h2 id="request-complete-title">Your request is in.</h2>
+          <h2 id="request-complete-title">Request submitted successfully</h2>
           <p>Your equipment request has been recorded. You can follow its progress in My Requests.</p>
         </div>
         <div className="request-complete-status" aria-label="Request status">
@@ -189,6 +199,7 @@ export function RequestBuilder({
           <small>{selected.length} equipment {selected.length === 1 ? 'type' : 'types'}</small>
         </div>
       </div>
+      <div className="request-complete-progress"><RequestProgress current={3}/></div>
       <div className="request-complete-body">
         <div className="request-complete-primary">
           <div className="request-complete-section-title">
@@ -240,23 +251,18 @@ export function RequestBuilder({
 
   return <Card className={'request-wizard request-wizard-full '+(student?'request-wizard-student':'')}>
     <CardHeader className="request-wizard-heading">
-      <p className="request-wizard-eyebrow"><span className="request-wizard-eyebrow-mark" aria-hidden="true" /> EQUIPMENT LENDING / NEW REQUEST</p>
+      <p className="request-wizard-eyebrow">BORROWING REQUEST</p>
       <div className="request-wizard-title-row">
-        <div><CardTitle>{draft?.predecessorId?'Correct borrowing request':'New borrowing request'}</CardTitle>
-          <CardDescription>Choose equipment, enter your borrowing details, and submit one request.</CardDescription></div>
-        {selected.length>0 && <Badge variant="secondary">{selected.length} {selected.length===1?'item':'items'}</Badge>}
+        <div>
+          <CardTitle>{draft?.predecessorId ? 'Revise borrowing request' : 'New borrowing request'}</CardTitle>
+          <CardDescription>Complete the steps below to submit your equipment request.</CardDescription>
+        </div>
+        <span className="request-wizard-step-count">Step {step + 1} of 3</span>
       </div>
+      <RequestProgress current={step} />
     </CardHeader>
     <CardContent className="request-wizard-content">
-      <ol className="request-wizard-progress" aria-label="Borrowing request progress">
-        {stepNames.map((name,index)=><li key={name}
-          className={index===step?'is-current':index<step?'is-done':''}
-          aria-current={index===step?'step':undefined}>
-          <span className="request-wizard-progress-dot">{index<step?<Check className="size-4" aria-hidden="true"/>:index+1}</span>
-          <span className="request-wizard-progress-label"><strong>{name}</strong><small>{stepDescriptions[index]}</small></span>
-        </li>)}
-      </ol>
-      {draft?.predecessorId && <p className="request-wizard-context">This corrects an earlier request. Its previous decisions remain in the history.</p>}
+       {draft?.predecessorId && <p className="request-wizard-context">This corrects an earlier request. Its previous decisions remain in the history.</p>}
       {message && <Alert variant="destructive" className="mb-4"><AlertTitle>Request not completed</AlertTitle>
         <AlertDescription>{message}</AlertDescription></Alert>}
       {uncertain && <Alert className="mb-4"><AlertTitle>Checking an uncertain result</AlertTitle>
@@ -265,122 +271,180 @@ export function RequestBuilder({
 
       {step===0 && <section aria-labelledby="wizard-equipment-heading" className="request-wizard-panel">
         <div className="request-wizard-panel-title">
-          <div><h3 id="wizard-equipment-heading">Choose equipment</h3>
-            <p>Search by name and add the quantities you need.</p></div>
-          <Badge variant="outline">{selected.length} / 20 types</Badge>
+          <div>
+            <h3 id="wizard-equipment-heading">Select equipment</h3>
+            <p>Find equipment, choose a quantity, and review your selection.</p>
+          </div>
+          <span className="borrow-section-count">{selected.length} of 20 types selected</span>
         </div>
         <div className="request-wizard-layout">
-          <div className="request-wizard-list-panel">
+          <section className="request-wizard-list-panel" aria-label="Available equipment">
             <div className="request-wizard-search">
-              <Search className="size-4" aria-hidden="true"/>
-              <Input aria-label="Search equipment" placeholder="Search multimeter, Arduino, oscilloscope…"
-                value={search} onChange={e=>setSearch(e.target.value)} />
-              <select aria-label="Equipment type" value={kind} onChange={e=>setKind(e.target.value)}>
-                <option value="ALL">All equipment</option><option value="RETURNABLE">Returnable</option>
+              <div className="request-wizard-search-field">
+                <Search className="size-4" aria-hidden="true"/>
+                <Input aria-label="Search equipment" placeholder="Search equipment by name"
+                  value={search} onChange={e => setSearch(e.target.value)}/>
+              </div>
+              <select aria-label="Equipment type" value={kind} onChange={e => setKind(e.target.value)}>
+                <option value="ALL">All equipment</option>
+                <option value="RETURNABLE">Returnable</option>
                 <option value="CONSUMABLE">Consumables</option>
               </select>
             </div>
+            <div className="borrow-equipment-table-head" aria-hidden="true">
+              <span>Equipment</span><span>Availability</span><span>Approval</span><span>Quantity</span>
+            </div>
             <div className="request-wizard-item-list">
-              {matching.map(item=>{
-                const chosen=selected.find(row=>row.itemId===item.id);
-                return <article className={'request-wizard-item '+(chosen?'is-selected':'')} key={item.id}>
-                  <div className="request-wizard-item-icon"><Package className="size-5" aria-hidden="true"/></div>
+              {matching.map(item => {
+                const chosen = selected.find(row => row.itemId === item.id);
+                return <article className={'request-wizard-item ' + (chosen ? 'is-selected' : '')} key={item.id}>
                   <div className="request-wizard-item-main">
                     <strong>{item.title}</strong>
-                    <div className="request-wizard-item-meta">
-                      <Badge variant="secondary">{item.kind==='RETURNABLE'?'Returnable':'Consumable'}</Badge>
-                      <span>{item.available>0?'Up to '+item.available+' '+item.uom+' available':'Currently unavailable'}</span>
-                      <span>{approvalPath(item.policy)}</span>
-                    </div>
+                    <span className="borrow-equipment-kind">{item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable'}</span>
                   </div>
-                  {chosen ?
-                    <div className="request-wizard-quantity" aria-label={item.title+' quantity'}>
-                      <Button type="button" variant="ghost" size="icon" aria-label={'Decrease '+item.title+' quantity'}
-                        disabled={busy||Boolean(uncertain)}
-                        onClick={()=>updateSelection(item.id,chosen.quantity-1)}><Minus/></Button>
-                      <output aria-live="polite">{chosen.quantity}</output>
-                      <Button type="button" variant="ghost" size="icon" aria-label={'Increase '+item.title+' quantity'}
-                        disabled={busy||Boolean(uncertain)||chosen.quantity>=item.available}
-                        onClick={()=>updateSelection(item.id,chosen.quantity+1)}><Plus/></Button>
-                    </div> :
-                    <Button type="button" className="request-wizard-add-button" disabled={busy||Boolean(uncertain)||item.available<=0||selected.length>=20}
-                      onClick={()=>updateSelection(item.id,1)}><Plus className="size-4"/>Add item</Button>}
+                  <div className="borrow-equipment-availability">
+                    <span className={'borrow-equipment-stock ' + (item.available > 0 ? 'is-in-stock' : 'is-out-of-stock')}>
+                      {item.available > 0 ? 'Available' : 'Unavailable'}
+                    </span>
+                    <small>{item.available > 0 ? 'Up to ' + item.available + ' ' + item.uom : 'No units available'}</small>
+                  </div>
+                  <div className="borrow-equipment-approval">{approvalPath(item.policy)}</div>
+                  <div className="borrow-equipment-control">
+                    {chosen ?
+                      <div className="request-wizard-quantity" aria-label={item.title + ' quantity'}>
+                        <Button type="button" variant="outline" size="icon" aria-label={'Decrease ' + item.title + ' quantity'}
+                          disabled={busy || Boolean(uncertain)} onClick={() => updateSelection(item.id, chosen.quantity - 1)}>
+                          <Minus className="size-4"/>
+                        </Button>
+                        <output aria-live="polite">{chosen.quantity}</output>
+                        <Button type="button" variant="outline" size="icon" aria-label={'Increase ' + item.title + ' quantity'}
+                          disabled={busy || Boolean(uncertain) || chosen.quantity >= item.available}
+                          onClick={() => updateSelection(item.id, chosen.quantity + 1)}>
+                          <Plus className="size-4"/>
+                        </Button>
+                      </div> :
+                      <Button type="button" variant="outline" className="request-wizard-add-button"
+                        disabled={busy || Boolean(uncertain) || item.available <= 0 || selected.length >= 20}
+                        onClick={() => updateSelection(item.id, 1)}>
+                        Add
+                      </Button>
+                    }
+                  </div>
                 </article>;
               })}
               {!matching.length && <div className="request-wizard-empty">
-                No matching equipment. Try another name or equipment type.</div>}
+                No equipment matches your search.
+              </div>}
             </div>
-          </div>
+          </section>
           <aside className="request-wizard-cart" aria-label="Selected equipment">
-            <div className="request-wizard-cart-title"><h4>Your selection</h4>
-              <Badge variant="outline">{selectedQuantity} {selectedQuantity===1?'unit':'units'}</Badge></div>
-            {selectedRows.length ? <ul>{selectedRows.map(({itemId,quantity,item})=>
-              <li key={itemId}><div><strong>{item?.title??'Equipment'}</strong>
-                <span>{quantity} {item?.uom??'units'} · {item?.kind==='CONSUMABLE'?'Consumable':'Returnable'}</span></div>
-                <Button type="button" size="icon" variant="ghost" aria-label={'Remove '+(item?.title??'equipment')}
-                  disabled={busy||Boolean(uncertain)} onClick={()=>updateSelection(itemId,0)}><Trash2/></Button>
-              </li>)}</ul> :
-              <div className="request-wizard-cart-empty"><Package className="size-7" aria-hidden="true" /><strong>Nothing selected yet</strong><span>Choose equipment from the list to get started.</span></div>}
-            <p className="request-wizard-cart-note">One request for all selected equipment.</p>
+            <div className="request-wizard-cart-title">
+              <div><h4>Selected equipment</h4><span>{selected.length} {selected.length === 1 ? 'type' : 'types'}</span></div>
+              <span className="borrow-cart-unit-count">{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</span>
+            </div>
+            {selectedRows.length ? <ul>{selectedRows.map(({itemId, quantity, item}) =>
+              <li key={itemId}>
+                <div><strong>{item?.title ?? 'Equipment'}</strong><span>{quantity} {item?.uom ?? 'units'}</span></div>
+                <Button type="button" size="icon" variant="ghost" aria-label={'Remove ' + (item?.title ?? 'equipment')}
+                  disabled={busy || Boolean(uncertain)} onClick={() => updateSelection(itemId, 0)}>
+                  <Trash2 className="size-4"/>
+                </Button>
+              </li>
+            )}</ul> :
+              <div className="request-wizard-cart-empty"><strong>No equipment selected</strong>
+                <span>Use Add in the equipment list to begin.</span></div>}
+            <div className="borrow-cart-footer"><span>Total requested</span><strong>{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</strong></div>
           </aside>
         </div>
-        {selected.length>0 && !resolved && <Alert variant="destructive" className="mt-4">
+        {selected.length > 0 && !resolved && <Alert variant="destructive" className="mt-4">
           <AlertTitle>Selection needs attention</AlertTitle>
-          <AlertDescription>Check quantities and availability. Items requiring lecturer approval must have a common eligible lecturer.</AlertDescription>
+          <AlertDescription>Check available quantities and lecturer coverage for the selected equipment.</AlertDescription>
         </Alert>}
       </section>}
 
       {step===1 && <section aria-labelledby="wizard-details-heading" className="request-wizard-panel request-wizard-details">
-        <div className="request-wizard-panel-title"><div>
-          <h3 id="wizard-details-heading">Request details</h3>
-          <p>Tell the laboratory what you need the equipment for and when.</p>
-        </div></div>
-        <label htmlFor="wizard-purpose">{student?'Academic purpose':'Borrowing purpose'} <span aria-hidden="true">*</span></label>
-        <Textarea id="wizard-purpose" maxLength={1000} rows={4} value={purpose}
-          placeholder="Describe your laboratory experiment, project or intended use…"
-          onChange={e=>{setPurpose(e.target.value);setSubmissionDraft(null);}}/>
-        <div className="request-wizard-date-grid">
-          <div><label htmlFor="wizard-collect">Collection date & time</label>
-            <Input id="wizard-collect" type="datetime-local" value={collectAt}
-              onChange={e=>{setCollectAt(e.target.value);setSubmissionDraft(null);}}/></div>
-          <div><label htmlFor="wizard-return">Expected return date & time</label>
-            <Input id="wizard-return" type="datetime-local" value={returnAt}
-              onChange={e=>{setReturnAt(e.target.value);setSubmissionDraft(null);}}/></div>
+        <div className="request-wizard-panel-title">
+          <div><h3 id="wizard-details-heading">Borrowing details</h3>
+            <p>Enter the intended use and borrowing period.</p></div>
         </div>
-        {!resolved && <Alert variant="destructive"><AlertTitle>Review your equipment selection</AlertTitle><AlertDescription>Adjust quantities or change equipment to match available stock and approval coverage.</AlertDescription></Alert>}
-        {needsLecturer && <div className="request-wizard-lecturer">
-          <label htmlFor="wizard-lecturer">Approving lecturer</label>
-          <select id="wizard-lecturer" value={chosenLecturer}
-            onChange={e=>{setLecturerId(e.target.value);setSubmissionDraft(null);}}>
-            <option value="">Select eligible lecturer</option>
-            {resolved?.eligible.map(person=><option value={person.id} key={person.id}>{person.displayName}</option>)}
-          </select>
-
-        </div>}
-
-        {resolved && !detailsValid && <p className="request-wizard-validation">
-          Enter a purpose, choose a future collection date, and select a later return date{needsLecturer?' and an eligible lecturer':''}.
-        </p>}
+        <div className="request-details-layout">
+          <div className="request-details-form">
+            <div className="request-details-field">
+              <label htmlFor="wizard-purpose">{student ? 'Academic purpose' : 'Borrowing purpose'} <span aria-hidden="true">*</span></label>
+              <Textarea id="wizard-purpose" maxLength={1000} rows={4} value={purpose}
+                placeholder="Describe the experiment, project, or intended use"
+                onChange={e => { setPurpose(e.target.value); setSubmissionDraft(null); }}/>
+            </div>
+            <div className="request-wizard-date-grid">
+              <div><label htmlFor="wizard-collect">Collection date & time</label>
+                <Input id="wizard-collect" type="datetime-local" value={collectAt}
+                  onChange={e => { setCollectAt(e.target.value); setSubmissionDraft(null); }}/></div>
+              <div><label htmlFor="wizard-return">Expected return date & time</label>
+                <Input id="wizard-return" type="datetime-local" value={returnAt}
+                  onChange={e => { setReturnAt(e.target.value); setSubmissionDraft(null); }}/></div>
+            </div>
+            {needsLecturer && <div className="request-wizard-lecturer">
+              <label htmlFor="wizard-lecturer">Approving lecturer</label>
+              <select id="wizard-lecturer" value={chosenLecturer}
+                onChange={e => { setLecturerId(e.target.value); setSubmissionDraft(null); }}>
+                <option value="">Select a lecturer</option>
+                {resolved?.eligible.map(person => <option key={person.id} value={person.id}>{person.displayName}</option>)}
+              </select>
+            </div>}
+            {!resolved && <Alert variant="destructive">
+              <AlertTitle>Review equipment selection</AlertTitle>
+              <AlertDescription>Return to Equipment to adjust quantities or items.</AlertDescription>
+            </Alert>}
+            {resolved && !detailsValid && <p className="request-wizard-validation">
+              Enter a purpose, a future collection date, a later return date{needsLecturer ? ', and a lecturer' : ''}.
+            </p>}
+          </div>
+          <aside className="request-details-aside" aria-label="Request overview">
+            <h4>Request overview</h4>
+            <div className="request-details-summary-number">{selected.length} <small>equipment {selected.length === 1 ? 'type' : 'types'}</small></div>
+            <ul>{selectedRows.map(({itemId, item, quantity}) =>
+              <li key={itemId}><span>{item?.title ?? 'Equipment'}</span><strong>{quantity} {item?.uom ?? 'units'}</strong></li>)}</ul>
+            <div className="request-details-summary-foot"><span>Required approval</span><strong>{approvalRequirement}</strong></div>
+          </aside>
+        </div>
       </section>}
 
       {step===2 && <section aria-labelledby="wizard-review-heading" className="request-wizard-panel request-wizard-review">
-        <div className="request-wizard-panel-title"><div><h3 id="wizard-review-heading">Review your request</h3>
-          <p>Check everything before sending it to the laboratory.</p></div></div>
-        <div className="request-wizard-review-grid">
-          <section><h4><ClipboardCheck className="size-4" aria-hidden="true"/>Request details</h4>
-            <dl><div><dt>Purpose</dt><dd>{purpose}</dd></div>
-              <div><dt>Collection</dt><dd>{new Date(dateStart).toLocaleString()}</dd></div>
-              <div><dt>Expected return</dt><dd>{new Date(dateEnd).toLocaleString()}</dd></div>
-              {needsLecturer && <div><dt>Approving lecturer</dt>
-                <dd>{resolved?.eligible.find(person=>person.id===chosenLecturer)?.displayName??'Not selected'}</dd></div>}
-            </dl>
-          </section>
-          <section><h4><Package className="size-4" aria-hidden="true"/>Equipment ({selected.length})</h4>
-            <ul>{selectedRows.map(({itemId,quantity,item})=><li key={itemId}>
-              <span>{item?.title??'Equipment'}</span><strong>{quantity} {item?.uom??'units'}</strong></li>)}</ul>
-          </section>
+        <div className="request-wizard-panel-title">
+          <div><h3 id="wizard-review-heading">Review your request</h3>
+            <p>Confirm the equipment, purpose and dates before submission.</p></div>
+          <span className="borrow-review-ready"><Check className="size-4" /> Ready to submit</span>
         </div>
-        <div className="request-wizard-approval-summary"><ShieldCheck className="size-5" aria-hidden="true"/><span>Required approval: <strong>{approvalRequirement}</strong></span></div>
+        <div className="borrow-review-sheet">
+          <div className="borrow-review-sheet-head">
+            <h4>Request information</h4>
+            <Button type="button" variant="ghost" onClick={() => setStep(1)}>Edit details</Button>
+          </div>
+          <dl className="borrow-review-facts">
+            <div className="is-purpose"><dt>Purpose</dt><dd>{purpose}</dd></div>
+            <div><dt>Collection</dt><dd>{new Date(dateStart).toLocaleString()}</dd></div>
+            <div><dt>Expected return</dt><dd>{new Date(dateEnd).toLocaleString()}</dd></div>
+            <div><dt>Required approval</dt><dd>{approvalRequirement}</dd></div>
+            {needsLecturer && <div><dt>Approving lecturer</dt>
+              <dd>{resolved?.eligible.find(person => person.id === chosenLecturer)?.displayName ?? 'Not selected'}</dd>
+            </div>}
+          </dl>
+          <div className="borrow-review-sheet-head borrow-review-equipment-head">
+            <h4>Equipment <span>({selected.length} {selected.length === 1 ? 'type' : 'types'})</span></h4>
+            <Button type="button" variant="ghost" onClick={() => setStep(0)}>Edit equipment</Button>
+          </div>
+          <div className="borrow-review-table" role="table" aria-label="Requested equipment">
+            <div className="borrow-review-table-head" role="row"><span role="columnheader">Equipment</span>
+              <span role="columnheader">Type</span><span role="columnheader">Quantity</span></div>
+            {selectedRows.map(({itemId, item, quantity}) =>
+              <div className="borrow-review-item" role="row" key={itemId}>
+                <strong role="cell">{item?.title ?? 'Equipment'}</strong>
+                <span role="cell">{item?.kind === 'RETURNABLE' ? 'Returnable' : 'Consumable'}</span>
+                <span role="cell">{quantity} {item?.uom ?? 'units'}</span>
+              </div>)}
+            <div className="borrow-review-total"><span>Total requested</span><strong>{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</strong></div>
+          </div>
+        </div>
       </section>}
     </CardContent>
     <CardFooter className="request-wizard-footer">
