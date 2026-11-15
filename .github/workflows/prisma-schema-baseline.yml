@@ -39,7 +39,12 @@ jobs:
           mkdir -p prisma/migrations/0_init
           npx prisma migrate diff --config prisma7.config.ts --from-empty --to-schema prisma/schema.prisma --script > prisma/migrations/0_init/migration.sql
           test -s prisma/migrations/0_init/migration.sql
-          # This records only the history marker on an already populated DB.
+          # Only the privileged migrator may write Prisma's migration history.
+          # Keep the application runtime role without CREATE or table grants.
+          set -a
+          source .verification/m2.env
+          set +a
+          export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
           npx prisma migrate resolve --config prisma7.config.ts --applied 0_init
           npx prisma migrate status --config prisma7.config.ts
       - name: Source regression tests
