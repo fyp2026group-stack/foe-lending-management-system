@@ -32,9 +32,9 @@ test('lecturer eligibility selects compatible laboratories across multiple equip
  assert.equal(r?.lines[1].locationId,'y1');
  assert.equal(r?.eligible[0].id,'teacher');
 });
-test('request wizard has three human steps and no visible draft stage or stock location selectors',()=>{
+test('request wizard has three entry steps plus completion and no visible location selectors',()=>{
  const s=readFileSync(new URL('../src/components/lending/request-builder.tsx',import.meta.url),'utf8');
- for(const mark of ['Choose equipment','Request details','Review & submit','Continue to details','Submit request','request-wizard-progress','resolveBorrowingSources','draftSavePayload','draftSubmitPayload','quantity']) {
+ for(const mark of ['Equipment', 'Request details', 'Review', 'Complete', 'Continue to details', 'Submit request', 'borrowing-progress', 'resolveBorrowingSources', 'draftSavePayload', 'draftSubmitPayload', 'quantity']) {
    assert.ok(s.includes(mark),mark);
  }
  for(const bad of ['Save draft and review','Review saved draft','Collection location','Select location','Select laboratory']) assert.ok(!s.includes(bad),bad);
