@@ -132,6 +132,34 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       for (const resource of ['users', 'batches', 'laboratories'])
         assert.equal((await request(`admin/${resource}`, { actor: admin })).status, 200);
     });
+    await t.test('Prisma reference catalogues enforce admin access and accurate counts', async () => {
+      for (const [resource, table, referenceId] of [
+        ['batches', 'user_batch_memberships', batch],
+        ['laboratories', 'staff_labs', lab],
+      ]) {
+        const response = await request('admin/' + resource, { actor: admin });
+        assert.equal(response.status, 200, resource);
+        assert.ok(Array.isArray(response.data.items), 'Expected catalogue items');
+        const row = response.data.items.find((item) => item.id === referenceId);
+        assert.ok(row, 'Created synthetic catalogue record must be visible');
+        if (table === 'user_batch_memberships') {
+          const expected = await db.query(
+            'SELECT count(*)::int AS n FROM lab.user_batch_memberships WHERE batch_id=$1 AND ended_at IS NULL',
+            [referenceId]
+          );
+          assert.equal(row.membershipCount, expected.rows[0].n);
+        } else {
+          const expected = await db.query(
+            'SELECT count(*)::int AS n FROM lab.staff_labs WHERE laboratory_id=$1',
+            [referenceId]
+          );
+          assert.equal(row.staffCount, expected.rows[0].n);
+          assert.equal(typeof row.locationCount, 'number');
+        }
+        assert.equal((await request('admin/' + resource, { actor: actors.student })).status, 403);
+        assert.equal((await request('admin/' + resource)).status, 401);
+      }
+    });
     await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
       const page = (route, actor) => fetch(cfg.origin + route, {
         redirect: 'manual',
