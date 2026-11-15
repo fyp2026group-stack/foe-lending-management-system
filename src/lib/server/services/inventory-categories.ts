@@ -25,6 +25,7 @@ function catalogueQuery(payload: Record<string, unknown>): Query | null {
   }
   const integer = (value: unknown, fallback: number) =>
     value === undefined ? fallback
+      : typeof value === 'number' && Number.isSafeInteger(value) ? value
       : typeof value === 'string' && /^\d+$/.test(value) ? Number(value)
       : Number.NaN;
   const limit = integer(payload.limit, 20);
