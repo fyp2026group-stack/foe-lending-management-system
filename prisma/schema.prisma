@@ -1,8 +1,3 @@
-// Read-only mapping of selected existing tables. The authoritative schema is
-// database/*.sql, including SQL functions, constraints, privileges and triggers.
-// Never use `prisma migrate` or `prisma db push` on this database.
-// Regenerate the model snapshot after controlled SQL migrations using
-// `npm run prisma:introspect` against an isolated copy.
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,97 +8,253 @@ datasource db {
   schemas  = ["lab"]
 }
 
-model InventoryCategory {
-  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name    String  @unique
-  active  Boolean @default(true)
-  version Int     @default(0)
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model InventoryCategory {
+// @@map("inv_categories")
+// @@schema("lab")
+// }
 
-  @@map("inv_categories")
-  @@schema("lab")
-}
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model InventoryItem {
+// @@map("inv_items")
+// @@schema("lab")
+// }
 
-model InventoryItem {
-  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  categoryId     String  @map("category_id") @db.Uuid
-  name           String
-  kind           String
-  uom            String
-  active         Boolean @default(true)
-  version        Int     @default(0)
-  specifications Json    @default("{}")
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model Laboratory {
+// @@map("laboratories")
+// @@schema("lab")
+// }
 
-  @@map("inv_items")
-  @@schema("lab")
-}
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model BorrowRequest {
+// @@map("lend_requests")
+// @@schema("lab")
+// }
 
-model Laboratory {
-  id   String @id @db.Uuid
-  name String @unique
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model BorrowLine {
+// @@map("lend_lines")
+// @@schema("lab")
+// }
 
-  @@map("laboratories")
-  @@schema("lab")
-}
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model BorrowDecision {
+// @@map("lend_decisions")
+// @@schema("lab")
+// }
 
-model BorrowRequest {
-  id            String   @id @db.Uuid
-  borrowerId    String   @map("borrower_id") @db.Uuid
-  purpose       String
-  collectAt     DateTime @map("collect_at") @db.Timestamptz(6)
-  returnAt      DateTime @map("return_at") @db.Timestamptz(6)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  predecessorId String?  @unique @map("predecessor_id") @db.Uuid
-  revision      Int      @default(1)
-  version       Int      @default(0)
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model BorrowDraft {
+// @@map("lend_drafts")
+// @@schema("lab")
+// }
 
-  @@map("lend_requests")
-  @@schema("lab")
-}
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model audit {
+// @@schema("lab")
+// }
 
-model BorrowLine {
-  id         String  @id @db.Uuid
-  requestId  String  @map("request_id") @db.Uuid
-  itemId     String  @map("item_id") @db.Uuid
-  labId      String  @map("lab_id") @db.Uuid
-  locationId String  @map("location_id") @db.Uuid
-  quantity   Int
-  policy     String
-  lecturerId String? @map("lecturer_id") @db.Uuid
-  hodId      String? @map("hod_id") @db.Uuid
-  stage      String
-  version    Int     @default(0)
-  cancelled  Int     @default(0)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model batches {
+// @@schema("lab")
+// }
 
-  @@map("lend_lines")
-  @@schema("lab")
-}
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model denial_suppression {
+// @@schema("lab")
+// }
 
-model BorrowDecision {
-  id        String   @id @db.Uuid
-  lineId    String   @map("line_id") @db.Uuid
-  actorId   String   @map("actor_id") @db.Uuid
-  stage     String
-  decision  String
-  remarks   String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model google_student_identities {
+// @@schema("lab")
+// }
 
-  @@unique([lineId, stage])
-  @@map("lend_decisions")
-  @@schema("lab")
-}
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_adjustments {
+// @@schema("lab")
+// }
 
-model BorrowDraft {
-  id            String   @id @db.Uuid
-  borrowerId    String   @map("borrower_id") @db.Uuid
-  payload       Json
-  version       Int      @default(0)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-  submittedId   String?  @unique @map("submitted_id") @db.Uuid
-  cancelled     Boolean  @default(false)
-  predecessorId String?  @unique @map("predecessor_id") @db.Uuid
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_assets {
+// @@schema("lab")
+// }
 
-  @@map("lend_drafts")
-  @@schema("lab")
-}
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_cells {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_commands {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_entries {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_imports {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_locations {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_movements {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model inv_receipts {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_allocations {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_commands {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_comments {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_extension_decisions {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_extensions {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_handovers {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_inspection_events {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_inspections {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_loans {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_maintenance {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_maintenance_events {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_policies {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_reserved_assets {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model lend_returns {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model login_challenges {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model login_limits {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model sessions {
+// @@schema("lab")
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model staff_labs {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+// model student_profiles {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model user_batch_memberships {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model user_roles {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+// model users {
+// @@schema("lab")
+// }
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model verifier_secret {
+// @@schema("lab")
+// }
