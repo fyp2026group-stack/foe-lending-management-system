@@ -78,9 +78,8 @@ jobs:
             tests/officer-operations.integration.mjs \
             tests/physical-lifecycle.integration.mjs \
             tests/workflow-basic.integration.mjs
-      - name: Isolate protected approval failure before retiring SQL functions
-        id: approval_diagnostic
-        continue-on-error: true
+      - name: Verify lecturer-to-HOD approval regression
+        id: approval_regression
         run: node --env-file=.verification/m2.env tests/prisma-approval-diagnostic.integration.mjs
       - name: Authenticated HTTP workflow regression
         id: http_tests
@@ -90,6 +89,7 @@ jobs:
         if: always()
         run: |
           test "${{ steps.sql_tests.outcome }}" = "success"
+          test "${{ steps.approval_regression.outcome }}" = "success"
           test "${{ steps.http_tests.outcome }}" = "success"
       - name: Stop isolated database
         if: always()
