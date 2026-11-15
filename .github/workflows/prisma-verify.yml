@@ -48,6 +48,10 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Explicitly generate Prisma Client for Next.js runtime
+        run: |
+          npm run prisma:generate
+          test -f node_modules/.prisma/client/default.js
       - name: Create isolated environment and PostgreSQL
         run: |
           npm run local:config
