@@ -183,6 +183,27 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       assert.equal((await request('lending/policies?limit=101', { actor: actors.student })).status, 422);
       assert.equal((await request('lending/policies?status=active', { actor: actors.student })).status, 422);
     });
+    await t.test('typed Prisma category listings preserve scoped catalogue contract', async () => {
+      assert.equal((await request('inventory/categories')).status,401);
+      const all = await request('inventory/categories', { actor: actors.student });
+      assert.equal(all.status,200);
+      assert.ok(Array.isArray(all.data.items));
+      const category = all.data.items.find(c => c.name === 'Synthetic Instruments');
+      assert.ok(category);
+      assert.equal(typeof category.version, 'number');
+      assert.equal(typeof category.active, 'boolean');
+      const filtered = await request(
+        'inventory/categories?limit=1&sort=name&active=true&q=Synthetic',
+        { actor: actors.student }
+      );
+      assert.equal(filtered.status,200);
+      assert.equal(filtered.data.items.length,1);
+      assert.equal(filtered.data.items[0].id,category.id);
+      assert.equal(filtered.data.limit,1);
+      assert.equal((await request('inventory/categories?active=invalid', { actor: actors.student })).status,422);
+      assert.equal((await request('inventory/categories?limit=101', { actor: actors.student })).status,422);
+      assert.equal((await request('inventory/categories?unexpected=value', { actor: actors.student })).status,422);
+    });
     await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
       const page = (route, actor) => fetch(cfg.origin + route, {
         redirect: 'manual',
