@@ -63,6 +63,7 @@ export function requestApprovalGate(
         { lineId: line.id, role: 'LECTURER' as const },
         { lineId: line.id, role: 'HOD' as const },
       ];
+      default: throw new Error('INVALID_REQUEST_LINE');
     }
   });
   if (active.length === 0) {
