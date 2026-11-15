@@ -82,3 +82,43 @@ export async function readAdminReferences(
     };
   });
 }
+
+/**
+ * User patches that omit batchIds must preserve the existing membership set.
+ * Load the current memberships and apply the protected governance operation in
+ * one Prisma transaction. Do not replace missing batchIds with an empty array.
+ */
+export async function patchUserPreservingBatches(
+  token: string,
+  csrf: string,
+  userId: string,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  return prismaTransaction(async (tx) => {
+    const verified = await tx.$queryRaw<{ result: SessionIdentity }[]>`
+      SELECT lab.identity_call(
+        ${token}, ${''}, ${'me'}, NULL::uuid, '{}'::jsonb
+      ) AS result
+    `;
+    const identity = verified[0]?.result;
+    if (!identity?.user) return { status: 401, code: 'UNAUTHENTICATED' };
+    if (!identity.user.roles.includes('ADMIN')) return { status: 403, code: 'DENIED' };
+
+    const memberships = await tx.user_batch_memberships.findMany({
+      where: { user_id: userId, ended_at: null },
+      select: { batch_id: true },
+      orderBy: { batch_id: 'asc' },
+    });
+    const body = JSON.stringify({
+      ...payload,
+      batchIds: memberships.map((membership) => membership.batch_id),
+    });
+    const response = await tx.$queryRaw<{ result: Record<string, unknown> }[]>`
+      SELECT lab.admin_governance(
+        ${token}, ${csrf}, ${'patch_user'},
+        ${userId}::uuid, ${body}::jsonb
+      ) AS result
+    `;
+    return response[0]?.result ?? { status: 503, code: 'DATABASE_UNAVAILABLE' };
+  });
+}
