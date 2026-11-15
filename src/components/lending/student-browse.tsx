@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronRight, Package, Search, SlidersHorizontal, ShoppingBasket, X } from 'lucide-react';
+import { ChevronRight, Minus, Plus, Package, Search, SlidersHorizontal, ShoppingBasket, X } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
 import { useInventoryLookup } from '@/components/inventory/lookups';
@@ -10,7 +10,6 @@ import type { Item, Named } from '@/components/inventory/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StudentDataTable, type StudentColumn } from './student-data-table';
@@ -20,6 +19,13 @@ import { approvalPath, sourceKey, persistStudentSelection } from './student-mode
 import { quantityLimit } from './request-options';
 import type { LendingSource, DraftPayload } from './api';
 
+// Synthetic catalogue records sometimes contain UUIDs in their display names.
+// Keep their real identifiers for operations, but never present these as human-friendly names.
+const uuidInName = /\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b/gi;
+function humanLabel(value: string | undefined, fallback: string) {
+  const clean = (value ?? '').replace(uuidInName, '').replace(/[-–—:]+\\s*$/, '').trim();
+  return !clean || /^(equipment|item|category|laboratory|lab)$/i.test(clean) ? fallback : clean;
+}
 export function StudentBrowse({
   session,
   audience = 'Student workspace',
@@ -48,8 +54,10 @@ export function StudentBrowse({
   const items = catalogue.data?.items ?? [];
   const categoryNames = categories.data?.items ?? [];
   const itemFor = (s: LendingSource) => items.find((item) => item.id === s.itemId);
+  const itemName = (s: LendingSource) => humanLabel(s.item, 'Unnamed equipment');
+  const labName = (s: LendingSource) => humanLabel(s.lab, 'Laboratory not named');
   const categoryFor = (s: LendingSource) =>
-    categoryNames.find((value) => value.id === itemFor(s)?.categoryId)?.name ?? 'Uncategorized';
+    humanLabel(categoryNames.find((value) => value.id === itemFor(s)?.categoryId)?.name, 'Uncategorized');
   const chosen = all.find((source) => sourceKey(source) === selected);
   const filtered = all.filter((source) =>
     (!query || (source.item + ' ' + source.lab + ' ' + source.location).toLowerCase().includes(query.toLowerCase())) &&
@@ -118,18 +126,18 @@ export function StudentBrowse({
     {
       id: 'equipment',
       title: 'Equipment',
-      value: (source) => [source.item, source.lab, source.location].join(' '),
+      value: (source) => [itemName(source), source.itemId, labName(source), source.location].join(' '),
       cell: (source) => (
         <div className="browse-equipment-name">
           <span className="browse-equipment-icon"><Package size={17} aria-hidden="true" /></span>
-          <span><strong>{source.item}</strong><small>{categoryFor(source)}</small></span>
+          <span><strong>{itemName(source)}</strong><small>{categoryFor(source)}</small></span>
         </div>
       ),
     },
     {
       id: 'laboratory',
       title: 'Laboratory',
-      value: (source) => source.lab,
+      value: (source) => labName(source),
     },
     {
       id: 'available',
@@ -197,7 +205,7 @@ export function StudentBrowse({
           <div className="browse-equipment-selected-items">
             {basket.map((line) => (
               <span className="browse-equipment-selection-chip" key={sourceKey(line)}>
-                {all.find((source) => sourceKey(source) === sourceKey(line))?.item ?? 'Equipment'} × {line.quantity}
+                {(() => { const source = all.find((value) => sourceKey(value) === sourceKey(line)); return source ? itemName(source) : 'Equipment'; })()} × {line.quantity}
                 <button type="button" aria-label="Remove selected equipment"
                   onClick={() => updateBasket(basket.filter((value) => sourceKey(value) !== sourceKey(line)))}>
                   <X size={13} aria-hidden="true"/>
@@ -237,7 +245,7 @@ export function StudentBrowse({
             <label>Laboratory
               <StudentSelect value={lab} onChange={(event) => setLab(event.target.value)}>
                 <option value="">All laboratories</option>
-                {Array.from(new Map(all.map((source) => [source.labId, source.lab])).entries()).map(([id, name]) =>
+                {Array.from(new Map(all.map((source) => [source.labId, labName(source)])).entries()).map(([id, name]) =>
                   <option key={id} value={id}>{name}</option>)}
               </StudentSelect>
             </label>
@@ -276,45 +284,84 @@ export function StudentBrowse({
         ) : null}
       </section>
 
-      <Sheet open={Boolean(chosen)} onOpenChange={(open) => {if (!open) closeDetail();}}>
-        <SheetContent side="right" className="browse-equipment-sheet">
-          <SheetHeader className="browse-equipment-sheet-heading">
-            <p className="browse-equipment-eyebrow">EQUIPMENT DETAILS</p>
-            <SheetTitle>{chosen?.item ?? 'Equipment'}</SheetTitle>
-            <SheetDescription>Review current availability and request requirements.</SheetDescription>
+      <Sheet open={Boolean(chosen)} onOpenChange={(open) => { if (!open) closeDetail(); }}>
+        <SheetContent side="right" className="browse-equipment-sheet browse-equipment-sheet-refined">
+          <SheetHeader className="browse-equipment-sheet-heading browse-equipment-sheet-heading-refined">
+            <p className="browse-equipment-eyebrow">EQUIPMENT CATALOGUE</p>
+            <div className="browse-equipment-identity">
+              <span className="browse-equipment-identity-icon"><Package size={28} aria-hidden="true" /></span>
+              <div className="browse-equipment-identity-copy">
+                <SheetTitle>{chosen ? itemName(chosen) : 'Equipment details'}</SheetTitle>
+                <SheetDescription>
+                  {chosen ? categoryFor(chosen) : 'Catalogue item'}
+                  {chosen ? ' · Ref ' + chosen.itemId.slice(0, 8).toUpperCase() : ''}
+                </SheetDescription>
+              </div>
+            </div>
           </SheetHeader>
           {chosen && (
-            <div className="browse-equipment-sheet-scroll">
-              <div className="browse-equipment-sheet-status">
-                <Badge variant="secondary">{chosen.availableQuantity > 0 ? 'Available' : 'Unavailable'}</Badge>
-                <Badge variant="outline">{chosen.kind === 'RETURNABLE' ? 'Returnable' : 'Consumable'}</Badge>
-              </div>
-              <dl className="browse-equipment-sheet-facts">
-                <div><dt>Equipment category</dt><dd>{categoryFor(chosen)}</dd></div>
-                <div><dt>Laboratory</dt><dd>{chosen.lab}</dd></div>
-                <div><dt>Available stock</dt><dd>{chosen.availableQuantity} {chosen.uom}</dd></div>
-                <div><dt>Approval</dt><dd>{approvalPath(chosen.policy)}</dd></div>
-              </dl>
+            <div className="browse-equipment-sheet-scroll browse-equipment-sheet-scroll-refined">
+              <section className="browse-equipment-availability-hero" aria-label="Availability">
+                <div className="browse-equipment-availability-caption">
+                  <div className="browse-equipment-availability-heading">
+                    <span className={chosen.availableQuantity > 0 ? 'browse-availability-dot is-available' : 'browse-availability-dot is-unavailable'} />
+                    <strong>{chosen.availableQuantity > 0 ? 'Available to request' : 'Currently unavailable'}</strong>
+                  </div>
+                  <p>{chosen.availableQuantity > 0
+                    ? 'Stock available at the selected laboratory'
+                    : 'No stock is available at this source'}</p>
+                </div>
+                <div className="browse-equipment-availability-value">
+                  <strong>{chosen.availableQuantity}</strong><span>{chosen.uom}</span>
+                </div>
+              </section>
+              <section className="browse-equipment-information" aria-labelledby="browse-equipment-information-heading">
+                <h3 id="browse-equipment-information-heading">Equipment information</h3>
+                <dl>
+                  <div><dt>Laboratory</dt><dd>{labName(chosen)}</dd></div>
+                  <div><dt>Equipment type</dt><dd>{chosen.kind === 'RETURNABLE' ? 'Returnable' : 'Consumable'}</dd></div>
+                  <div><dt>Approval required</dt><dd>{approvalPath(chosen.policy)}</dd></div>
+                </dl>
+              </section>
               {itemFor(chosen)?.specifications && Object.entries(itemFor(chosen)!.specifications!).length > 0 && (
-                <details className="browse-equipment-specifications">
-                  <summary>Equipment specifications</summary>
+                <details className="browse-equipment-specifications browse-equipment-specifications-refined">
+                  <summary>Technical specifications <ChevronRight size={16} aria-hidden="true" /></summary>
                   <dl>{Object.entries(itemFor(chosen)!.specifications!).map(([key, value]) =>
                     <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>
                 </details>
               )}
-            </div>
-          )}
-          {chosen && (
-            <div className="browse-equipment-sheet-footer">
-              <label htmlFor="browse-equipment-quantity">Quantity
-                <Input id="browse-equipment-quantity" type="number" min={1} max={detailMaximum}
-                  value={quantity} disabled={detailMaximum < 1}
-                  onChange={(event) => setQuantity(Number(event.target.value))}/>
-              </label>
-              <Button onClick={() => add(chosen)}
-                disabled={detailMaximum < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > detailMaximum}>
-                {alreadyAdded ? 'Update selection' : 'Add to request'}
-              </Button>
+              <section className="browse-equipment-request-panel" aria-labelledby="browse-equipment-request-heading">
+                <div className="browse-equipment-request-intro">
+                  <div><h3 id="browse-equipment-request-heading">Add to your request</h3>
+                    <p>{detailMaximum > 0 ? `Choose up to ${detailMaximum} ${chosen.uom}` : 'This equipment cannot currently be selected'}</p>
+                  </div>
+                  {alreadyAdded && <span className="browse-equipment-already-added">Selected</span>}
+                </div>
+                <div className="browse-equipment-request-controls">
+                  <div className="browse-equipment-stepper" role="group" aria-label="Quantity to request">
+                    <Button type="button" variant="outline" size="icon" aria-label="Decrease quantity"
+                      disabled={detailMaximum < 1 || quantity <= 1}
+                      onClick={() => setQuantity((value) => Math.max(1, value - 1))}>
+                      <Minus size={16} />
+                    </Button>
+                    <Input id="browse-equipment-quantity" aria-label="Quantity" inputMode="numeric"
+                      type="number" min={1} max={detailMaximum} value={quantity}
+                      disabled={detailMaximum < 1}
+                      onChange={(event) => setQuantity(Number(event.target.value))}/>
+                    <Button type="button" variant="outline" size="icon" aria-label="Increase quantity"
+                      disabled={detailMaximum < 1 || quantity >= detailMaximum}
+                      onClick={() => setQuantity((value) => Math.min(detailMaximum, value + 1))}>
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                  <Button className="browse-equipment-confirm-button" onClick={() => add(chosen)}
+                    disabled={detailMaximum < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > detailMaximum}>
+                    <ShoppingBasket size={16} aria-hidden="true" />
+                    {alreadyAdded ? 'Update quantity' : 'Add to request'}
+                  </Button>
+                </div>
+                {notice && <p className="browse-equipment-action-notice" role="status">{notice}</p>}
+              </section>
             </div>
           )}
         </SheetContent>
