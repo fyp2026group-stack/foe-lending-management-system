@@ -89,7 +89,7 @@ export async function lending(request: Request, path: string[]) {
   return transaction(
     async (c) =>
       (
-        await c.query('SELECT lab.lending_call($1,$2,$3,$4) AS result', [
+        await c.query('SELECT lab.lending_call($1,$2,$3,$4::jsonb) AS result', [
           token,
           csrf,
           (request.method === 'GET' ? 'read_' : '') + name,
