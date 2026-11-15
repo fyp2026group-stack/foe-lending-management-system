@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -8,253 +9,690 @@ datasource db {
   schemas  = ["lab"]
 }
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model InventoryCategory {
-// @@map("inv_categories")
-// @@schema("lab")
-// }
+model audit {
+  id          String   @id @db.Uuid
+  actor_id    String?  @db.Uuid
+  action      String
+  target_id   String?  @db.Uuid
+  occurred_at DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  details     Json?
+  users       users?   @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model InventoryItem {
-// @@map("inv_items")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model Laboratory {
-// @@map("laboratories")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model BorrowRequest {
-// @@map("lend_requests")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model BorrowLine {
-// @@map("lend_lines")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model BorrowDecision {
-// @@map("lend_decisions")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model BorrowDraft {
-// @@map("lend_drafts")
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model audit {
-// @@schema("lab")
-// }
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model batches {
-// @@schema("lab")
-// }
+model batches {
+  id                     String                   @id @db.Uuid
+  name                   String                   @unique
+  active                 Boolean                  @default(true)
+  user_batch_memberships user_batch_memberships[]
+  users                  users[]
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model denial_suppression {
-// @@schema("lab")
-// }
+model denial_suppression {
+  singleton          Boolean  @id
+  suppressed         BigInt
+  last_suppressed_at DateTime @db.Timestamptz(6)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model google_student_identities {
-// @@schema("lab")
-// }
+model google_student_identities {
+  google_subject String   @id
+  user_id        String   @unique @db.Uuid
+  verified_email String
+  created_at     DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users          users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_adjustments {
-// @@schema("lab")
-// }
+model inv_adjustments {
+  id                                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proposer                              String         @db.Uuid
+  item_id                               String         @db.Uuid
+  lab_id                                String         @db.Uuid
+  location_id                           String         @db.Uuid
+  quantity                              Int
+  direction                             String
+  reason                                String
+  expected_version                      Int
+  state                                 String         @default("PENDING")
+  approver                              String?        @db.Uuid
+  movement_id                           String?        @db.Uuid
+  users_inv_adjustments_approverTousers users?         @relation("inv_adjustments_approverTousers", fields: [approver], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_items                             inv_items      @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories                          laboratories   @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_locations                         inv_locations  @relation(fields: [location_id, lab_id], references: [id, lab_id], onDelete: NoAction, onUpdate: NoAction)
+  inv_movements                         inv_movements? @relation(fields: [movement_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_inv_adjustments_proposerTousers users          @relation("inv_adjustments_proposerTousers", fields: [proposer], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_assets {
-// @@schema("lab")
-// }
+model inv_assets {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  item_id              String                @db.Uuid
+  lab_id               String                @db.Uuid
+  serial               String?
+  created_at           DateTime              @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  inv_items            inv_items             @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories         laboratories          @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_cells            inv_cells[]
+  lend_inspections     lend_inspections[]
+  lend_loans           lend_loans[]
+  lend_reserved_assets lend_reserved_assets?
+
+  @@unique([id, item_id, lab_id])
+  @@unique([item_id, serial])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_cells {
-// @@schema("lab")
-// }
+model inv_categories {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String      @unique
+  active    Boolean     @default(true)
+  version   Int         @default(0)
+  inv_items inv_items[]
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_commands {
-// @@schema("lab")
-// }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_entries {
-// @@schema("lab")
-// }
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_imports {
-// @@schema("lab")
-// }
+model inv_cells {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  item_id              String                 @db.Uuid
+  lab_id               String                 @db.Uuid
+  location_id          String                 @db.Uuid
+  asset_id             String?                @unique(map: "inv_one_active_asset", where: raw("((asset_id IS NOT NULL) AND (quantity = 1))")) @db.Uuid
+  state                String
+  quantity             Int                    @default(0)
+  version              Int                    @default(0)
+  inv_assets           inv_assets?            @relation(fields: [asset_id, item_id, lab_id], references: [id, item_id, lab_id], onDelete: NoAction, onUpdate: NoAction)
+  inv_items            inv_items              @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories         laboratories           @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_locations        inv_locations          @relation(fields: [location_id, lab_id], references: [id, lab_id], onDelete: NoAction, onUpdate: NoAction)
+  inv_entries          inv_entries[]
+  lend_allocations     lend_allocations[]
+  lend_reserved_assets lend_reserved_assets[]
+
+  @@unique([item_id, lab_id, location_id, asset_id, state])
+  @@index([lab_id, item_id, state, id], map: "inv_scope")
+  @@schema("lab")
+}
+
+model inv_commands {
+  actor_id   String @db.Uuid
+  command_id String @db.Uuid
+  operation  String
+  payload    Json
+  result     Json
+  users      users  @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([actor_id, command_id])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_locations {
-// @@schema("lab")
-// }
+model inv_entries {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  movement_id   String        @db.Uuid
+  cell_id       String?       @db.Uuid
+  account       String
+  delta         Int
+  inv_cells     inv_cells?    @relation(fields: [cell_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_movements inv_movements @relation(fields: [movement_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_movements {
-// @@schema("lab")
-// }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model inv_receipts {
-// @@schema("lab")
-// }
+  @@index([movement_id])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_allocations {
-// @@schema("lab")
-// }
+model inv_imports {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id  String  @db.Uuid
+  rows      Json
+  committed Boolean @default(false)
+  users     users   @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_commands {
-// @@schema("lab")
-// }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_comments {
-// @@schema("lab")
-// }
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_extension_decisions {
-// @@schema("lab")
-// }
+model inv_items {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id     String            @db.Uuid
+  name            String
+  kind            String
+  uom             String
+  active          Boolean           @default(true)
+  version         Int               @default(0)
+  specifications  Json              @default("{}")
+  inv_adjustments inv_adjustments[]
+  inv_assets      inv_assets[]
+  inv_cells       inv_cells[]
+  inv_categories  inv_categories    @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_movements   inv_movements[]
+  inv_receipts    inv_receipts[]
+  lend_lines      lend_lines[]
+  lend_policies   lend_policies?
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_extensions {
-// @@schema("lab")
-// }
+model inv_locations {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lab_id          String            @db.Uuid
+  name            String
+  active          Boolean           @default(true)
+  version         Int               @default(0)
+  inv_adjustments inv_adjustments[]
+  inv_cells       inv_cells[]
+  laboratories    laboratories      @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_lines      lend_lines[]
+
+  @@unique([id, lab_id])
+  @@unique([lab_id, name])
+  @@schema("lab")
+}
+
+model inv_movements {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id        String            @db.Uuid
+  item_id         String            @db.Uuid
+  lab_id          String            @db.Uuid
+  kind            String
+  reason          String
+  created_at      DateTime          @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  inv_adjustments inv_adjustments[]
+  inv_entries     inv_entries[]
+  users           users             @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_items       inv_items         @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories    laboratories      @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_receipts    inv_receipts[]
+  lend_handovers  lend_handovers?
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_handovers {
-// @@schema("lab")
-// }
+model inv_receipts {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  item_id       String        @db.Uuid
+  lab_id        String        @db.Uuid
+  provenance    String
+  movement_id   String        @db.Uuid
+  inv_items     inv_items     @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories  laboratories  @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_movements inv_movements @relation(fields: [movement_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([item_id, lab_id, provenance])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_inspection_events {
-// @@schema("lab")
-// }
+model laboratories {
+  id              String            @id @db.Uuid
+  name            String            @unique
+  active          Boolean           @default(true)
+  inv_adjustments inv_adjustments[]
+  inv_assets      inv_assets[]
+  inv_cells       inv_cells[]
+  inv_locations   inv_locations[]
+  inv_movements   inv_movements[]
+  inv_receipts    inv_receipts[]
+  lend_lines      lend_lines[]
+  staff_labs      staff_labs[]
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_inspections {
-// @@schema("lab")
-// }
+model lend_allocations {
+  id                   String                 @id @db.Uuid
+  line_id              String                 @unique @db.Uuid
+  cell_id              String                 @db.Uuid
+  quantity             Int
+  issued               Int                    @default(0)
+  cancelled            Int                    @default(0)
+  inv_cells            inv_cells              @relation(fields: [cell_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_lines           lend_lines             @relation(fields: [line_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_loans           lend_loans[]
+  lend_reserved_assets lend_reserved_assets[]
+
+  @@schema("lab")
+}
+
+model lend_commands {
+  actor_id   String @db.Uuid
+  command_id String @db.Uuid
+  operation  String
+  payload    Json
+  result     Json
+  users      users  @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([actor_id, command_id])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_loans {
-// @@schema("lab")
-// }
+model lend_comments {
+  id                  String         @id @db.Uuid
+  request_id          String         @db.Uuid
+  author_id           String         @db.Uuid
+  body                String
+  corrects_id         String?        @unique @db.Uuid
+  created_at          DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users               users          @relation(fields: [author_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_comments       lend_comments? @relation("lend_commentsTolend_comments", fields: [corrects_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_lend_comments lend_comments? @relation("lend_commentsTolend_comments")
+  lend_requests       lend_requests  @relation(fields: [request_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_maintenance {
-// @@schema("lab")
-// }
+model lend_decisions {
+  id         String     @id @db.Uuid
+  line_id    String     @db.Uuid
+  actor_id   String     @db.Uuid
+  stage      String
+  decision   String
+  remarks    String
+  created_at DateTime   @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users      users      @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_lines lend_lines @relation(fields: [line_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([line_id, stage])
+  @@schema("lab")
+}
+
+model lend_drafts {
+  id                                                      String         @id @db.Uuid
+  borrower_id                                             String         @db.Uuid
+  payload                                                 Json
+  version                                                 Int            @default(0)
+  created_at                                              DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at                                              DateTime       @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  submitted_id                                            String?        @unique @db.Uuid
+  cancelled                                               Boolean        @default(false)
+  predecessor_id                                          String?        @unique @db.Uuid
+  users                                                   users          @relation(fields: [borrower_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_requests_lend_drafts_predecessor_idTolend_requests lend_requests? @relation("lend_drafts_predecessor_idTolend_requests", fields: [predecessor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_requests_lend_drafts_submitted_idTolend_requests   lend_requests? @relation("lend_drafts_submitted_idTolend_requests", fields: [submitted_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_maintenance_events {
-// @@schema("lab")
-// }
+model lend_extension_decisions {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  extension_id    String          @unique @db.Uuid
+  actor_id        String          @db.Uuid
+  decision        String
+  remarks         String
+  created_at      DateTime        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users           users           @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_extensions lend_extensions @relation(fields: [extension_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_policies {
-// @@schema("lab")
-// }
+model lend_extensions {
+  id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loan_id                  String                    @unique(map: "lend_one_pending_extension", where: raw("(status = 'PENDING'::text)")) @db.Uuid
+  requested_by             String                    @db.Uuid
+  previous_due_at          DateTime                  @db.Timestamptz(6)
+  proposed_due_at          DateTime                  @db.Timestamptz(6)
+  reason                   String
+  status                   String                    @default("PENDING")
+  version                  Int                       @default(0)
+  created_at               DateTime                  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  lend_extension_decisions lend_extension_decisions?
+  lend_loans               lend_loans                @relation(fields: [loan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                    users                     @relation(fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_reserved_assets {
-// @@schema("lab")
-// }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model lend_returns {
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model login_challenges {
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model login_limits {
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model sessions {
-// @@schema("lab")
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model staff_labs {
-// @@schema("lab")
-// }
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+model lend_handovers {
+  loan_id       String        @id @db.Uuid
+  actor_id      String        @db.Uuid
+  movement_id   String        @unique @db.Uuid
+  remarks       String?
+  created_at    DateTime      @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users         users         @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_loans    lend_loans    @relation(fields: [loan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_movements inv_movements @relation(fields: [movement_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_inspection_events {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspection_id    String           @db.Uuid
+  actor_id         String           @db.Uuid
+  outcome          String
+  condition        String
+  notes            String
+  version          Int
+  created_at       DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users            users            @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_inspections lend_inspections @relation(fields: [inspection_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([inspection_id, version])
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_inspections {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id              String                   @unique @db.Uuid
+  asset_id               String                   @db.Uuid
+  borrower_id            String                   @db.Uuid
+  status                 String                   @default("UNRESOLVED")
+  version                Int                      @default(0)
+  created_at             DateTime                 @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  lend_inspection_events lend_inspection_events[]
+  inv_assets             inv_assets               @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users                    @relation(fields: [borrower_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_returns           lend_returns             @relation(fields: [return_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_maintenance       lend_maintenance?
+
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_lines {
+  id                                  String            @id @db.Uuid
+  request_id                          String            @db.Uuid
+  item_id                             String            @db.Uuid
+  lab_id                              String            @db.Uuid
+  location_id                         String            @db.Uuid
+  quantity                            Int
+  policy                              String
+  lecturer_id                         String?           @db.Uuid
+  hod_id                              String?           @db.Uuid
+  stage                               String
+  version                             Int               @default(0)
+  cancelled                           Int               @default(0)
+  lend_allocations                    lend_allocations?
+  lend_decisions                      lend_decisions[]
+  users_lend_lines_hod_idTousers      users?            @relation("lend_lines_hod_idTousers", fields: [hod_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_items                           inv_items         @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  laboratories                        laboratories      @relation(fields: [lab_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_lend_lines_lecturer_idTousers users?            @relation("lend_lines_lecturer_idTousers", fields: [lecturer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_locations                       inv_locations     @relation(fields: [location_id, lab_id], references: [id, lab_id], onDelete: NoAction, onUpdate: NoAction)
+  lend_requests                       lend_requests     @relation(fields: [request_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_loans {
+  id                                  String           @id @db.Uuid
+  allocation_id                       String           @db.Uuid
+  borrower_id                         String           @db.Uuid
+  asset_id                            String?          @db.Uuid
+  quantity                            Int
+  returned                            Int              @default(0)
+  issued_by                           String           @db.Uuid
+  issued_at                           DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  due_at                              DateTime?        @db.Timestamptz(6)
+  version                             Int              @default(0)
+  original_due_at                     DateTime?        @db.Timestamptz(6)
+  lend_extensions                     lend_extensions?
+  lend_handovers                      lend_handovers?
+  lend_allocations                    lend_allocations @relation(fields: [allocation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_assets                          inv_assets?      @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_lend_loans_borrower_idTousers users            @relation("lend_loans_borrower_idTousers", fields: [borrower_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_lend_loans_issued_byTousers   users            @relation("lend_loans_issued_byTousers", fields: [issued_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_returns                        lend_returns[]
+
+  @@unique([allocation_id, asset_id])
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_maintenance {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspection_id           String                    @unique @db.Uuid
+  status                  String                    @default("OPEN")
+  version                 Int                       @default(0)
+  created_by              String                    @db.Uuid
+  created_at              DateTime                  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users                   users                     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_inspections        lend_inspections          @relation(fields: [inspection_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_maintenance_events lend_maintenance_events[]
+
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_maintenance_events {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maintenance_id   String           @db.Uuid
+  actor_id         String           @db.Uuid
+  status           String
+  notes            String
+  version          Int
+  created_at       DateTime         @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users            users            @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_maintenance lend_maintenance @relation(fields: [maintenance_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([maintenance_id, version])
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_policies {
+  item_id   String    @id @db.Uuid
+  policy    String
+  hod_id    String?   @db.Uuid
+  users     users?    @relation(fields: [hod_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_items inv_items @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_requests {
+  id                                                    String          @id @db.Uuid
+  borrower_id                                           String          @db.Uuid
+  purpose                                               String
+  collect_at                                            DateTime        @db.Timestamptz(6)
+  return_at                                             DateTime        @db.Timestamptz(6)
+  created_at                                            DateTime        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  version                                               Int             @default(0)
+  updated_at                                            DateTime        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  predecessor_id                                        String?         @unique @db.Uuid
+  revision                                              Int             @default(1)
+  lend_comments                                         lend_comments[]
+  lend_drafts_lend_drafts_predecessor_idTolend_requests lend_drafts?    @relation("lend_drafts_predecessor_idTolend_requests")
+  lend_drafts_lend_drafts_submitted_idTolend_requests   lend_drafts?    @relation("lend_drafts_submitted_idTolend_requests")
+  lend_lines                                            lend_lines[]
+  users                                                 users           @relation(fields: [borrower_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_requests                                         lend_requests?  @relation("lend_requestsTolend_requests", fields: [predecessor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_lend_requests                                   lend_requests?  @relation("lend_requestsTolend_requests")
+
+  @@schema("lab")
+}
+
+model lend_reserved_assets {
+  allocation_id    String           @db.Uuid
+  asset_id         String           @unique(map: "lend_reserved_identity", where: raw("(NOT released)")) @db.Uuid
+  cell_id          String           @db.Uuid
+  released         Boolean          @default(false)
+  lend_allocations lend_allocations @relation(fields: [allocation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_assets       inv_assets       @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inv_cells        inv_cells        @relation(fields: [cell_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([allocation_id, asset_id])
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lend_returns {
+  id               String            @id @db.Uuid
+  loan_id          String            @db.Uuid
+  actor_id         String            @db.Uuid
+  quantity         Int
+  condition        String
+  created_at       DateTime          @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  lend_inspections lend_inspections?
+  users            users             @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lend_loans       lend_loans        @relation(fields: [loan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
+
+model login_challenges {
+  id              String   @id @db.Uuid
+  user_id         String?  @db.Uuid
+  credential_hash String?
+  expires_at      DateTime @db.Timestamptz(6)
+  users           users?   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
+
+model login_limits {
+  key      String   @id
+  attempts Int
+  until_at DateTime @db.Timestamptz(6)
+
+  @@schema("lab")
+}
+
+model sessions {
+  token_hash   String   @id
+  user_id      String   @db.Uuid
+  csrf_hash    String
+  expires_at   DateTime @db.Timestamptz(6)
+  revoked      Boolean  @default(false)
+  last_seen_at DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  users        users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@schema("lab")
+}
+
+model staff_labs {
+  user_id       String       @db.Uuid
+  laboratory_id String       @db.Uuid
+  laboratories  laboratories @relation(fields: [laboratory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users         users        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([user_id, laboratory_id])
+  @@schema("lab")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
-// model student_profiles {
-// @@schema("lab")
-// }
+model student_profiles {
+  user_id          String   @id @db.Uuid
+  index_number     String   @unique
+  department       String
+  phone            String
+  google_email     String   @unique(map: "student_profiles_university_email_key")
+  personal_email   String?
+  completed_at     DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  university_email String?
+  users            users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model user_batch_memberships {
-// @@schema("lab")
-// }
+model user_batch_memberships {
+  user_id                                        String    @db.Uuid
+  batch_id                                       String    @db.Uuid
+  started_at                                     DateTime  @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  ended_at                                       DateTime? @db.Timestamptz(6)
+  changed_by                                     String    @db.Uuid
+  batches                                        batches   @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_user_batch_memberships_changed_byTousers users     @relation("user_batch_memberships_changed_byTousers", fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_user_batch_memberships_user_idTousers    users     @relation("user_batch_memberships_user_idTousers", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([user_id, batch_id, started_at])
+  @@unique([user_id, batch_id], map: "user_batch_memberships_current", where: raw("(ended_at IS NULL)"))
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model user_roles {
-// @@schema("lab")
-// }
+model user_roles {
+  user_id String @db.Uuid
+  role    String
+  users   users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([user_id, role])
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
-// model users {
-// @@schema("lab")
-// }
+model users {
+  id                                                              String                     @id @db.Uuid
+  email                                                           String                     @unique
+  display_name                                                    String
+  password_hash                                                   String
+  disabled                                                        Boolean                    @default(false)
+  batch_id                                                        String?                    @db.Uuid
+  registration_number                                             String?                    @unique
+  audit                                                           audit[]
+  google_student_identities                                       google_student_identities?
+  inv_adjustments_inv_adjustments_approverTousers                 inv_adjustments[]          @relation("inv_adjustments_approverTousers")
+  inv_adjustments_inv_adjustments_proposerTousers                 inv_adjustments[]          @relation("inv_adjustments_proposerTousers")
+  inv_commands                                                    inv_commands[]
+  inv_imports                                                     inv_imports[]
+  inv_movements                                                   inv_movements[]
+  lend_commands                                                   lend_commands[]
+  lend_comments                                                   lend_comments[]
+  lend_decisions                                                  lend_decisions[]
+  lend_drafts                                                     lend_drafts[]
+  lend_extension_decisions                                        lend_extension_decisions[]
+  lend_extensions                                                 lend_extensions[]
+  lend_handovers                                                  lend_handovers[]
+  lend_inspection_events                                          lend_inspection_events[]
+  lend_inspections                                                lend_inspections[]
+  lend_lines_lend_lines_hod_idTousers                             lend_lines[]               @relation("lend_lines_hod_idTousers")
+  lend_lines_lend_lines_lecturer_idTousers                        lend_lines[]               @relation("lend_lines_lecturer_idTousers")
+  lend_loans_lend_loans_borrower_idTousers                        lend_loans[]               @relation("lend_loans_borrower_idTousers")
+  lend_loans_lend_loans_issued_byTousers                          lend_loans[]               @relation("lend_loans_issued_byTousers")
+  lend_maintenance                                                lend_maintenance[]
+  lend_maintenance_events                                         lend_maintenance_events[]
+  lend_policies                                                   lend_policies[]
+  lend_requests                                                   lend_requests[]
+  lend_returns                                                    lend_returns[]
+  login_challenges                                                login_challenges[]
+  sessions                                                        sessions[]
+  staff_labs                                                      staff_labs[]
+  student_profiles                                                student_profiles?
+  user_batch_memberships_user_batch_memberships_changed_byTousers user_batch_memberships[]   @relation("user_batch_memberships_changed_byTousers")
+  user_batch_memberships_user_batch_memberships_user_idTousers    user_batch_memberships[]   @relation("user_batch_memberships_user_idTousers")
+  user_roles                                                      user_roles[]
+  batches                                                         batches?                   @relation(fields: [batch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("lab")
+}
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model verifier_secret {
-// @@schema("lab")
-// }
+model verifier_secret {
+  singleton Boolean @id @default(true)
+  secret    String
+
+  @@schema("lab")
+}
