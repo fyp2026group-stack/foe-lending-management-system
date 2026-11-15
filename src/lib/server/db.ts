@@ -1,4 +1,4 @@
-import { PrismaClient, type Prisma } from '@/generated/prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 // All application database calls run through the existing security-definer
