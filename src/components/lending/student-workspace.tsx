@@ -126,7 +126,7 @@ export function StudentDashboard({ session }: { session: Session }) {
                   <p>Draft / {d.payload.lines.length} items</p>
                 </div>
                 <Button asChild variant="outline">
-                  <Link href="/borrowing?view=requests&group=drafts">Continue draft</Link>
+                  <Link href={`/borrowing?view=new&draftId=${encodeURIComponent(d.id)}`}>Continue draft</Link>
                 </Button>
               </div>
             ))}
