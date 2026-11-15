@@ -144,7 +144,7 @@ export function Requests({
     if (stages.has('HOD')) return 'HOD review';
     return stages.size > 1 ? 'Mixed stages' : 'Approved';
   };
-  const Cancellation =  const Cancellation = student ? ReviewAlertDialog : LegacyCancellation;
+  const Cancellation = student ? ReviewAlertDialog : LegacyCancellation;
   const resetFilters = () => {
     setQuery('');
     setStatus('');
@@ -349,105 +349,67 @@ export function Requests({
                 action="Create a request"
               />
             ))}
-          <div className={student && !rows.length ? 'cp2-inbox is-empty' : 'cp2-inbox'}>
-            <div aria-label="Request list" className="cp2-list">
-              {student ? (
-                result.data ? (
-                  <StudentDataTable
-                    data={rows}
-                    columns={columns}
-                    query={query}
-                    recordId={(request) => request.id}
-                    selectedId={selectedId}
-                    label="My Requests"
-                    emptyKind="requests"
-                    filtered={Boolean(
-                      query || status || stage || from || to || type || offset || category !== 'all'
-                    )}
-                    onReset={resetFilters}
-                  />
-                ) : null
-              ) : session.user.roles.includes('TECHNICAL_OFFICER') && !rows.length ? null : (
-                <div
-                  className="table-region"
-                  role="region"
-                  tabIndex={0}
-                  aria-label="Request list; horizontal scrolling available"
-                >
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {[
-                          'Request ID / Items',
-                          'Created',
-                          'Approval stage',
-                          'Collection readiness',
-                          'Status',
-                          'Action',
-                        ].map((label) => (
-                          <TableHead key={label}>{label}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((request) => (
-                        <TableRow
-                          key={request.id}
-                          data-state={selectedId === request.id ? 'selected' : undefined}
-                        >
-                          <TableCell>
-                            <strong>{request.id.slice(0, 8)}</strong>
-                            <small className="block">
-                              {request.lines.map((l) => l.item).join(', ')}
-                            </small>
-                          </TableCell>
-                          <TableCell>{date(request.createdAt)}</TableCell>
-                          <TableCell>
-                            {Array.from(new Set(request.lines.map((l) => l.stage))).join(', ')}
-                          </TableCell>
-                          <TableCell>
-                            {request.lines.reduce((n, l) => n + l.reservedQuantity, 0)} reserved
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {request.summary.replaceAll('_', ' ')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              onClick={(event) => {
-                                returnFocus.current = event.currentTarget;
-                                setSelectedId(request.id);
-                              }}
-                            >
-                              Review
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+          <div className="request-inbox-table-area">
+            {result.data && sortedRows.length > 0 && (
+              <div className="request-inbox-table-scroll" role="region" aria-label="Request table; horizontal scrolling available" tabIndex={0}>
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Request / equipment</TableHead><TableHead>Created</TableHead>
+                    <TableHead>Approval</TableHead><TableHead>Collection</TableHead>
+                    <TableHead>Status</TableHead><TableHead>Action</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>{sortedRows.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell><div className="request-inbox-equipment">
+                        <span className="request-inbox-equipment-icon"><Package size={17} aria-hidden="true"/></span>
+                        <span><strong>{request.lines.length === 1 ? request.lines[0].item : (request.lines[0]?.item ?? 'Equipment') + ' +' + (request.lines.length - 1)}</strong>
+                        <small>#{request.id.slice(0, 8)} · {request.lines.reduce((n, line) => n + line.quantity, 0)} units</small></span>
+                      </div></TableCell>
+                      <TableCell className="request-inbox-date">{new Date(request.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell><span className="request-inbox-approval">{approvalStatus(request)}</span></TableCell>
+                      <TableCell>{request.summary === 'READY' ? 'Ready to collect' : request.lines.some((line) => line.reservedQuantity > 0) ? 'Partially reserved' : 'Not ready'}</TableCell>
+                      <TableCell><span className={'request-inbox-status status-' + requestGroup(request)}>{request.summary.replaceAll('_', ' ')}</span></TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={(event) => openRequest(request.id, event.currentTarget)}>
+                          View <ChevronRight size={14} aria-hidden="true"/>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}</TableBody>
+                </Table>
+              </div>
+            )}
+            {result.data && !sortedRows.length && (student ?
+              <StudentEmptyState kind="requests" filtered={hasFilters} onReset={resetFilters}/> :
+              <p className="request-inbox-empty">No requests match these filters.</p>)}
+            {result.data && sortedRows.length > 0 && <p className="request-inbox-count">{sortedRows.length} request{sortedRows.length === 1 ? '' : 's'} on this page</p>}
+          </div>
+          <ReviewSheet
+            open={Boolean(selected)}
+            onOpenChange={(open) => { if (!open) closeRequest(); }}
+            variant="request"
+            title={selected ? 'Request #' + selected.id.slice(0, 8) : 'Request details'}
+            description={selected ? selected.purpose : 'Review request details'}
+          >
+            {selected && (
+              <div className="request-detail-content">
+                <div className="request-detail-intro">
+                  <span className={'request-inbox-status status-' + requestGroup(selected)}>{selected.summary.replaceAll('_', ' ')}</span>
+                  <h3>{selected.purpose}</h3>
+                  <p>Requested by {selected.borrower} · {date(selected.createdAt)}</p>
                 </div>
-              )}
-            </div>
-            {selected ? (
-              <DetailContainer className="cp2-detail records p-4">
-                <div className="section-heading">
-                  <h3 ref={detailHeading} tabIndex={-1}>
-                    {selected.purpose}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setSelectedId('');
-                      returnFocus.current?.focus();
-                    }}
-                  >
-                    Close details
-                  </Button>
+                <div className="request-detail-progress" aria-label="Request stages">
+                  {['Submitted','Approved','Reserved','Collected'].map((label, index) => {
+                    const complete = index === 0 ||
+                      (index === 1 && selected.lines.every(line => !['LECTURER','HOD','REJECTED'].includes(line.stage))) ||
+                      (index === 2 && ['READY','FULFILLED','PARTIALLY_FULFILLED'].includes(selected.summary)) ||
+                      (index === 3 && selected.summary === 'FULFILLED');
+                    return <div key={label} className={complete ? 'is-done' : ''}>
+                      <span>{complete ? <Check size={14} aria-hidden="true"/> : index + 1}</span>
+                      <small>{label}</small>
+                    </div>;
+                  })}
                 </div>
-                <p>Request {selected.id.slice(0, 8)}</p>
                 <dl className="review-facts">
                   <div>
                     <dt>Requester</dt>
@@ -602,24 +564,9 @@ export function Requests({
                     </ActionForm>
                   )}
                 <RequestDiscussion requestId={selected.id} session={session} revision={revision} />
-              </DetailContainer>
-            ) : student ? (
-              rows.length > 0 ? (
-                <Card className="cp2-detail student-detail-prompt">
-                  <StudentEmptyState
-                    kind="detail"
-                    actionLabel="View first request"
-                    onAction={() => setSelectedId(rows[0].id)}
-                  />
-                </Card>
-              ) : null
-            ) : (session.user.roles.includes('TECHNICAL_OFFICER') || lecturer) &&
-              !rows.length ? null : (
-              <p className="cp2-detail">
-                Select a request to review its items, dates and complete decision history.
-              </p>
+              </div>
             )}
-          </div>
+          </ReviewSheet>
         </>
       )}
       {((!student && !lecturer) ||
