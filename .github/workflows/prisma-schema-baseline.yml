@@ -1,0 +1,61 @@
+name: Prisma full schema baseline (isolated database)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [prisma]
+    paths:
+      - '.github/workflows/prisma-schema-baseline.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Provision isolated copy using existing SQL migrations
+        run: |
+          npm run local:config
+          npm run db:setup
+      - name: Introspect complete live schema
+        run: |
+          npm run prisma:introspect
+          npm run prisma:validate
+          npm run prisma:generate
+          npm run typecheck
+      - name: Create non-destructive Prisma migration baseline
+        run: |
+          mkdir -p prisma/migrations/0_init
+          npx prisma migrate diff --config prisma7.config.ts --from-empty --to-schema prisma/schema.prisma --script > prisma/migrations/0_init/migration.sql
+          test -s prisma/migrations/0_init/migration.sql
+          # This records only the history marker on an already populated DB.
+          npx prisma migrate resolve --config prisma7.config.ts --applied 0_init
+          npx prisma migrate status --config prisma7.config.ts
+      - name: Source regression tests
+        run: |
+          npm run lint
+          npm test
+          npm run build
+      - name: Commit verified schema and baseline to prisma branch
+        run: |
+          git add prisma/schema.prisma prisma/migrations/0_init/migration.sql
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "feat(prisma): introspect complete database and baseline migration history"
+            git push origin HEAD:prisma
+          fi
+      - name: Teardown isolated PostgreSQL
+        if: always()
+        run: npm run db:down
