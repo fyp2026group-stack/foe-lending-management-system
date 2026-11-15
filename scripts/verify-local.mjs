@@ -80,8 +80,8 @@ try {
   const replaySource = (await owner.query(
     "SELECT pg_get_functiondef('lab.lending_call_cp2(text,text,text,jsonb)'::regprocedure) AS source"
   )).rows[0].source;
-  assert.match(replaySource, /EXECUTE 'UPDATE lab\\.lend_commands c SET result=\\$1/);
-  assert.doesNotMatch(replaySource, /lending_call(?:_cp2)?\\.result/);
+  assert.match(replaySource, /EXECUTE 'UPDATE lab\.lend_commands c SET result=\$1/);
+  assert.doesNotMatch(replaySource, /lending_call(?:_cp2)?\.result/);
   await assert.rejects(c.query('SELECT count(*) FROM lab.users'), (e) => e.code === '42501');
   for (const sql of [
     'CREATE TABLE lab.forbidden(id int)',
