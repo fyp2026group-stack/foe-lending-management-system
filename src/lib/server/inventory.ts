@@ -1,6 +1,7 @@
 import { transaction } from './db';
 import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
+import { readInventoryCategories } from './services/inventory-categories';
 const resources = [
   'categories',
   'items',
@@ -45,6 +46,7 @@ export async function inventory(request: Request, path: string[]) {
         p[key] = Number(value);
       } else p[key] = value;
     }
+    if (op === 'categories') return readInventoryCategories(token, p);
     return rpc('read_' + op, p);
   }
   if (request.headers.get('origin') !== (process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000'))
