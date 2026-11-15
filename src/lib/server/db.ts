@@ -1,4 +1,4 @@
-import { PrismaClient } from '@/generated/prisma/client';
+import { PrismaClient, type Prisma } from '@/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 // All application database calls run through the existing security-definer
@@ -55,4 +55,19 @@ export async function transaction<T>(fn: (c: Client) => Promise<T>): Promise<T> 
     };
     return fn(client);
   }, { maxWait: 3000, timeout: 30000 });
+}
+
+/**
+ * Typed Prisma transaction for migrated domain services. Keep security
+ * verification and the scoped model reads in the SAME database transaction.
+ * Do not export the unrestricted PrismaClient to route handlers.
+ */
+export async function prismaTransaction<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  return connection().$transaction(fn, {
+    isolationLevel: 'RepeatableRead',
+    maxWait: 3000,
+    timeout: 30000,
+  });
 }
