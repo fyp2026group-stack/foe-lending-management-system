@@ -37,6 +37,10 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Generate Prisma Client for authenticated API runtime
+        run: |
+          npm run prisma:generate
+          test -f node_modules/.prisma/client/default.js
       - name: Generate isolated synthetic environment
         run: npm run local:config
       - name: Provision and verify local PostgreSQL
