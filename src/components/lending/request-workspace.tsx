@@ -8,6 +8,7 @@ import { ReviewAlertDialog } from '@/components/ui/review-sheet';
 import { StudentSelect, NativeSelect } from './student-controls';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import type { Session } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { ActionForm, Field, useLending } from './shared';
-import { RequestBuilder } from './request-builder';
 import { RequestDiscussion } from './request-discussion';
 import type { BorrowDraft, BorrowRequest, RequestLine, Page } from './api';
 import { useInventoryLookup } from '@/components/inventory/lookups';
@@ -74,7 +74,6 @@ export function Requests({
   useEffect(() => {
     if (selectedId) detailHeading.current?.focus();
   }, [selectedId]);
-  const [editing, setEditing] = useState<BorrowDraft>();
   const [cancel, setCancel] = useState<{
     draft?: BorrowDraft;
     line?: RequestLine;
@@ -182,21 +181,6 @@ export function Requests({
     setCancel(undefined);
     refresh();
   };
-  if (editing)
-    return (
-      <>
-        <Button variant="outline" onClick={() => setEditing(undefined)}>
-          Back to My requests
-        </Button>
-        <RequestBuilder
-          key={editing.id}
-          draft={editing}
-          session={session}
-          revision={revision}
-          refresh={refresh}
-        />
-      </>
-    );
   return (
     <section
       className={isStudent(session.user.roles) ? 'cp2-requests student-requests' : 'cp2-requests'}
@@ -369,7 +353,11 @@ export function Requests({
               {draft.predecessorId && (
                 <p>Correction of request {draft.predecessorId}; original history is preserved.</p>
               )}
-              <Button onClick={() => setEditing(draft)}>Open and edit draft</Button>{' '}
+              <Button asChild>
+                <Link href={`/borrowing?view=new&draftId=${encodeURIComponent(draft.id)}`}>
+                  Open and edit draft
+                </Link>
+              </Button>{' '}
               <Button variant="outline" onClick={() => setCancel({ draft })}>
                 Cancel draft
               </Button>
