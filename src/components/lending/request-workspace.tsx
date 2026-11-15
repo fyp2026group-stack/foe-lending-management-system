@@ -139,6 +139,7 @@ export function Requests({
   const approvalStatus = (request: BorrowRequest) => {
     const stages = new Set(request.lines.map((line) => line.stage));
     if (stages.has('REJECTED')) return 'Requires attention';
+    if (stages.has('CANCELLED')) return 'Cancelled';
     if (stages.has('LECTURER') && stages.has('HOD')) return 'Multiple approvals';
     if (stages.has('LECTURER')) return 'Lecturer review';
     if (stages.has('HOD')) return 'HOD review';
@@ -406,7 +407,7 @@ export function Requests({
                 <div className="request-detail-progress" aria-label="Request stages">
                   {['Submitted','Approved','Reserved','Collected'].map((label, index) => {
                     const complete = index === 0 ||
-                      (index === 1 && selected.lines.every(line => !['LECTURER','HOD','REJECTED'].includes(line.stage))) ||
+                      (index === 1 && selected.lines.every(line => line.stage === 'APPROVED')) ||
                       (index === 2 && ['READY','FULFILLED','PARTIALLY_FULFILLED'].includes(selected.summary)) ||
                       (index === 3 && selected.summary === 'FULFILLED');
                     return <div key={label} className={complete ? 'is-done' : ''}>
