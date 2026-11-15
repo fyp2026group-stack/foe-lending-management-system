@@ -2,50 +2,62 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { requestApprovalGate, assertRequestMayReserve } from '../src/lib/server/services/request-approval-gate.ts';
 
-const line = (policy, quantity = 1, cancelledQuantity = 0) =>
-  ({ policy, quantity, cancelledQuantity });
-const vote = (role, decision = 'APPROVE') => ({ role, decision });
+const line = (id, policy, quantity = 1, cancelledQuantity = 0) =>
+  ({ id, policy, quantity, cancelledQuantity });
+const vote = (lineId, role, decision = 'APPROVE') => ({ lineId, role, decision });
 
-test('any equipment requiring lecturer review gates the entire request', () => {
-  const lines = [line('NONE'), line('LECTURER')];
+test('any pending item holds the entire order, including no-approval items', () => {
+  const lines = [line('a', 'NONE'), line('b', 'LECTURER')];
   const pending = requestApprovalGate(lines, []);
   assert.equal(pending.state, 'PENDING');
-  assert.deepEqual(pending.requires, ['LECTURER']);
-  assert.deepEqual(pending.missing, ['LECTURER']);
+  assert.deepEqual(pending.requires, [{ lineId: 'b', role: 'LECTURER' }]);
+  assert.deepEqual(pending.missing, [{ lineId: 'b', role: 'LECTURER' }]);
   assert.throws(() => assertRequestMayReserve(pending), /REQUEST_APPROVAL_INCOMPLETE/);
-  const approved = requestApprovalGate(lines, [vote('LECTURER')]);
+  const approved = requestApprovalGate(lines, [vote('b', 'LECTURER')]);
   assert.equal(approved.state, 'APPROVED');
   assert.doesNotThrow(() => assertRequestMayReserve(approved));
 });
 
-test('mixed HOD and lecturer policies require both independent decisions', () => {
-  const lines = [line('NONE'), line('LECTURER'), line('HOD')];
-  assert.deepEqual(requestApprovalGate(lines, [vote('LECTURER')]), {
-    state: 'PENDING', requires: ['LECTURER', 'HOD'], missing: ['HOD'],
-  });
-  assert.equal(requestApprovalGate(lines, [vote('LECTURER'), vote('HOD')]).state, 'APPROVED');
-  assert.equal(requestApprovalGate([line('BOTH')], [vote('HOD')]).state, 'PENDING');
+test('lecturer approval on item A cannot approve item B', () => {
+  const lines = [line('a', 'LECTURER'), line('b', 'LECTURER')];
+  assert.deepEqual(requestApprovalGate(lines, [vote('a', 'LECTURER')]).missing, [
+    { lineId: 'b', role: 'LECTURER' },
+  ]);
+  assert.equal(requestApprovalGate(lines, [vote('a', 'LECTURER'), vote('b', 'LECTURER')]).state, 'APPROVED');
 });
 
-test('any rejection blocks the complete request', () => {
-  const gate = requestApprovalGate([line('BOTH'), line('NONE')], [
-    vote('LECTURER', 'REJECT'),
-    vote('HOD'),
+test('BOTH and mixed HOD/lecturer policies require each line-level decision', () => {
+  const lines = [line('a', 'NONE'), line('b', 'BOTH'), line('c', 'HOD')];
+  assert.deepEqual(requestApprovalGate(lines, [vote('b', 'LECTURER')]).missing, [
+    { lineId: 'b', role: 'HOD' },
+    { lineId: 'c', role: 'HOD' },
+  ]);
+  assert.equal(requestApprovalGate(lines, [
+    vote('b', 'LECTURER'), vote('b', 'HOD'), vote('c', 'HOD'),
+  ]).state, 'APPROVED');
+});
+
+test('any rejection blocks the complete order', () => {
+  const gate = requestApprovalGate([line('a', 'BOTH'), line('b', 'NONE')], [
+    vote('a', 'LECTURER', 'REJECT'), vote('a', 'HOD'),
   ]);
   assert.equal(gate.state, 'REJECTED');
   assert.throws(() => assertRequestMayReserve(gate));
 });
 
-test('fully cancelled lines do not create approval requirements', () => {
-  const gate = requestApprovalGate([line('LECTURER', 2, 2), line('NONE')], []);
+test('fully cancelled items do not delay the rest of the request', () => {
+  const gate = requestApprovalGate([line('a', 'LECTURER', 2, 2), line('b', 'NONE')], []);
   assert.equal(gate.state, 'APPROVED');
   assert.deepEqual(gate.requires, []);
-  assert.equal(requestApprovalGate([line('BOTH', 1, 1)], []).state, 'EMPTY');
+  assert.equal(requestApprovalGate([line('a', 'BOTH', 1, 1)], []).state, 'EMPTY');
+  assert.equal(requestApprovalGate([line('a', 'LECTURER', 1, 1)], [vote('a', 'LECTURER')]).state, 'EMPTY');
 });
 
-test('invalid quantities, duplicate or forged votes fail closed', () => {
-  assert.throws(() => requestApprovalGate([line('NONE', 2, 3)], []), /INVALID_REQUEST_LINE/);
-  assert.throws(() => requestApprovalGate([line('NONE', 1.5)], []), /INVALID_REQUEST_LINE/);
-  assert.throws(() => requestApprovalGate([line('LECTURER')], [vote('HOD')]), /INVALID_APPROVAL/);
-  assert.throws(() => requestApprovalGate([line('LECTURER')], [vote('LECTURER'), vote('LECTURER')]), /INVALID_APPROVAL/);
+test('invalid quantities, duplicate lines and forged approvals fail closed', () => {
+  assert.throws(() => requestApprovalGate([line('a', 'NONE', 2, 3)], []), /INVALID_REQUEST_LINE/);
+  assert.throws(() => requestApprovalGate([line('a', 'NONE', 1.5)], []), /INVALID_REQUEST_LINE/);
+  assert.throws(() => requestApprovalGate([line('a', 'NONE'), line('a', 'NONE')], []), /INVALID_REQUEST_LINE/);
+  assert.throws(() => requestApprovalGate([line('a', 'LECTURER')], [vote('a', 'HOD')]), /INVALID_APPROVAL/);
+  assert.throws(() => requestApprovalGate([line('a', 'LECTURER')], [vote('a', 'LECTURER'), vote('a', 'LECTURER')]), /INVALID_APPROVAL/);
+  assert.throws(() => requestApprovalGate([line('a', 'NONE')], [vote('other', 'LECTURER')]), /INVALID_APPROVAL/);
 });
