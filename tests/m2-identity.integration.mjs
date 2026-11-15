@@ -160,6 +160,29 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
         assert.equal((await request('admin/' + resource)).status, 401);
       }
     });
+    await t.test('typed Prisma equipment-policy listings preserve read contract', async () => {
+      const anonymous = await request('lending/policies');
+      assert.equal(anonymous.status, 401);
+      const asStudent = await request('lending/policies', { actor: actors.student });
+      assert.equal(asStudent.status, 200);
+      assert.ok(Array.isArray(asStudent.data.items));
+      assert.equal(asStudent.data.limit, 50);
+      assert.equal(asStudent.data.offset, 0);
+      const item = asStudent.data.items.find((entry) => entry.name === 'Synthetic Multimeter');
+      assert.ok(item, 'Synthetic equipment must be in the policy listing');
+      const actual = (await db.query(
+        "SELECT q.policy,q.hod_id FROM lab.inv_items i LEFT JOIN lab.lend_policies q ON q.item_id=i.id WHERE i.id=$1",
+        [item.itemId]
+      )).rows[0];
+      assert.equal(item.policy, actual.policy ?? 'UNCONFIGURED');
+      assert.equal(item.hodId, actual.hod_id ?? null);
+      const firstPage = await request('lending/policies?limit=1&offset=0', { actor: actors.student });
+      assert.equal(firstPage.status, 200);
+      assert.equal(firstPage.data.items.length, 1);
+      assert.equal(firstPage.data.limit, 1);
+      assert.equal((await request('lending/policies?limit=101', { actor: actors.student })).status, 422);
+      assert.equal((await request('lending/policies?status=active', { actor: actors.student })).status, 422);
+    });
     await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
       const page = (route, actor) => fetch(cfg.origin + route, {
         redirect: 'manual',
