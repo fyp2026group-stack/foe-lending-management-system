@@ -35,6 +35,7 @@ jobs:
           set +a
           export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
           npm run prisma:introspect
+          node scripts/prisma-repair-introspection.mjs
           echo '=== introspected asset and stock relations ==='
           sed -n '85,145p' prisma/schema.prisma
           grep -n -E 'inv_cells|inv_assets' prisma/schema.prisma | head -35
