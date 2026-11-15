@@ -4973,3 +4973,38 @@ body [data-slot="dialog-viewport"]:has(.request-detail-sheet){justify-content:fl
 .request-detail-sheet .request-detail-item [data-slot="button"]{width:fit-content}
 .request-detail-sheet .request-detail-item [data-slot="input"]{width:100%}
 @media(max-width:620px){.request-inbox-heading{align-items:flex-start;flex-direction:column}.request-inbox-heading>[data-slot="button"]{align-self:flex-start}.request-inbox-controls{padding:12px}.request-inbox-search{flex-basis:100%}.request-inbox-tabs button{padding-inline:11px}.request-detail-item{padding:14px}}
+
+
+/* Final request-details decluttering: primary facts, equipment, optional history/actions. */
+.request-detail-content{gap:17px}
+.request-detail-intro{gap:6px}
+.request-detail-intro h3{font-size:17px;font-weight:760;color:#243044}
+.request-detail-intro .request-inbox-status{margin-bottom:3px}
+.request-detail-progress{margin:0 0 3px;padding:9px 0 20px}
+.request-detail-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.request-detail-section-heading h4{font-size:14px;font-weight:750;color:#253348}
+.request-detail-section-heading span{font-size:11px;color:#7b8696}
+.request-detail-sheet .review-facts{gap:9px}
+.request-detail-sheet .review-facts>div{padding:13px 14px}
+.request-detail-item{gap:10px;padding:15px}
+.request-detail-item>p{margin:0;line-height:1.5}
+.request-detail-item-actions{display:grid;gap:8px}
+.request-detail-optional-action,.request-detail-comments,.request-detail-technical{border-top:1px solid #edf0f3;padding:12px 0 0}
+.request-detail-optional-action>summary,.request-detail-comments>summary,.request-detail-technical>summary{cursor:pointer;display:list-item;font-size:12px;font-weight:700;color:#6a2331}
+.request-detail-optional-action>[data-slot="button"]{margin-top:11px}
+.request-detail-optional-action .operation-form{margin-top:12px}
+.request-detail-comments{margin-top:2px}
+.request-discussion-compact{display:grid;gap:11px;margin-top:15px}
+.request-discussion-compact>h3{font-size:13px;font-weight:740;color:#293449}
+.request-discussion-compact>article{padding:12px 0;border-color:#e6eaf0}
+.request-discussion-compact>article p{font-size:11.5px;line-height:1.6}
+.request-discussion-compact .request-comment-composer{border:1px solid #e3e8ee;border-radius:8px;background:#fafbfc;padding:11px 13px}
+.request-discussion-compact .request-comment-composer>summary{cursor:pointer;color:#852536;font-size:12px;font-weight:730}
+.request-discussion-compact .operation-form-compact{margin-top:12px;border:0;background:transparent;box-shadow:none;padding:0}
+.request-detail-sheet .operation-form-compact{display:grid;gap:10px;padding:14px;background:#fafbfc;border:1px solid #e3e8ee;border-radius:8px}
+.request-detail-sheet .operation-form-compact h2{font-size:13px;font-weight:740}
+.request-detail-sheet .operation-form-compact fieldset{gap:12px;margin-top:0}
+.request-detail-sheet .operation-form-compact label{font-size:12px;color:#4b586b}
+.request-detail-sheet .operation-form-compact [type="checkbox"]{flex:none}
+.request-detail-sheet .operation-form-compact [type="submit"]{min-height:36px;font-size:11px}
+.request-detail-sheet .request-detail-item-history{margin-top:2px}
