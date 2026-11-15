@@ -36,7 +36,7 @@ export function resolveBorrowingSources(
     if (index === selected.length) {
       const needsLecturer = chosen.some(source =>
         source.policy === 'LECTURER' || source.policy === 'BOTH');
-      const eligible = eligibleLecturers(lecturers, chosen.map(x => x.labId), borrowerId);
+      const eligible = eligibleLecturers(lecturers, chosen.filter(x => x.policy === 'LECTURER' || x.policy === 'BOTH').map(x => x.labId), borrowerId);
       return !needsLecturer || eligible.length ? { lines: [...chosen], eligible } : null;
     }
     for (const source of candidates[index]) {
@@ -44,7 +44,7 @@ export function resolveBorrowingSources(
       const needsLecturer = chosen.some(row =>
         row.policy === 'LECTURER' || row.policy === 'BOTH');
       if (!needsLecturer ||
-          eligibleLecturers(lecturers, chosen.map(x => x.labId), borrowerId).length) {
+          eligibleLecturers(lecturers, chosen.filter(x => x.policy === 'LECTURER' || x.policy === 'BOTH').map(x => x.labId), borrowerId).length) {
         const result = search(index + 1);
         if (result) return result;
       }
