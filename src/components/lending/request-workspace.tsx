@@ -513,31 +513,6 @@ export function Requests({
                     </section>
                   );
                 })}
-                {selected.borrowerId === session.user.id && (
-                      <>
-                        {cancellableQuantity(line) > 0 && (
-                          <Button variant="outline" onClick={() => setCancel({ line })}>
-                            Cancel unissued quantity
-                          </Button>
-                        )}
-                        {line.stage === 'APPROVED' && cancellableQuantity(line) > 0 && (
-                          <ActionForm
-                            title="Retry stock reservation"
-                            path="reserve"
-                            session={session}
-                            onSaved={refresh}
-                            body={() => ({
-                              lineId: line.id,
-                              expectedVersion: line.version,
-                            })}
-                          >
-                            <p>Try reserving the approved remainder using current stock.</p>
-                          </ActionForm>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ))}
                 {selected.borrowerId === session.user.id &&
                   selected.lines.some((line) => line.stage === 'REJECTED') && (
                     <ActionForm
