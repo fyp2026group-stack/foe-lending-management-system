@@ -12,10 +12,12 @@ export function RequestDiscussion({
   requestId,
   session,
   revision,
+  compact = false,
 }: {
   requestId: string;
   session: Session;
   revision: number;
+  compact?: boolean;
 }) {
   const student = isStudent(session.user.roles);
   const discussion = useRef<HTMLElement>(null);
@@ -47,8 +49,9 @@ export function RequestDiscussion({
     setLocalRevision((value) => value + 1);
   }
   return (
-    <section ref={discussion} className="records p-4 mt-4">
-      <h2>Decision history and request discussion</h2>
+    <section ref={discussion} className={compact ? "request-discussion-compact" : "records p-4 mt-4"}>
+      {!compact && <h2>Decision history and request discussion</h2>}
+      {!compact && <>
       {request.error && <ErrorNotice message={request.error} />}
       {!request.data && !request.error && <p role="status">Loading decision history...</p>}
       {request.data?.items.map((record) => (
@@ -88,12 +91,13 @@ export function RequestDiscussion({
           )}
         </>
       )}
-      <h3 className="font-semibold mt-4">Append-only comments</h3>
-      <p className="muted">Corrections add a linked entry and preserve the original comment.</p>
+      </>}
+      <h3 className="font-semibold mt-4">{compact ? 'Comments' : 'Append-only comments'}</h3>
+      {!compact && <p className="muted">Corrections add a linked entry and preserve the original comment.</p>}
       {notice && <p role="status">{notice}</p>}
       {comments.error && <ErrorNotice message={comments.error} />}
       {!comments.data && !comments.error && <p role="status">Loading comments...</p>}
-      {comments.data?.items.length === 0 && (!student || Boolean(request.data?.items.length)) && (
+      {!compact && comments.data?.items.length === 0 && (!student || Boolean(request.data?.items.length)) && (
         <>
           {student ? (
             <StudentEmptyState
@@ -141,9 +145,12 @@ export function RequestDiscussion({
         </article>
       ))}
       {comments.data && request.data?.items.length ? (
-        <ActionForm
+        compact ? <details className="request-comment-composer">
+          <summary>Write a comment</summary>
+          <ActionForm
           key={currentCorrection?.id ?? 'new-comment'}
-          title={currentCorrection ? 'Append comment correction' : 'Add request comment'}
+          compact={compact}
+          title={currentCorrection ? 'Correct comment' : 'Post comment'}
           path="comments"
           session={session}
           onSaved={saved}
@@ -179,6 +186,25 @@ export function RequestDiscussion({
               Cancel correction
             </Button>
           )}
+          </ActionForm>
+        </details> : <ActionForm
+          key={currentCorrection?.id ?? 'new-comment'}
+          title={currentCorrection ? 'Append comment correction' : 'Add request comment'}
+          path="comments"
+          session={session}
+          onSaved={saved}
+          body={(data) => {
+            const body = String(data.get('body')).trim();
+            if (!body) throw new Error('Enter a comment before submitting.');
+            return { requestId, body, ...(currentCorrection ? { correctsId: currentCorrection.id } : {}) };
+          }}
+        >
+          <label htmlFor="request-comment-body-standard">Comment
+            <textarea id="request-comment-body-standard" name="body"
+              className="border rounded-md w-full p-3 min-h-24" required maxLength={1000}
+              defaultValue={currentCorrection?.body ?? ''} />
+          </label>
+          {currentCorrection && <Button type="button" variant="outline" onClick={() => setCorrecting(null)}>Cancel correction</Button>}
         </ActionForm>
       ) : null}
     </section>
