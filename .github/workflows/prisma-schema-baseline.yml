@@ -28,10 +28,15 @@ jobs:
         run: |
           npm run local:config
           npm run db:setup
-      - name: Introspect complete live schema
+      - name: Introspect full schema using isolated migration account
         run: |
+          set -a
+          source .verification/m2.env
+          set +a
+          export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
           npm run prisma:introspect
           npm run prisma:validate
+          node -e 'const fs=require("fs");const s=fs.readFileSync("prisma/schema.prisma","utf8");const n=(s.match(/^model /gm)||[]).length;if(n<30)throw Error("Incomplete introspection: "+n+" Prisma models");console.log("Complete introspection:",n,"models")'
           npm run prisma:generate
           npm run typecheck
       - name: Create non-destructive Prisma migration baseline
@@ -39,6 +44,7 @@ jobs:
           mkdir -p prisma/migrations/0_init
           npx prisma migrate diff --config prisma7.config.ts --from-empty --to-schema prisma/schema.prisma --script > prisma/migrations/0_init/migration.sql
           test -s prisma/migrations/0_init/migration.sql
+          grep -q 'CREATE TABLE' prisma/migrations/0_init/migration.sql
           # Only the privileged migrator may write Prisma's migration history.
           # Keep the application runtime role without CREATE or table grants.
           set -a
