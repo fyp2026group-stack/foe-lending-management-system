@@ -2,7 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { derive, boundedBody } from './work';
 import { transaction } from './db';
 import { runAdmitted } from './admission';
-import { readAdminReferences } from './services/admin-references';
+import { readAdminReferences, patchUserPreservingBatches } from './services/admin-references';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -242,6 +242,12 @@ export async function handle(
     (path[1] === 'batches' || path[1] === 'laboratories')
   ) {
     return resultResponse(await readAdminReferences(cookie(r), path[1]));
+  }
+  if (patch && path[1] === 'users' && body.batchIds === undefined) {
+    const result = await patchUserPreservingBatches(
+      cookie(r), r.headers.get('x-csrf-token') ?? '', path[2], body
+    );
+    return resultResponse(result);
   }
   let op = path[1];
   if (r.method === 'POST') {
