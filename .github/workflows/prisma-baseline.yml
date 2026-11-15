@@ -2,8 +2,6 @@ name: Baseline PostgreSQL comparison
 
 on:
   workflow_dispatch:
-  push:
-    branches: [prisma]
 
 permissions:
   contents: read
