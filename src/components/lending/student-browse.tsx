@@ -260,6 +260,7 @@ export function StudentBrowse({
               label="Equipment catalogue"
               emptyKind="equipment"
               filtered={filterActive}
+              compactToolbar
               onReset={resetFilters}
             />
           </div>
