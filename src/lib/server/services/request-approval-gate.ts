@@ -1,34 +1,37 @@
 /**
- * Domain-level request approval gate for the Prisma service migration.
+ * Request-wide approval policy used by the Prisma lending domain.
  *
- * This module does not access the database: callers must load decisions and
- * equipment lines in one transaction, enforce actor authorization, and lock
- * the request before calling it. It is intentionally not wired to the live
- * lending endpoint until the Prisma service has parity coverage.
+ * Every active line contributes its own required approvals. An approval for
+ * item A cannot satisfy the same role on item B. The result can be used as
+ * a precondition to reserve or hand over stock only after the database
+ * transaction has locked the corresponding request and all relevant lines.
  */
 export type ApprovalRole = 'LECTURER' | 'HOD';
 export type EquipmentApprovalPolicy = 'NONE' | 'LECTURER' | 'HOD' | 'BOTH';
 export type ApprovalDecision = 'APPROVE' | 'REJECT';
 
 export type RequestedEquipment = {
+  id: string;
   policy: EquipmentApprovalPolicy;
   quantity: number;
   cancelledQuantity: number;
 };
 
 export type RequestApproval = {
+  lineId: string;
   role: ApprovalRole;
   decision: ApprovalDecision;
 };
 
-export type ApprovalGate =
-  | { state: 'EMPTY'; requires: readonly ApprovalRole[]; missing: readonly ApprovalRole[] }
-  | { state: 'REJECTED'; requires: readonly ApprovalRole[]; missing: readonly ApprovalRole[] }
-  | { state: 'PENDING'; requires: readonly ApprovalRole[]; missing: readonly ApprovalRole[] }
-  | { state: 'APPROVED'; requires: readonly ApprovalRole[]; missing: readonly ApprovalRole[] };
+export type ApprovalRequirement = { lineId: string; role: ApprovalRole };
+export type ApprovalGate = {
+  state: 'EMPTY' | 'REJECTED' | 'PENDING' | 'APPROVED';
+  requires: readonly ApprovalRequirement[];
+  missing: readonly ApprovalRequirement[];
+};
 
-function validPolicy(value: string): value is EquipmentApprovalPolicy {
-  return value === 'NONE' || value === 'LECTURER' || value === 'HOD' || value === 'BOTH';
+function validPolicy(policy: string): policy is EquipmentApprovalPolicy {
+  return ['NONE', 'LECTURER', 'HOD', 'BOTH'].includes(policy);
 }
 
 export function requestApprovalGate(
@@ -36,8 +39,10 @@ export function requestApprovalGate(
   approvals: readonly RequestApproval[]
 ): ApprovalGate {
   if (!Array.isArray(lines) || !Array.isArray(approvals)) throw new Error('INVALID');
-  const active = lines.filter(line => {
+  const known = new Set<string>();
+  for (const line of lines) {
     if (
+      !line.id || typeof line.id !== 'string' || known.has(line.id) ||
       !validPolicy(line.policy) ||
       !Number.isSafeInteger(line.quantity) ||
       !Number.isSafeInteger(line.cancelledQuantity) ||
@@ -45,33 +50,50 @@ export function requestApprovalGate(
       line.cancelledQuantity < 0 ||
       line.cancelledQuantity > line.quantity
     ) throw new Error('INVALID_REQUEST_LINE');
-    return line.quantity > line.cancelledQuantity;
-  });
-
-  if (!active.length) return { state: 'EMPTY', requires: [], missing: [] };
-
-  const roles: ApprovalRole[] = [];
-  if (active.some(l => l.policy === 'LECTURER' || l.policy === 'BOTH')) roles.push('LECTURER');
-  if (active.some(l => l.policy === 'HOD' || l.policy === 'BOTH')) roles.push('HOD');
-
-  const votes = new Map<ApprovalRole, ApprovalDecision>();
-  for (const approval of approvals) {
-    if (
-      (approval.role !== 'LECTURER' && approval.role !== 'HOD') ||
-      (approval.decision !== 'APPROVE' && approval.decision !== 'REJECT') ||
-      votes.has(approval.role) ||
-      !roles.includes(approval.role)
-    ) throw new Error('INVALID_APPROVAL');
-    votes.set(approval.role, approval.decision);
+    known.add(line.id);
   }
 
-  const missing = roles.filter(role => !votes.has(role));
-  if ([...votes.values()].includes('REJECT')) return { state: 'REJECTED', requires: roles, missing };
-  if (missing.length) return { state: 'PENDING', requires: roles, missing };
-  return { state: 'APPROVED', requires: roles, missing: [] };
+  const active = lines.filter(line => line.cancelledQuantity < line.quantity);
+  const requirements: ApprovalRequirement[] = active.flatMap((line) => {
+    switch (line.policy) {
+      case 'NONE': return [];
+      case 'LECTURER': return [{ lineId: line.id, role: 'LECTURER' as const }];
+      case 'HOD': return [{ lineId: line.id, role: 'HOD' as const }];
+      case 'BOTH': return [
+        { lineId: line.id, role: 'LECTURER' as const },
+        { lineId: line.id, role: 'HOD' as const },
+      ];
+    }
+  });
+  if (active.length === 0) {
+    if (approvals.length) throw new Error('INVALID_APPROVAL');
+    return { state: 'EMPTY', requires: [], missing: [] };
+  }
+
+  const keyed = new Map<string, ApprovalDecision>();
+  const requiredKeys = new Set(requirements.map(req => `${req.lineId}:${req.role}`));
+  for (const approval of approvals) {
+    if (
+      !known.has(approval.lineId) ||
+      !['LECTURER', 'HOD'].includes(approval.role) ||
+      !['APPROVE', 'REJECT'].includes(approval.decision)
+    ) throw new Error('INVALID_APPROVAL');
+    const key = `${approval.lineId}:${approval.role}`;
+    if (keyed.has(key)) throw new Error('INVALID_APPROVAL');
+    // Approval history may predate cancellation of a line. Ignore that
+    // cancelled line for the current request-wide readiness decision.
+    if (requiredKeys.has(key)) keyed.set(key, approval.decision);
+    else if (active.some(line => line.id === approval.lineId))
+      throw new Error('INVALID_APPROVAL');
+  }
+  const missing = requirements.filter(req => !keyed.has(`${req.lineId}:${req.role}`));
+  const state = [...keyed.values()].includes('REJECT')
+    ? 'REJECTED'
+    : missing.length > 0 ? 'PENDING' : 'APPROVED';
+  return { state, requires: requirements, missing };
 }
 
-/** Only an approved *whole request* is permitted to enter stock allocation. */
+/** Reserve and handover both require the *entire request* to be approved. */
 export function assertRequestMayReserve(gate: ApprovalGate): void {
   if (gate.state !== 'APPROVED') throw new Error('REQUEST_APPROVAL_INCOMPLETE');
 }
