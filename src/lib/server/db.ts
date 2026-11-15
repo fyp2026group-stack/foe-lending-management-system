@@ -5,7 +5,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 // PostgreSQL RPC layer. Prisma supplies pooling and transaction management;
 // it must not replace authorization, inventory posting, or audit functions.
 // JSONB inputs are explicitly cast at their SQL call sites.
-type Row = Record<string, unknown>;
+// Existing stored functions return heterogeneous JSON envelopes.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;
 export type Client = {
   query: (sql: string, values?: unknown[]) => Promise<{ rows: Row[] }>;
 };
