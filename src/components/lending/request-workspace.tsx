@@ -2,16 +2,15 @@
 import { OfficerEmpty } from '@/components/technical-officer/empty-state';
 import { LecturerEmpty } from '@/components/lecturer/empty-state';
 import { StudentEmptyState } from './student-empty-state';
-import { Card } from '@/components/ui/card';
-import { StudentDataTable, type StudentColumn } from './student-data-table';
-import { ReviewAlertDialog } from '@/components/ui/review-sheet';
+import { ReviewAlertDialog, ReviewSheet } from '@/components/ui/review-sheet';
 import { StudentSelect, NativeSelect } from './student-controls';
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Session } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
 import { Button } from '@/components/ui/button';
+import { Search, SlidersHorizontal, ChevronRight, Package, Check, Clock3, ClipboardList } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -60,6 +59,8 @@ export function Requests({
   const [to, setTo] = useState('');
   const [offset, setOffset] = useState(0);
   const [query, setQuery] = useState('');
+  const [advancedFilters, setAdvancedFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'equipment'>('newest');
   const itemTypes = useInventoryLookup<Item>('items', revision);
   const [type, setType] = useState('');
   const [focusRequest, setFocusRequest] = useState('');
@@ -69,11 +70,7 @@ export function Requests({
   );
   const drafts = useLending<Page<BorrowDraft>>(`drafts?limit=20&offset=${offset}`, revision);
   const [selectedId, setSelectedId] = useState('');
-  const detailHeading = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (selectedId) detailHeading.current?.focus();
-  }, [selectedId]);
   const [cancel, setCancel] = useState<{
     draft?: BorrowDraft;
     line?: RequestLine;
@@ -98,7 +95,31 @@ export function Requests({
         )) &&
       JSON.stringify(request).toLowerCase().includes(query.toLowerCase())
   );
-  const selected = rows.find((request) => request.id === selectedId);
+  const selected = (result.data?.items ?? []).find((request) => request.id === selectedId);
+  const sortedRows = [...rows].sort((a, b) =>
+    sortBy === 'equipment'
+      ? (a.lines[0]?.item ?? '').localeCompare(b.lines[0]?.item ?? '') ||
+        b.createdAt.localeCompare(a.createdAt)
+      : sortBy === 'oldest'
+        ? a.createdAt.localeCompare(b.createdAt)
+        : b.createdAt.localeCompare(a.createdAt)
+  );
+  const categories: { value: string; label: string }[] = [
+    { value: 'all', label: 'All requests' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'ready', label: 'Ready' },
+    { value: 'borrowed', label: 'Borrowed' },
+    { value: 'closed', label: 'Closed' },
+    { value: 'drafts', label: 'Drafts' },
+  ];
+  const tabCount = (group: string) =>
+    group === 'drafts'
+      ? (drafts.data?.items ?? []).filter((draft) => !draft.cancelled && !draft.submittedId).length
+      : (result.data?.items ?? []).filter((request) =>
+          request.borrowerId === session.user.id && (group === 'all' || requestGroup(request) === group)
+        ).length;
+  const hasFilters = Boolean(query || status || stage || type || from || to || offset ||
+    (!approvals && category !== 'all'));
   const draftRows = (drafts.data?.items ?? []).filter(
     (draft) =>
       !draft.cancelled &&
@@ -107,64 +128,23 @@ export function Requests({
   );
   const student = isStudent(session.user.roles);
   const lecturer = session.user.roles.includes('LECTURER');
-  const columns: StudentColumn<BorrowRequest>[] = [
-    {
-      id: 'request',
-      title: 'Request ID / Items',
-      value: (request) => JSON.stringify(request),
-      cell: (request) => (
-        <>
-          <strong>{request.id.slice(0, 8)}</strong>
-          <small className="block">{request.lines.map((line) => line.item).join(', ')}</small>
-        </>
-      ),
-    },
-    {
-      id: 'created',
-      title: 'Created',
-      value: (request) => request.createdAt,
-      cell: (request) => date(request.createdAt),
-    },
-    {
-      id: 'stage',
-      title: 'Approval stage',
-      value: (request) => Array.from(new Set(request.lines.map((line) => line.stage))).join(', '),
-    },
-    {
-      id: 'collection',
-      title: 'Collection readiness',
-      numeric: true,
-      value: (request) => request.lines.reduce((n, line) => n + line.reservedQuantity, 0),
-      cell: (request) =>
-        `${request.lines.reduce((n, line) => n + line.reservedQuantity, 0)} reserved`,
-    },
-    {
-      id: 'status',
-      title: 'Status',
-      value: (request) => request.summary,
-      cell: (request) => <Badge variant="secondary">{request.summary.replaceAll('_', ' ')}</Badge>,
-    },
-    {
-      id: 'action',
-      title: 'Action',
-      value: () => '',
-      sortable: false,
-      cell: (request) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(event) => {
-            returnFocus.current = event.currentTarget;
-            setSelectedId(request.id);
-          }}
-        >
-          View
-        </Button>
-      ),
-    },
-  ];
-  const DetailContainer = student ? Card : 'article';
-  const Cancellation = student ? ReviewAlertDialog : LegacyCancellation;
+  const openRequest = (requestId: string, button?: HTMLButtonElement) => {
+    if (button) returnFocus.current = button;
+    setSelectedId(requestId);
+  };
+  const closeRequest = () => {
+    setSelectedId('');
+    returnFocus.current?.focus();
+  };
+  const approvalStatus = (request: BorrowRequest) => {
+    const stages = new Set(request.lines.map((line) => line.stage));
+    if (stages.has('REJECTED')) return 'Requires attention';
+    if (stages.has('LECTURER') && stages.has('HOD')) return 'Multiple approvals';
+    if (stages.has('LECTURER')) return 'Lecturer review';
+    if (stages.has('HOD')) return 'HOD review';
+    return stages.size > 1 ? 'Mixed stages' : 'Approved';
+  };
+  const Cancellation =  const Cancellation = student ? ReviewAlertDialog : LegacyCancellation;
   const resetFilters = () => {
     setQuery('');
     setStatus('');
@@ -176,6 +156,7 @@ export function Requests({
     setOffset(0);
     setFocusRequest('');
     setSelectedId('');
+    setAdvancedFilters(false);
   };
   const changed = () => {
     setCancel(undefined);
@@ -185,131 +166,101 @@ export function Requests({
     <section
       className={isStudent(session.user.roles) ? 'cp2-requests student-requests' : 'cp2-requests'}
     >
-      <h2>{approvals ? 'Approval inbox' : 'My requests'}</h2>
-      {focusRequest && (
-        <Button
-          variant="outline"
-          onClick={() => {
-            setFocusRequest('');
-            setSelectedId('');
-          }}
-        >
-          Back to filtered request list
-        </Button>
-      )}
-      <div className="cp2-toolbar">
-        <label>
-          Search this page
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Borrower, equipment or purpose"
-          />
-        </label>
-        {!approvals && (
-          <label>
-            Request group
-            <SelectControl
-              className={selectClass}
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
+      <div className="request-inbox-heading">
+        <div>
+          <h2>{approvals ? 'Approval inbox' : 'Requests'}</h2>
+          <p>{approvals
+            ? 'Review requests assigned to you and record item decisions.'
+            : 'Find a request, check its status, or resume a saved draft.'}</p>
+        </div>
+        {!approvals && <Button asChild size="sm">
+          <Link href="/borrowing?view=new">New request</Link>
+        </Button>}
+      </div>
+      {!approvals && (
+        <nav className="request-inbox-tabs" aria-label="Request status filters">
+          {categories.map((group) => (
+            <button
+              type="button"
+              key={group.value}
+              className={category === group.value ? 'is-active' : ''}
+              aria-current={category === group.value ? 'page' : undefined}
+              onClick={() => {
+                setCategory(group.value);
                 setOffset(0);
                 setSelectedId('');
               }}
             >
-              {[
-                ['drafts', 'Drafts'],
-                ['pending', 'Awaiting Approval'],
-                ['ready', 'Reserved for Collection'],
-                ['borrowed', 'Currently Borrowed / Completed'],
-                ['closed', 'Rejected / Cancelled'],
-                ['all', 'All submitted requests'],
-              ].map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectControl>
-          </label>
-        )}
+              {group.label}
+              <span>{tabCount(group.value)}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+      <div className="request-inbox-controls">
+        <label className="request-inbox-search">
+          <Search size={17} aria-hidden="true" />
+          <span className="sr-only">Search requests</span>
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by equipment, purpose or request ID"
+            aria-label="Search requests"
+          />
+        </label>
+        <label className="request-inbox-sort">
+          <span>Sort</span>
+          <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="equipment">Equipment name</option>
+          </select>
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-expanded={advancedFilters}
+          aria-controls="request-inbox-advanced"
+          onClick={() => setAdvancedFilters((value) => !value)}
+        >
+          <SlidersHorizontal size={15} aria-hidden="true" />
+          Filters{Boolean(status || stage || type || from || to) ? ' •' : ''}
+        </Button>
+        {hasFilters && <Button size="sm" variant="ghost" onClick={resetFilters}>Clear</Button>}
+      </div>
+      {advancedFilters && <div id="request-inbox-advanced" className="request-inbox-advanced">
         <label>
           Summary
-          <SelectControl
-            className={selectClass}
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setOffset(0);
-            }}
-          >
+          <SelectControl className={selectClass} value={status} onChange={(event) => {setStatus(event.target.value);setOffset(0);}}>
             <option value="">All summaries</option>
-            {[
-              'PENDING',
-              'MIXED',
-              'READY',
-              'AWAITING_STOCK',
-              'PARTIALLY_FULFILLED',
-              'FULFILLED',
-              'REJECTED',
-              'CANCELLED',
-            ].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
+            {['PENDING','MIXED','READY','AWAITING_STOCK','PARTIALLY_FULFILLED','FULFILLED','REJECTED','CANCELLED'].map((value) =>
+              <option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}
           </SelectControl>
         </label>
         <label>
           Approval stage
-          <SelectControl
-            className={selectClass}
-            value={stage}
-            onChange={(e) => {
-              setStage(e.target.value);
-              setOffset(0);
-            }}
-          >
+          <SelectControl className={selectClass} value={stage} onChange={(event) => {setStage(event.target.value);setOffset(0);}}>
             <option value="">All stages</option>
-            {['LECTURER', 'HOD', 'APPROVED', 'REJECTED', 'CANCELLED'].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
+            {['LECTURER','HOD','APPROVED','REJECTED','CANCELLED'].map((value) =>
+              <option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}
           </SelectControl>
         </label>
         <label>
           Equipment type
-          <SelectControl
-            className={selectClass}
-            value={type}
-            disabled={!itemTypes.data}
-            onChange={(e) => setType(e.target.value)}
-          >
-            <option value="">All types</option>
-            <option value="RETURNABLE">Returnable</option>
-            <option value="CONSUMABLE">Consumable</option>
+          <SelectControl className={selectClass} value={type} disabled={!itemTypes.data} onChange={(event) => setType(event.target.value)}>
+            <option value="">All types</option><option value="RETURNABLE">Returnable</option><option value="CONSUMABLE">Consumable</option>
           </SelectControl>
         </label>
         <label>
           Created from
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setOffset(0);
-            }}
-          />
+          <Input type="date" value={from} onChange={(event) => {setFrom(event.target.value);setOffset(0);}} />
         </label>
         <label>
           Created before
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setOffset(0);
-            }}
-          />
+          <Input type="date" value={to} onChange={(event) => {setTo(event.target.value);setOffset(0);}} />
         </label>
-      </div>
+      </div>}
       {itemTypes.error && <ErrorNotice message={itemTypes.error} />}
       {result.error && <ErrorNotice message={result.error} />}
       {!approvals && category === 'drafts' ? (
