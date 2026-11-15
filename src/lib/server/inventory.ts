@@ -26,7 +26,7 @@ export async function inventory(request: Request, path: string[]) {
   const rpc = (op: string, p: unknown) =>
     transaction(
       async (c) =>
-        (await c.query('SELECT lab.inventory_call($1,$2,$3,$4) AS result', [token, csrf, op, p]))
+        (await c.query('SELECT lab.inventory_call($1,$2,$3,$4::jsonb) AS result', [token, csrf, op, p]))
           .rows[0].result
     );
   let op = path[0];
