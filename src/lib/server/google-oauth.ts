@@ -148,7 +148,7 @@ export async function connectGoogle(identity: GoogleIdentity): Promise<SessionRe
 }
 export async function registerGoogle(identity: GoogleIdentity, profile: unknown): Promise<SessionResult> {
   return transaction(async client => (
-    await client.query('SELECT lab.google_student_register($1,$2,$3) AS result',[identity.sub,identity.email,profile])
+    await client.query('SELECT lab.google_student_register($1,$2,$3::jsonb) AS result',[identity.sub,identity.email,profile])
   ).rows[0].result as SessionResult);
 }
 export async function getGoogleBatches(): Promise<{batches: Array<{id:string;name:string}>}> {
