@@ -30,7 +30,7 @@ const fail = (status: number, code: string): never => {
 };
 export async function recordDenial(r: Request, code: string) {
   await transaction(async (c) => {
-    await c.query('SELECT lab.denial($1,$2)', [cookie(r), code]);
+    await c.query('SELECT lab.denial($1,$2) IS NULL AS recorded', [cookie(r), code]);
   });
 }
 export async function handle(
