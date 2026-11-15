@@ -67,7 +67,7 @@ export async function reportResponse(request: Request) {
   );
   const invoke = (client: Client, body: Record<string, string | number>) =>
     client
-      .query('SELECT lab.admin_report($1,$2,$3) result', [token(request), name, body])
+      .query('SELECT lab.admin_report($1,$2,$3::jsonb) result', [token(request), name, body])
       .then((value) => value.rows[0].result as Result);
   const call = (body: Record<string, string | number>) =>
     transaction((client) => invoke(client, body));
