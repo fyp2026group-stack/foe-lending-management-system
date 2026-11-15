@@ -40,6 +40,27 @@ try {
     ),
     4
   );
+  // Prisma migration history must be owned by the migration role, not runtime.
+  const applied = (await owner.query(
+    'SELECT migration_name FROM lab._prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL'
+  )).rows.map((row) => row.migration_name);
+  assert.ok(applied.includes('0_init'), 'Prisma legacy baseline must be marked applied');
+  assert.ok(
+    applied.includes('20261115070200_admin_catalogue_reads'),
+    'Reference-read privilege migration must be applied'
+  );
+  for (const table of ['lab.batches', 'lab.laboratories', 'lab.staff_labs', 'lab.inv_locations', 'lab.user_batch_memberships']) {
+    assert.equal(
+      (await c.query('SELECT has_table_privilege(current_user,$1,\'SELECT\') AS allowed', [table])).rows[0].allowed,
+      true, 'Prisma reference-read grant missing: ' + table
+    );
+  }
+  for (const table of ['lab.users','lab.sessions','lab.inv_cells','lab.lend_lines','lab.audit']) {
+    assert.equal(
+      (await c.query('SELECT has_table_privilege(current_user,$1,\'SELECT\') AS allowed', [table])).rows[0].allowed,
+      false, 'Sensitive data read must remain denied: ' + table
+    );
+  }
   await assert.rejects(c.query('SELECT count(*) FROM lab.users'), (e) => e.code === '42501');
   for (const sql of [
     'CREATE TABLE lab.forbidden(id int)',
