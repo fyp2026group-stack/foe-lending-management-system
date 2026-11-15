@@ -151,8 +151,10 @@ test('per-item versioned HOD approval reserves all lines only after the last app
     const read=async()=>good(await call('student','read_requests',{requestId:submitted.id})).items[0];
     let req=await read();
     assert.equal(req.lines.length,2);
-    for(let index=0;index<2;index++){
-      let line=req.lines[index];
+    const independentLineIds = req.lines.map(line => line.id);
+    for(let index=0;index<independentLineIds.length;index++){
+      let line=req.lines.find(item=>item.id===independentLineIds[index]);
+      assert.ok(line);
       assert.equal(line.stage,'LECTURER',JSON.stringify(line));
       assert.equal(line.lecturerId,users.lecturer,JSON.stringify(line));
       good(await write('lecturer','decisions',{
