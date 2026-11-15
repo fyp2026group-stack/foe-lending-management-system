@@ -62,8 +62,10 @@ against the SQL constraints and protected functions.
 
 ## Database client
 
-The Prisma Client is generated into `src/generated/prisma` and is not
-committed. Generation happens after `npm ci` and before builds.
+The Prisma Client is temporarily generated through the `prisma-client-js`
+compatibility generator into `node_modules` and is not committed. Next.js
+Turbopack did not resolve the TypeScript-source generator's ignored output at
+runtime. Generation happens after `npm ci` and before builds.
 `prisma7.config.ts` loads the same local-only verification configuration.
 
 The exported `transaction()` wrapper preserves the existing
