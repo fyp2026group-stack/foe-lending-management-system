@@ -26,7 +26,9 @@ try {
    purpose:'approval diagnostic rollback-only',collectAt:new Date(Date.now()+3600000).toISOString(),returnAt:new Date(Date.now()+86400000).toISOString(),
    lecturerId:users.lecturer,lines:[{itemId:source.item_id,labId:source.lab_id,locationId:source.location_id,quantity:1}]
  });
+ await db.query('RESET ROLE');
  const line = request.id ? (await db.query('SELECT id,stage FROM lab.lend_lines WHERE request_id=$1',[request.id])).rows[0] : null;
+ await db.query('SET LOCAL ROLE lab_runtime');
  const decision = line ? await call('lecturer','decisions',{lineId:line.id,decision:'APPROVE',remarks:'diagnostic'}) : null;
  await db.query('RESET ROLE');
  const denied = (await db.query("SELECT action, details->>'operation' operation, details->>'sqlstate' sqlstate FROM lab.audit WHERE action='LENDING_DENIED' AND actor_id=$1 ORDER BY occurred_at DESC LIMIT 5",[users.lecturer])).rows;
