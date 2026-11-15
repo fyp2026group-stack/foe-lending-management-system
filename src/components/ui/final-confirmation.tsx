@@ -148,8 +148,10 @@ export function ConfirmedForm({
   className,
   context,
   enabled = true,
+  formId,
 }: {
   enabled?: boolean;
+  formId?: string;
   title: string;
   onConfirmed: (data: FormData, form: HTMLFormElement) => Promise<void>;
   children: ReactNode;
@@ -176,7 +178,7 @@ export function ConfirmedForm({
   }
   return (
     <>
-      <form onSubmit={submit} className={className}>
+      <form id={formId} onSubmit={submit} className={className}>
         {children}
       </form>
       {confirmation.dialog}

@@ -8,7 +8,7 @@ import { ErrorNotice } from '@/components/identity/session';
 import { AdminResourceWorkspace } from '@/components/identity/admin-management';
 import { CatalogueWorkspace } from '@/components/inventory/catalogue-workspace';
 import { useInventoryLookup } from '@/components/inventory/lookups';
-import type { Adjustment, Item } from '@/components/inventory/api';
+import type { Item } from '@/components/inventory/api';
 import { Requests } from '@/components/lending/request-workspace';
 import { RequestBuilder } from '@/components/lending/request-builder';
 import { StudentBorrowed, StudentHistory } from '@/components/lending/student-borrowed';
@@ -31,6 +31,8 @@ import {
 import { ReviewSheet } from '@/components/ui/review-sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { adminHref, adminLabels, type AdminView } from './model';
+import { ReportFilters } from './report-filters';
+import { formatReportValue } from './report-format';
 
 type ReportName = 'borrowing' | 'overdue' | 'inventory' | 'approvals' | 'audit';
 type ReportResponse = {
@@ -60,6 +62,7 @@ export function AdminWorkspace({
   if ((['users', 'batches', 'laboratories'] as AdminView[]).includes(view))
     return (
       <div className="admin-page">
+        <AdminSectionNav active={view} section="administration" />
         <AdminResourceWorkspace resource={view as Resource} session={session} />
       </div>
     );
@@ -80,14 +83,38 @@ export function AdminWorkspace({
         <Requests approvals session={session} revision={revision} refresh={refresh} />
       </AdminPage>
     );
-  if (view === 'adjustments') return <Adjustments revision={revision} refresh={refresh} />;
+  if (view === 'adjustments')
+    return (
+      <div className="admin-page">
+        <CatalogueWorkspace session={session} adjustmentsOnly />
+      </div>
+    );
   if (view === 'policies')
-    return <Policies session={session} revision={revision} refresh={refresh} />;
+    return <div className="admin-page"><AdminSectionNav active={view} section="administration" /><Policies session={session} revision={revision} refresh={refresh} /></div>;
   if (view === 'audit') return <Audit />;
   if (view === 'borrowing')
     return <MyBorrowing session={session} revision={revision} refresh={refresh} />;
   if (view === 'reports') return <Reports />;
   return <Overview session={session} revision={revision} />;
+}
+
+
+function AdminSectionNav({ active, section }: {
+  active: AdminView;
+  section: 'administration';
+}) {
+  const views: AdminView[] = ['users', 'batches', 'laboratories', 'policies'];
+  return (
+    <nav className="admin-context-nav" aria-label="Administration sections">
+      {views.map((view) => (
+        <Button key={view} asChild size="sm" variant={active === view ? 'default' : 'ghost'}>
+          <Link href={adminHref(view)} aria-current={active === view ? 'page' : undefined}>
+            {adminLabels[view]}
+          </Link>
+        </Button>
+      ))}
+    </nav>
+  );
 }
 
 function AdminPage({
@@ -124,7 +151,27 @@ function AdminPage({
 
 function Overview({ session, revision }: { session: Session; revision: number }) {
   const requests = useLendingChoices<BorrowRequest>('requests', revision);
-  const loans = useLendingChoices<Loan>('borrower-history', revision);
+  // Department-wide figures come from authorized reporting, not personal borrower history.
+  const [department, setDepartment] = useState<{
+    current: number;
+    overdue: number;
+    overdueRows: Array<Record<string, unknown>>;
+    error?: string;
+  }>();
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      api<ReportResponse>('/api/admin/reports?report=borrowing&kind=RETURNABLE&status=BORROWED&limit=1', { signal: controller.signal }),
+      api<ReportResponse>('/api/admin/reports?report=overdue&kind=RETURNABLE&limit=5', { signal: controller.signal }),
+    ]).then(([current, overdue]) => {
+      if (!controller.signal.aborted)
+        setDepartment({ current: current.total + overdue.total, overdue: overdue.total, overdueRows: overdue.items });
+    }).catch((error) => {
+      if (!controller.signal.aborted)
+        setDepartment({ current: 0, overdue: 0, overdueRows: [], error: error instanceof Error ? error.message : 'Department metrics unavailable.' });
+    });
+    return () => controller.abort();
+  }, [revision]);
   const history = useLendingChoices<HistoryEvent>('history', revision);
   const inspections = useLendingChoices<Loan>('inspections', revision);
   const items = useInventoryLookup<Item>('items', revision);
@@ -136,12 +183,9 @@ function Overview({ session, revision }: { session: Session; revision: number })
             .filter((line) => line.stage === 'HOD' && line.hodId === session.user.id)
             .map((line) => ({ request, line }))
     ) ?? [];
-  const [now] = useState(() => Date.now());
-  const active = loans.data?.items.filter((loan) => loan.returned < loan.quantity) ?? [];
-  const overdue = active.filter((loan) => Boolean(loan.dueAt && Date.parse(loan.dueAt) < now));
   const metrics = [
-    ['Borrowed returnable records', active.length, PackageCheck],
-    ['Overdue borrowing records', overdue.length, BarChart3],
+    ['Borrowed returnable records', department?.error ? '—' : department?.current ?? '—', PackageCheck],
+    ['Overdue borrowing records', department?.error ? '—' : department?.overdue ?? '—', BarChart3],
     ['Awaiting HOD decisions', assigned.length, ClipboardCheck],
     ['Awaiting inspection', inspections.data?.items.length ?? 0, ShieldCheck],
   ] as const;
@@ -154,7 +198,7 @@ function Overview({ session, revision }: { session: Session; revision: number })
       eyebrow="Department oversight"
       description={`Welcome, ${session.user.displayName}. Review departmental lending, inventory state and work requiring independent action.`}
     >
-      {[requests.error, loans.error, history.error, inspections.error, items.error]
+      {[requests.error, department?.error, history.error, inspections.error, items.error]
         .filter(Boolean)
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
@@ -223,18 +267,18 @@ function Overview({ session, revision }: { session: Session; revision: number })
             <CardDescription>Current records requiring follow-up.</CardDescription>
           </CardHeader>
           <CardContent className="admin-queue">
-            {overdue.slice(0, 5).map((loan) => (
-              <Link href={adminHref('reports')} key={loan.id}>
+            {department?.overdueRows.map((loan) => (
+              <Link href={adminHref('reports')} key={String(loan.id)}>
                 <span>
-                  <strong>{loan.item}</strong>
+                  <strong>{String(loan.item ?? 'Equipment')}</strong>
                   <small>
-                    {loan.borrower} · due {date(loan.dueAt)}
+                    {String(loan.borrower ?? 'Borrower')} · due {date(loan.dueAt)}
                   </small>
                 </span>
                 <Badge variant="destructive">Overdue</Badge>
               </Link>
             ))}
-            {loans.data && !overdue.length && (
+            {department && !department.error && !department.overdue && (
               <Empty
                 title="No overdue records"
                 detail="No outstanding record in this scope is past its due date."
@@ -341,6 +385,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
                 variant={report === name ? 'default' : 'ghost'}
                 onClick={() => {
                   setReport(name);
+                  setFilters({});
                   setOffset(0);
                 }}
               >
@@ -375,6 +420,8 @@ function Reports({ audit = false }: { audit?: boolean }) {
               setOffset(0);
             }}
             audit={audit}
+            report={report}
+            key={report}
           />
           {(error || exportError) && <ErrorNotice message={error ?? exportError} />}{' '}
           {!current && !error ? (
@@ -396,9 +443,7 @@ function Reports({ audit = false }: { audit?: boolean }) {
                     <TableRow key={String(row.id ?? i)}>
                       {columns.map((c) => (
                         <TableCell key={c}>
-                          {c.toLowerCase().includes('date') || c.toLowerCase().includes('at')
-                            ? date(row[c])
-                            : text(row[c])}
+                          {formatReportValue(c, row[c])}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -432,141 +477,6 @@ function Reports({ audit = false }: { audit?: boolean }) {
           </div>
         </CardContent>
       </Card>
-    </AdminPage>
-  );
-}
-
-function ReportFilters({
-  filters,
-  setFilters,
-  audit,
-}: {
-  filters: Record<string, string>;
-  setFilters: (filters: Record<string, string>) => void;
-  audit: boolean;
-}) {
-  const set = (name: string, value: string) => setFilters({ ...filters, [name]: value });
-  const primary = audit ? ['status', 'from', 'to'] : ['status', 'stage', 'kind', 'from', 'to'];
-  const advanced = audit
-    ? ['labId', 'borrowerId']
-    : ['batchId', 'labId', 'categoryId', 'itemId', 'borrowerId', 'lecturerId', 'officerId'];
-  const label = (name: string) =>
-    ({
-      status: 'Status / event type',
-      stage: 'Approval stage',
-      kind: 'Equipment type',
-      from: 'From date',
-      to: 'To date',
-      batchId: 'Academic batch',
-      labId: 'Laboratory',
-      categoryId: 'Category',
-      itemId: 'Equipment',
-      borrowerId: 'Borrower / registration',
-      lecturerId: 'Lecturer',
-      officerId: 'Technical officer',
-    })[name] ?? name;
-  return (
-    <>
-      <div className="admin-filterbar">
-        {primary.map((name) => (
-          <label key={name}>
-            {label(name)}
-            <Input
-              type={name === 'from' || name === 'to' ? 'date' : 'text'}
-              value={filters[name] ?? ''}
-              onChange={(e) => set(name, e.target.value)}
-            />
-          </label>
-        ))}
-        <Button variant="outline" onClick={() => setFilters({})}>
-          Clear
-        </Button>
-      </div>
-      <details className="admin-advanced-filters">
-        <summary>Advanced report filters</summary>
-        <div>
-          {advanced.map((name) => (
-            <label key={name}>
-              {label(name)}
-              <Input
-                value={filters[name] ?? ''}
-                onChange={(e) => set(name, e.target.value)}
-                placeholder="Authorized record reference"
-              />
-            </label>
-          ))}
-        </div>
-      </details>
-    </>
-  );
-}
-
-function Adjustments({ revision, refresh }: { revision: number; refresh: () => void }) {
-  const rows = useInventoryLookup<Adjustment>('adjustments', revision);
-  const items = useInventoryLookup<Item>('items', revision);
-  return (
-    <AdminPage
-      title={adminLabels.adjustments}
-      eyebrow="Independent stock reconciliation"
-      description="Review proposed ledger corrections independently; proposers cannot approve their own proposals."
-      refresh={refresh}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle>Adjustment review queue</CardTitle>
-          <CardDescription>Live proposals from the authorized inventory service.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {rows.error && <ErrorNotice message={rows.error} />}{' '}
-          {!rows.data && !rows.error ? (
-            <Skeleton className="h-24 m-4" />
-          ) : rows.data?.items.length ? (
-            <div className="table-region">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {['Item', 'Change', 'Proposer', 'Reason', 'Status'].map((x) => (
-                      <TableHead key={x}>{x}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.data.items.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        {items.data?.items.find((i) => i.id === row.itemId)?.name ?? row.itemId}
-                      </TableCell>
-                      <TableCell>
-                        {row.direction} {row.quantity}
-                      </TableCell>
-                      <TableCell>{row.proposer}</TableCell>
-                      <TableCell>{row.reason}</TableCell>
-                      <TableCell>
-                        <Badge variant={row.state === 'PENDING' ? 'secondary' : 'outline'}>
-                          {row.state}
-                        </Badge>
-                        {row.proposer === undefined ? null : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Empty
-              title="No adjustment proposals"
-              detail="Independent stock corrections will appear here when proposed."
-            />
-          )}
-        </CardContent>
-      </Card>
-      <p className="admin-note">
-        Approval controls are available in Inventory Oversight, where current stock version and
-        proposer conflict are revalidated by the server.
-      </p>
-      <Button asChild>
-        <Link href={adminHref('inventory')}>Open Inventory Oversight</Link>
-      </Button>
     </AdminPage>
   );
 }

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -36,7 +36,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { officerLabels, officerHref, type OfficerView } from '@/components/technical-officer/model';
 import { lecturerHref, lecturerLabels, lecturerViews } from '@/components/lecturer/model';
-import { adminGroups, adminHref, adminLabels, type AdminView } from '@/components/hod-admin/model';
+import { adminHref, adminLabels, type AdminView } from '@/components/hod-admin/model';
 import { useLendingChoices } from '@/components/lending/shared';
 import type { Allocation, Loan } from '@/components/lending/api';
 import { isStudent } from '@/components/lending/student-model';
@@ -66,7 +66,8 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
-import { api, ApiError, readSession, displayRoles, type Session } from './api';
+import { api, ApiError, readSession, displayRoles, roleLabels, type Role, type Session } from './api';
+import { selectWorkspaceRole } from './workspace-role';
 
 type IconName =
   | 'dashboard'
@@ -173,9 +174,8 @@ function OfficerNavigation({
       label: 'Operations',
       views: ['dashboard', 'handovers', 'returns', 'inspections'],
     },
-    { label: 'Inventory', views: ['inventory', 'stock', 'imports'] },
-    { label: 'My Borrowing', views: ['requests', 'borrowed'] },
-    { label: 'Reference', views: ['activity'] },
+    { label: 'Inventory & stock', views: ['inventory'] },
+    { label: 'Personal borrowing', views: ['requests'] },
   ] as const;
   return (
     <nav aria-label="Primary navigation">
@@ -225,7 +225,7 @@ function LecturerNavigation({ pathname, currentView }: { pathname: string; curre
         <SidebarGroupLabel>Lecturer workspace</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {lecturerViews.map((view) => {
+            {lecturerViews.filter((view) => view !== 'policies').map((view) => {
               const href = lecturerHref(view);
               const active =
                 pathname === href.split('?')[0] &&
@@ -265,14 +265,22 @@ function AdminNavigation({ pathname }: { pathname: string }) {
   const { setOpenMobile } = useSidebar();
   return (
     <nav aria-label="HOD and administrator navigation">
-      {adminGroups.map((group) => (
+      {[
+        { label: 'Department', views: ['overview', 'reports', 'inventory'] as AdminView[] },
+        { label: 'Approvals', views: ['approvals'] as AdminView[] },
+        { label: 'Administration', views: ['users'] as AdminView[] },
+        { label: 'Governance & Personal', views: ['audit', 'borrowing'] as AdminView[] },
+      ].map((group) => (
         <SidebarGroup key={group.label}>
           <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {group.views.map((view) => {
                 const href = adminHref(view);
-                const active = pathname === href;
+                const section = pathname.split('/')[2];
+                const active = pathname === href ||
+                  (view === 'users' && ['batches', 'laboratories', 'policies'].includes(section)) ||
+                  (view === 'inventory' && section === 'adjustments');
                 const icon: IconName = (
                   {
                     overview: 'dashboard',
@@ -290,14 +298,14 @@ function AdminNavigation({ pathname }: { pathname: string }) {
                 )[view];
                 return (
                   <SidebarMenuItem key={view}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={adminLabels[view]}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={view === 'users' ? 'Administration' : adminLabels[view]}>
                       <Link
                         href={href}
                         onClick={() => setOpenMobile(false)}
                         aria-current={active ? 'page' : undefined}
                       >
                         <Icon name={icon} />
-                        <span>{adminLabels[view]}</span>
+                        <span>{view === 'users' ? 'Administration' : adminLabels[view]}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -337,8 +345,7 @@ function Navigation({ session }: { session: Session }) {
               ['Browse Equipment', '/inventory', 'inventory'],
               ['My Requests', '/borrowing?view=requests', 'borrowing'],
               ['Borrowed Equipment', '/borrowing?view=loans', 'borrowing'],
-              ['Borrowing History', '/borrowing?view=history', 'borrowing'],
-              ['Help / Policies', '/borrowing?view=policies', 'labs'],
+
             ],
           },
         ]
@@ -525,22 +532,68 @@ function Brand() {
     </Link>
   );
 }
+
+function RoleSwitcher({
+  roles,
+  active,
+  select,
+}: {
+  roles: string[];
+  active: Role;
+  select: (role: Role) => void;
+}) {
+  if (roles.length < 2) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="workspace-role-trigger" aria-label="Switch workspace">
+          {roleLabels[active]}
+          <ChevronDown size={14} aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Switch authorized workspace</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {roles.filter((role): role is Role => role in roleLabels).map((role) => (
+          <DropdownMenuItem key={role} onSelect={() => select(role)}>
+            {roleLabels[role]}{active === role ? ' · Current' : ''}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+/** A shared shell avoids re-authenticating/remounting the full navigation on every route. */
+export const WorkspaceSessionContext = createContext<Session | null>(null);
+
 export function Authenticated({ children }: { children: (session: Session) => ReactNode }) {
+  const inheritedSession = useContext(WorkspaceSessionContext);
   const [session, setSession] = useState<Session | null>(null);
+  const [preferredRole, setPreferredRole] = useState<Role | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   useEffect(() => {
+    if (inheritedSession) return;
     const controller = new AbortController();
     api<Session>('/api/auth/me', { signal: controller.signal })
       .then(readSession)
-      .then(setSession)
+      .then((value) => {
+        // This is a presentation preference only. PostgreSQL remains the authority.
+        let remembered: string | null = null;
+        try { remembered = sessionStorage.getItem('lab-workspace:' + value.user.id); } catch {}
+        setPreferredRole(selectWorkspaceRole(value.user.roles, remembered));
+        setSession(value);
+      })
       .catch((error) => {
-        if (!controller.signal.aborted)
-          setError(error instanceof Error ? error.message : 'Unable to load session.');
+        if (controller.signal.aborted) return;
+        // The shared API helper redirects on 401. Do not render a dead-end
+        // "session ended" screen while the browser navigates to sign-in.
+        if (error instanceof ApiError && error.status === 401) return;
+        setError(error instanceof Error ? error.message : 'Unable to load session.');
       });
     return () => controller.abort();
-  }, []);
+  }, [inheritedSession]);
   async function logout() {
     if (!session) return;
     setBusy(true);
@@ -562,6 +615,9 @@ export function Authenticated({ children }: { children: (session: Session) => Re
       setBusy(false);
     }
   }
+  // Existing routed workspaces keep their Authenticated render-prop API, but
+  // the outer persistent layout now owns the one visible sidebar and session.
+  if (inheritedSession) return <>{children(inheritedSession)}</>;
   if (!session)
     return (
       <main id="main" tabIndex={-1} className="session-loading">
@@ -578,6 +634,19 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         )}
       </main>
     );
+  const activeRole = selectWorkspaceRole(session.user.roles, preferredRole);
+  const viewSession: Session = {
+    ...session,
+    // Component-level role presentation only; API requests retain the real session
+    // and the server always checks the full assigned-role set.
+    user: { ...session.user, roles: [activeRole] },
+  };
+  const chooseRole = (role: Role) => {
+    if (!session.user.roles.includes(role)) return;
+    setPreferredRole(role);
+    try { sessionStorage.setItem('lab-workspace:' + session.user.id, role); } catch {}
+    router.replace('/workspace');
+  };
   const initials = session.user.displayName
     .split(/\s+/)
     .slice(0, 2)
@@ -585,31 +654,32 @@ export function Authenticated({ children }: { children: (session: Session) => Re
     .join('')
     .toUpperCase();
   if (
-    !session.user.roles.includes('ADMIN') &&
-    (isStudent(session.user.roles) ||
-      session.user.roles.includes('TECHNICAL_OFFICER') ||
-      session.user.roles.includes('LECTURER'))
+    !viewSession.user.roles.includes('ADMIN') &&
+    (isStudent(viewSession.user.roles) ||
+      viewSession.user.roles.includes('TECHNICAL_OFFICER') ||
+      viewSession.user.roles.includes('LECTURER'))
   )
     return (
-      <StudentLayout session={session} initials={initials} busy={busy} logout={logout}>
+      <StudentLayout session={viewSession} initials={initials} busy={busy} logout={logout}
+        availableRoles={session.user.roles} onRoleChange={chooseRole}>
         {error && <ErrorNotice message={error} />}
-        {children(session)}
+        {children(viewSession)}
       </StudentLayout>
     );
   return (
     <SidebarProvider
       className={
-        session.user.roles.includes('ADMIN')
+        viewSession.user.roles.includes('ADMIN')
           ? 'workspace admin-shell'
-          : isStudent(session.user.roles)
+          : isStudent(viewSession.user.roles)
             ? 'workspace student-shell'
             : 'workspace'
       }
       style={
         {
-          '--sidebar-width': session.user.roles.includes('ADMIN')
+          '--sidebar-width': viewSession.user.roles.includes('ADMIN')
             ? '250px'
-            : isStudent(session.user.roles)
+            : isStudent(viewSession.user.roles)
               ? '16.5rem'
               : '15.5rem',
         } as React.CSSProperties
@@ -619,11 +689,11 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <SidebarHeader>
           <Brand />
           <p className="workspace-label">
-            {isStudent(session.user.roles) ? 'Laboratory Equipment Lending' : 'Laboratory services'}
+            {isStudent(viewSession.user.roles) ? 'Laboratory Equipment Lending' : 'Laboratory services'}
           </p>
         </SidebarHeader>
         <SidebarContent>
-          <Navigation session={session} />
+          <Navigation session={viewSession} />
         </SidebarContent>
         <SidebarFooter>
           <span className="muted text-xs">Faculty of Engineering</span>
@@ -638,7 +708,7 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <header className="topbar">
           <div className="topbar-left">
             <SidebarTrigger />
-            <WorkspaceBreadcrumb student={isStudent(session.user.roles)} />
+            <WorkspaceBreadcrumb student={isStudent(viewSession.user.roles)} />
           </div>
           <div className="account-menu">
             <span className="avatar" aria-hidden="true">
@@ -646,8 +716,9 @@ export function Authenticated({ children }: { children: (session: Session) => Re
             </span>
             <span className="account-copy">
               <strong>{session.user.displayName}</strong>
-              <small>{displayRoles(session.user.roles)}</small>
+              <small>{roleLabels[activeRole]}</small>
             </span>
+            <RoleSwitcher roles={session.user.roles} active={activeRole} select={chooseRole} />
             <Button
               variant="ghost"
               size="icon"
@@ -662,7 +733,7 @@ export function Authenticated({ children }: { children: (session: Session) => Re
         <div className="page-frame">
           {error && <ErrorNotice message={error} />}
           <main id="main" tabIndex={-1}>
-            {children(session)}
+            {children(viewSession)}
           </main>
           <footer>Faculty of Engineering / Laboratory inventory and equipment lending</footer>
         </div>
@@ -677,11 +748,15 @@ function StudentLayout({
   busy,
   logout,
   children,
+  availableRoles,
+  onRoleChange,
 }: {
   session: Session;
   initials: string;
   busy: boolean;
   logout: () => Promise<void>;
+  availableRoles: string[];
+  onRoleChange: (role: Role) => void;
   children: ReactNode;
 }) {
   return (
@@ -753,9 +828,20 @@ function StudentLayout({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{session.user.displayName}</DropdownMenuLabel>
+                {availableRoles.length > 1 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Switch workspace</DropdownMenuLabel>
+                    {availableRoles.filter((role): role is Role => role in roleLabels).map((role) => (
+                      <DropdownMenuItem key={role} onSelect={() => onRoleChange(role)}>
+                        {roleLabels[role]}{session.user.roles.includes(role) ? ' · Current' : ''}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/borrowing?view=policies">Help / Policies</Link>
+                  <Link href={session.user.roles.includes('ADMIN') ? '/admin/policies' : '/borrowing?view=policies'}>Help / Policies</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled={busy} onSelect={() => void logout()}>

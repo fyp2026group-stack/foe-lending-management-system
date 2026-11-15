@@ -6,8 +6,10 @@ import { officerHasRows } from './empty-model';
 import { useState, type ReactNode } from 'react';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight } from 'lucide-react';
+import { PackageCheck, Undo2, ClipboardCheck, Boxes, Activity, ArrowRight, Plus, FileSpreadsheet, SlidersHorizontal } from 'lucide-react';
 
 import type { Session } from '@/components/identity/api';
 
@@ -55,14 +57,14 @@ import type {
   Allocation,
   BorrowRequest,
   Loan,
-  HistoryEvent,
   Policy,
   OperationsSummary,
 } from '@/components/lending/api';
 
 import { useInventoryLookup } from '@/components/inventory/lookups';
 
-import { StockOperations, ImportPanel, ItemDetail } from '@/components/inventory/inventory';
+import { ImportPanel, ItemDetail, ReceiveItemsDialog } from '@/components/inventory/inventory';
+import { OfficerStockActions } from '@/components/inventory/officer-stock-actions';
 
 import type { Item, Named, Movement } from '@/components/inventory/api';
 
@@ -70,8 +72,6 @@ import {
   officerViews,
   officerLabels,
   officerHref,
-  operationalActions,
-  operationalEvents,
   isDue,
   laboratoryName,
   handoverRemarks,
@@ -208,6 +208,7 @@ export function OfficerWorkspace({
   session: Session;
   view?: string;
 }) {
+  const router = useRouter();
   const [revision, setRevision] = useState(0);
   const refresh = () => setRevision((r) => r + 1);
   const [creating, setCreating] = useState(view === 'new');
@@ -226,7 +227,7 @@ export function OfficerWorkspace({
         handovers: 'activity',
         returns: 'inspections',
         inspections: 'inventory',
-        inventory: 'stock',
+        inventory: 'activity',
         stock: 'activity',
         imports: 'stock',
         borrowed: 'requests',
@@ -240,7 +241,7 @@ export function OfficerWorkspace({
         handovers: 'View handover history',
         returns: 'View inspection queue',
         inspections: 'Inventory status',
-        inventory: 'Record receipt',
+        inventory: 'View inventory history',
         stock: 'View stock movements',
         imports: 'Stock operations',
         borrowed: 'My Requests',
@@ -270,11 +271,11 @@ export function OfficerWorkspace({
                 <Button onClick={() => setCreating(!creating)}>
                   {creating ? 'View my requests' : 'New borrowing request'}
                 </Button>
-              ) : (
+              ) : current !== 'inventory' && current !== 'imports' ? (
                 <Button asChild>
                   <Link href={officerHref(destination)}>{actionLabel}</Link>
                 </Button>
-              )}
+              ) : null}
             </>
           </>
         }
@@ -292,18 +293,36 @@ export function OfficerWorkspace({
           revision={revision}
           refresh={refresh}
         />
-      ) : ['inventory', 'stock', 'imports'].includes(current) ? (
-        <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />
-      ) : current === 'requests' ? (
-        <>
-          {creating ? (
-            <RequestBuilder session={session} revision={revision} refresh={refresh} />
-          ) : (
-            <Requests approvals={false} session={session} revision={revision} refresh={refresh} />
-          )}
-        </>
-      ) : current === 'borrowed' ? (
-        <StudentBorrowed session={session} revision={revision} refresh={refresh} />
+      ) : ['inventory', 'stock', 'imports', 'activity'].includes(current) ? (
+        <Tabs value={current === 'imports' || current === 'stock' ? 'inventory' : current}
+          onValueChange={(value) => router.push(officerHref(value as OfficerView))}>
+          <TabsList variant="line" className="officer-section-tabs" aria-label="Inventory">
+            <TabsTrigger value="inventory">Equipment</TabsTrigger>
+            <TabsTrigger value="activity">Inventory history</TabsTrigger>
+          </TabsList>
+          <TabsContent value={current === 'imports' || current === 'stock' ? 'inventory' : current} className="pt-3">
+            {current === 'activity'
+              ? <OperationsActivity revision={revision} />
+              : <InventoryArea view={current} session={session} revision={revision} refresh={refresh} />}
+          </TabsContent>
+        </Tabs>
+      ) : current === 'requests' || current === 'borrowed' ? (
+        <Tabs value={current} onValueChange={(value) => {
+          setCreating(false);
+          router.push(officerHref(value as OfficerView));
+        }}>
+          <TabsList variant="line" className="officer-section-tabs" aria-label="Personal borrowing">
+            <TabsTrigger value="requests">My Requests</TabsTrigger>
+            <TabsTrigger value="borrowed">Borrowed Equipment</TabsTrigger>
+          </TabsList>
+          <TabsContent value={current} className="pt-3">
+            {current === 'borrowed'
+              ? <StudentBorrowed session={session} revision={revision} refresh={refresh} />
+              : creating
+                ? <RequestBuilder session={session} revision={revision} refresh={refresh} />
+                : <Requests approvals={false} session={session} revision={revision} refresh={refresh} />}
+          </TabsContent>
+        </Tabs>
       ) : (
         <OperationsActivity revision={revision} />
       )}
@@ -340,7 +359,6 @@ function Dashboard({ session, revision }: { session: Session; revision: number }
       view: 'inspections',
       icon: ClipboardCheck,
     },
-    { label: 'Stock alerts', value: undefined, view: 'inventory', icon: Boxes },
     {
       label: completedOperationsLabel,
       value: summary.data?.completed.total,
@@ -367,9 +385,6 @@ function Dashboard({ session, revision }: { session: Session; revision: number }
           </Link>
         ))}
       </div>
-      <p className="muted text-xs mb-4">
-        Stock alerts are unavailable until an authoritative threshold policy is configured.
-      </p>
       {summary.data && (
         <p className="muted text-xs">
           Today across{' '}
@@ -763,7 +778,7 @@ function HandoverForm({
             value={asset}
             onChange={setAsset}
             options={[
-              { value: 'anonymous', label: 'Identify from anonymous reserved stock' },
+              { value: 'anonymous', label: 'Assign an identity to one reserved unit' },
               ...(assets.data?.items ?? []).map((a) => ({
                 value: a.assetId,
                 label: a.assetId + (a.serial ? ' / ' + a.serial : ''),
@@ -772,13 +787,14 @@ function HandoverForm({
           />
           {asset === 'anonymous' && (
             <Field>
-              <FieldLabel htmlFor="handover-serial">Manufacturer serial (optional)</FieldLabel>
+              <FieldLabel htmlFor="handover-serial">Manufacturer serial / reference (if present)</FieldLabel>
               <Input id="handover-serial" name="serial" maxLength={120} />
             </Field>
           )}
           <Notice>
-            Identifying an anonymous reserved unit does not increase total stock. The server
-            verifies the selected unit is eligible.
+            The system assigns a permanent internal ID to this unit, with a manufacturer serial
+            when available. Use the same identity for its return and inspections.
+            Identifying it does not increase the total quantity.
           </Notice>
         </>
       )}
@@ -1063,31 +1079,11 @@ function InventoryArea({
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [detail, setDetail] = useState<Item>();
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(view === 'imports');
+  const [stockOpen, setStockOpen] = useState(view === 'stock');
 
   const labs = summary.data?.laboratories ?? [];
-
-  if (view === 'imports') return <ImportPanel session={session} onSaved={refresh} />;
-
-  if (view === 'stock')
-    return (
-      <>
-        {summary.error && <ErrorNotice message={summary.error} />}
-        {!summary.data && !summary.error && <p role="status">Loading assigned laboratories...</p>}
-        <Notice>
-          Use Inspections for returned equipment clearance. Adjustment proposals require independent
-          authorization.
-        </Notice>
-        <StockOperations
-          session={session}
-          items={items.data?.items ?? []}
-          labs={labs}
-          locations={locations.data?.items ?? []}
-          onSaved={refresh}
-          revision={revision}
-          inspectionWorkflow
-        />
-      </>
-    );
 
   const rows = items.data?.items.filter(
     (i) =>
@@ -1097,29 +1093,29 @@ function InventoryArea({
 
   return (
     <>
-      <div className="officer-queue-metrics">
-        <Metric label="Catalogue items" value={rows?.length} />
-        {(['available', 'reserved', 'borrowed'] as const).map((key) => (
-          <Metric
-            key={key}
-            label={key.charAt(0).toUpperCase() + key.slice(1) + ' units'}
-            value={
-              rows?.every((i) => typeof i[key] === 'number')
-                ? rows.reduce((n, i) => n + (i[key] ?? 0), 0)
-                : undefined
-            }
-          />
-        ))}
+      <div className="officer-queue-metrics inventory-catalogue-metrics">
+        <Metric label="Equipment types" value={rows?.length} />
+        <Metric label="Returnable types" value={rows?.filter(i => i.kind === 'RETURNABLE').length} />
+        <Metric label="Consumable types" value={rows?.filter(i => i.kind === 'CONSUMABLE').length} />
       </div>
       {[locations.error, categories.error, policies.error, summary.error]
         .filter(Boolean)
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
         ))}
-      <Notice>
-        Catalogue creation, editing and deactivation require administrator authority in the existing
-        API. Officers can review assigned inventory and record authorized stock operations.
-      </Notice>
+      <div className="officer-inventory-toolbar">
+        <div><h2>Equipment catalogue</h2>
+          <p>Search by equipment name and check availability in your authorized laboratories.</p></div>
+        <div className="officer-inventory-actions">
+          <Button onClick={() => setReceiptOpen(true)}><Plus className="size-4"/>Add items</Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileSpreadsheet className="size-4"/>Import Excel
+          </Button>
+          <Button variant="outline" onClick={() => setStockOpen(true)}>
+            <SlidersHorizontal className="size-4"/>Identify units / corrections
+          </Button>
+        </div>
+      </div>
       <Records
         filtered={Boolean(query || category !== 'all' || lab !== 'all')}
         onReset={() => {
@@ -1128,7 +1124,7 @@ function InventoryArea({
           setLab('all');
         }}
         title="Inventory catalogue"
-        description="Separate item-level states; returnable equipment and consumables retain their own units."
+        description="Browse equipment and inspect available quantities, identified units, and locations."
         records={{ ...items, data: rows ? { items: rows } : undefined }}
         id={(i) => i.id}
         tools={
@@ -1198,19 +1194,38 @@ function InventoryArea({
           },
         ]}
       />
+      <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
+        session={session} labs={labs} locations={locations.data?.items ?? []} onSaved={refresh}/>
+      <ReviewSheet open={stockOpen} onOpenChange={setStockOpen}
+        title="Identify units & correct stock"
+        description="Identify an existing unit or request a separately approved quantity correction."
+        variant="stock">
+        <OfficerStockActions session={session} items={items.data?.items ?? []}
+          labs={labs} locations={locations.data?.items ?? []} revision={revision} onSaved={refresh}/>
+      </ReviewSheet>
+      <ReviewSheet open={importOpen} onOpenChange={setImportOpen}
+        title="Import equipment from Excel"
+        description="Review receipts before adding any equipment quantities.">
+        <ImportPanel session={session} onSaved={refresh}/>
+      </ReviewSheet>
       <ReviewSheet
         open={Boolean(detail)}
         onOpenChange={(open) => {
           if (!open) setDetail(undefined);
         }}
+        variant="equipment"
         title={detail?.name ?? 'Equipment details'}
         description="Locations, policies, assets and recorded movements."
       >
         {detail && (
           <>
-            <p>
-              Approval policy:{' '}
-              {policies.data?.items.find((p) => p.itemId === detail.id)?.policy ?? 'Unavailable'}
+            <p className="equipment-approval-note">
+              Borrowing approval: {(() => {
+                const policy = policies.data?.items.find(p => p.itemId === detail.id)?.policy;
+                return !policy || policy === 'UNCONFIGURED'
+                  ? 'Not configured — contact the HOD before issuing'
+                  : policy.replaceAll('_', ' ').toLowerCase();
+              })()}
             </p>
             <ItemDetail item={detail} revision={revision} labId={lab === 'all' ? '' : lab} />
           </>
@@ -1220,65 +1235,55 @@ function InventoryArea({
   );
 }
 
+/** Inventory history is for equipment stock movements, not login or lending events. */
 function OperationsActivity({ revision }: { revision: number }) {
-  const history = useLendingChoices<HistoryEvent>('history', revision);
   const movements = useInventoryLookup<Movement>('movements', revision);
+  const items = useInventoryLookup<Item>('items', revision);
   const [query, setQuery] = useState('');
-
-  const rows = [
-    ...operationalEvents(history.data?.items ?? []).map((e) => ({
-      id: e.action + e.targetId + e.occurredAt,
-      label: operationalActions[e.action],
-      date: e.occurredAt,
-      reference: e.targetId,
-      reason: '',
-    })),
-    ...(movements.data?.items ?? []).map((m) => ({
-      id: m.id,
-      label: m.kind.replaceAll('_', ' '),
-      date: m.createdAt,
-      reference: m.id,
-      reason: m.reason ?? '',
-    })),
-  ]
-    .filter((r) =>
-      `${r.label} ${r.reference} ${r.reason}`.toLowerCase().includes(query.toLowerCase())
+  const rows = (movements.data?.items ?? [])
+    .map((movement) => ({
+      id: movement.id,
+      label: movement.kind.replaceAll('_', ' ').toLowerCase(),
+      date: movement.createdAt,
+      equipment: items.data?.items.find(item => item.id === movement.itemId)?.name ?? 'Equipment',
+      reason: movement.reason ?? '',
+      entries: movement.entries ?? [],
+    }))
+    .filter(row =>
+      `${row.label} ${row.equipment} ${row.reason}`.toLowerCase().includes(query.toLowerCase())
     )
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  return (
-    <Records
-      filtered={Boolean(query)}
-      onReset={() => setQuery('')}
-      title="Laboratory operations & movements"
-      description="Security and session events are excluded from laboratory activity."
-      records={{
-        data: history.data && movements.data ? { items: rows } : undefined,
-        error: history.error ?? movements.error,
-      }}
-      id={(r) => r.id}
-      tools={
-        <Field>
-          <FieldLabel htmlFor="operation-search">Search operations</FieldLabel>
-          <Input id="operation-search" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </Field>
-      }
-      columns={[
-        { id: 'label', title: 'Operation', value: (r) => r.label },
-        { id: 'date', title: 'Recorded', value: (r) => r.date, cell: (r) => date(r.date) },
-        { id: 'reason', title: 'Factual notes', value: (r) => r.reason },
-        {
-          id: 'reference',
-          title: 'Record reference',
-          value: (r) => r.reference,
-          cell: (r) => (
-            <details>
-              <summary>Reference {r.reference.slice(0, 8)}</summary>
-              <span className="break-all">{r.reference}</span>
-            </details>
-          ),
-        },
-      ]}
-    />
-  );
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  return <Records
+    filtered={Boolean(query)}
+    onReset={() => setQuery('')}
+    title="Inventory history"
+    description="Recorded equipment receipts, identification, transfers and stock adjustments. Borrowing and sign-in activity is kept separately."
+    records={{
+      data: movements.data && items.data ? { items: rows } : undefined,
+      error: movements.error ?? items.error,
+    }}
+    id={row => row.id}
+    tools={<Field>
+      <FieldLabel htmlFor="operation-search">Search equipment history</FieldLabel>
+      <Input id="operation-search" value={query} placeholder="Equipment, action or reason"
+        onChange={event => setQuery(event.target.value)} />
+    </Field>}
+    columns={[
+      {id:'equipment',title:'Equipment',value:row=>row.equipment},
+      {id:'label',title:'Action',value:row=>row.label},
+      {id:'date',title:'Date',value:row=>row.date,cell:row=>date(row.date)},
+      {id:'reason',title:'Reason',value:row=>row.reason||'—'},
+      {id:'details',title:'Movement details',value:()=>'',cell:row=>
+        <details className="officer-activity-details">
+          <summary>View changes</summary>
+          {row.entries.length ? <ul>{row.entries.map((entry,index)=>
+            <li key={index}>
+              {entry.locationName || 'Stock movement'}{entry.state ? ' · '+entry.state.toLowerCase() : ''}
+              {' · '}{entry.delta>0?'+':''}{entry.delta}
+            </li>
+          )}</ul> : <p>Recorded inventory action</p>}
+        </details>
+      },
+    ]}
+  />;
 }

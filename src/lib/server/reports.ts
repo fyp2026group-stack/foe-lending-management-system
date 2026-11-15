@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate';
+import { csv, xlsx } from './report-export';
 import { transaction, type Client } from './db';
 
 const reports = new Set(['borrowing', 'overdue', 'inventory', 'approvals', 'audit']);
@@ -40,62 +40,6 @@ type Result = {
   offset?: number;
   metrics?: Record<string, unknown>;
 };
-
-function xml(value: unknown) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;');
-}
-function safe(value: unknown) {
-  const text =
-    typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? '');
-  return /^\s*[=+\-@]/.test(text) ? "'" + text : text;
-}
-function columns(rows: Record<string, unknown>[]) {
-  return [...new Set(rows.flatMap((row) => Object.keys(row)))];
-}
-function csv(rows: Record<string, unknown>[]) {
-  const keys = columns(rows),
-    quote = (value: unknown) => '"' + safe(value).replaceAll('"', '""') + '"';
-  return (
-    '\uFEFF' +
-    [
-      keys.map(quote).join(','),
-      ...rows.map((row) => keys.map((key) => quote(row[key])).join(',')),
-    ].join('\r\n')
-  );
-}
-function xlsx(rows: Record<string, unknown>[]) {
-  const keys = columns(rows),
-    all = [keys, ...rows.map((row) => keys.map((key) => safe(row[key])))];
-  const sheet = all
-    .map(
-      (row, index) =>
-        `<row r="${index + 1}">${row.map((value, column) => `<c r="${String.fromCharCode(65 + column)}${index + 1}" t="inlineStr"><is><t xml:space="preserve">${xml(value)}</t></is></c>`).join('')}</row>`
-    )
-    .join('');
-  const files: { [key: string]: Uint8Array } = {
-    '[Content_Types].xml': strToU8(
-      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'
-    ),
-    '_rels/.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'
-    ),
-    'xl/workbook.xml': strToU8(
-      '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Report" sheetId="1" r:id="rId1"/></sheets></workbook>'
-    ),
-    'xl/_rels/workbook.xml.rels': strToU8(
-      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
-    ),
-    'xl/worksheets/sheet1.xml': strToU8(
-      `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheet}</sheetData></worksheet>`
-    ),
-  };
-  return zipSync(files, { level: 6 });
-}
 
 export async function reportResponse(request: Request) {
   const url = new URL(request.url),
@@ -164,7 +108,13 @@ export async function reportResponse(request: Request) {
       { status: 413, headers: { 'Cache-Control': 'no-store' } }
     );
   const filename = `${name}-report.${format}`;
-  return new Response(format === 'csv' ? csv(rows) : xlsx(rows), {
+  // Copy the ZIP bytes into an ArrayBuffer accepted by the Web Response API.
+  // A Uint8Array<ArrayBufferLike> is not a guaranteed BodyInit in TS 5.9+.
+  const binary = format === 'xlsx' ? xlsx(rows) : null;
+  const body = binary
+    ? Uint8Array.from(binary).buffer
+    : csv(rows);
+  return new Response(body, {
     headers: {
       'Cache-Control': 'no-store',
       'Content-Disposition': `attachment; filename="${filename}"`,

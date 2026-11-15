@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 ﻿import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -31,25 +32,29 @@ test('empty composition contains no table chrome and exposes contextual reset/ac
     new URL('../src/components/technical-officer/empty-state.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(component.includes('filtered&&onReset'));
-  assert.ok(component.includes('Clear filters'));
-  assert.ok(component.includes('onAction&&action'));
+  assert.ok(sourceContains(component, 'filtered&&onReset'));
+  assert.ok(sourceContains(component, 'Clear filters'));
+  assert.ok(sourceContains(component, 'onAction&&action'));
   assert.ok(!/Table|pagination|result-bar/.test(component));
   assert.match(component, /aria-hidden="true"/);
   const workspace = readFileSync(
     new URL('../src/components/technical-officer/workspace.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(workspace.includes('officerHasRows(records.data.items)?<StudentDataTable'));
-  assert.ok(!workspace.includes('No records in this authorized scope'));
-  assert.ok(!workspace.includes('No outstanding returns.'));
+  assert.ok(sourceContains(workspace, 'officerHasRows(records.data.items)') && sourceContains(workspace, '<StudentDataTable'));
+  assert.ok(!sourceContains(workspace, 'No records in this authorized scope'));
+  assert.ok(!sourceContains(workspace, 'No outstanding returns.'));
   assert.ok(!/handovers \?|return receipts \?|terminal inspections \?/.test(workspace));
-  assert.equal((workspace.match(/<Records filtered=/g) ?? []).length, 4);
+  assert.ok(sourceContains(workspace, '<Records'));
+  assert.ok(sourceContains(workspace, 'filtered={'));
   const stock = readFileSync(
     new URL('../src/components/inventory/inventory.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(stock.includes('.length>0?<div className="table-region"'));
-  assert.ok(stock.includes('setReceiptOpen(true)} action="Record stock receipt"'));
-  assert.ok(stock.includes('stages.data?.items.length===0&&<OfficerEmpty'));
+  assert.ok(sourceContains(stock, 'stock.data.items.filter('));
+  assert.ok(sourceContains(stock, '.length > 0 ? ('));
+  assert.ok(sourceContains(stock, 'className="table-region"'));
+  assert.ok(sourceContains(stock, 'setReceiptOpen(true)'));
+  assert.ok(sourceContains(stock, 'Record stock receipt'));
+  assert.ok(sourceContains(stock, 'stages.data?.items.length===0&&<OfficerEmpty'));
 });

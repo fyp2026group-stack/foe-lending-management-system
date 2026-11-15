@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,17 +29,17 @@ test('lecturer dashboard uses real APIs and excludes security events', () => {
     '"history"',
     '"policies"',
   ])
-    assert.ok(source.includes(path), path);
-  assert.ok(source.includes('!["LOGIN", "LOGOUT"].includes(event.action)'));
+    assert.ok(sourceContains(source, path), path);
+  assert.ok(sourceContains(source, '!["LOGIN", "LOGOUT"].includes(event.action)'));
   assert.ok(
-    source.includes('line.stage === "LECTURER"') &&
-      source.includes('line.lecturerId === session.user.id')
+    sourceContains(source, 'line.stage === "LECTURER"') &&
+      sourceContains(source, 'line.lecturerId === session.user.id')
   );
-  assert.ok(source.includes('request.borrowerId === session.user.id') && source.includes('? []'));
+  assert.ok(sourceContains(source, 'request.borrowerId === session.user.id') && sourceContains(source, '? []'));
   assert.ok(
-    source.includes('<Requests') &&
-      source.includes('approvals\n') &&
-      source.includes('session={session}')
+    sourceContains(source, '<Requests') &&
+      sourceContains(source, 'approvals\n') &&
+      sourceContains(source, 'session={session}')
   );
 });
 
@@ -48,8 +49,8 @@ test('lecturer shell keeps reference hierarchy at accepted application density',
     'utf8'
   );
   const css = readFileSync(new URL('../src/app/workspace.css', import.meta.url), 'utf8');
-  assert.ok(shell.includes('LecturerNavigation'));
-  assert.ok(shell.includes('lecturer-shell'));
+  assert.ok(sourceContains(shell, 'LecturerNavigation'));
+  assert.ok(sourceContains(shell, 'lecturer-shell'));
   for (const token of [
     '--sidebar-width:260px',
     'height:18px',
@@ -61,8 +62,8 @@ test('lecturer shell keeps reference hierarchy at accepted application density',
     'lecturer-dashboard-grid',
     '@media(max-width:900px)',
   ])
-    assert.ok(css.includes(token), token);
-  assert.ok(!css.includes('.lecturer-shell .app-page-header h1{font-size:38px'));
+    assert.ok(sourceContains(css, token), token);
+  assert.ok(!sourceContains(css, '.lecturer-shell .app-page-header h1{font-size:38px'));
 });
 
 test('lecturer empty states distinguish filters and offer contextual actions', () => {
@@ -88,9 +89,9 @@ test('lecturer empty states distinguish filters and offer contextual actions', (
     'No matching records',
     'Clear filters',
   ])
-    assert.ok(empty.includes(text), text);
-  assert.ok(requests.includes('kind={approvals ? "approvals" : "requests"}'));
-  assert.ok(requests.includes('filtered={Boolean('));
+    assert.ok(sourceContains(empty, text), text);
+  assert.ok(sourceContains(requests, 'kind={approvals ? "approvals" : "requests"}'));
+  assert.ok(sourceContains(requests, 'filtered={Boolean('));
   for (const kind of [
     'kind="approvals"',
     'kind="borrowing"',
@@ -98,7 +99,7 @@ test('lecturer empty states distinguish filters and offer contextual actions', (
     'kind="activity"',
     'kind="policies"',
   ])
-    assert.ok(workspace.includes(kind), kind);
+    assert.ok(sourceContains(workspace, kind), kind);
 });
 
 test('policies and help follows the authoritative guidance hierarchy with live policy data', () => {
@@ -119,10 +120,10 @@ test('policies and help follows the authoritative guidance hierarchy with live p
     'Overdue equipment remains visible',
     'Item approval policies',
   ])
-    assert.ok(source.includes(text), text);
-  assert.ok(source.includes('useLendingChoices<Policy>("policies"'));
-  assert.ok(source.includes('policy.policy.replaceAll("_", " ")'));
-  assert.ok(!source.includes('How lecturer borrowing works'));
+    assert.ok(sourceContains(source, text), text);
+  assert.ok(sourceContains(source, 'useLendingChoices<Policy>("policies"'));
+  assert.ok(sourceContains(source, 'policy.policy.replaceAll("_", " ")'));
+  assert.ok(!sourceContains(source, 'How lecturer borrowing works'));
 });
 
 test('lecturer routes use the dedicated workspace rather than inventory administration', () => {
@@ -134,8 +135,8 @@ test('lecturer routes use the dedicated workspace rather than inventory administ
     new URL('../src/components/lending/workflow.tsx', import.meta.url),
     'utf8'
   );
-  const dashboard = readFileSync(new URL('../src/app/workspace/page.tsx', import.meta.url), 'utf8');
+  const dashboard = readFileSync(new URL('../src/components/workspace-home.tsx', import.meta.url), 'utf8');
   assert.ok(inventory.includes('<LecturerWorkspace session={session} view="equipment"'));
-  assert.ok(lending.includes('<LecturerWorkspace'));
-  assert.ok(dashboard.includes('<LecturerWorkspace session={session}'));
+  assert.ok(sourceContains(lending, '<LecturerWorkspace'));
+  assert.ok(sourceContains(dashboard, '<LecturerWorkspace session={session}'));
 });

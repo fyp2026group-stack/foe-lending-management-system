@@ -109,7 +109,8 @@ test('current approver authority and borrower eligibility are required, includin
     await mutate('INSERT INTO lab.staff_labs VALUES($1,$2)', [users.lecturer, stock.lab_id]);
     await assertConcealed(); // Lab assignment alone is insufficient.
     await mutate("INSERT INTO lab.user_roles VALUES($1,'LECTURER')", [users.lecturer]);
-    assert.equal((await call('lecturer', 'decisions', decision)).stage, 'HOD');
+    const approvedByLecturer = await call('lecturer', 'decisions', decision);
+    assert.equal(approvedByLecturer.stage, 'HOD', JSON.stringify(approvedByLecturer));
     assert.equal((await call('lecturer', 'decisions', decision)).stage, 'HOD', 'authorized replay');
     await mutate("DELETE FROM lab.user_roles WHERE user_id=$1 AND role='LECTURER'", [
       users.lecturer,

@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -31,26 +32,31 @@ test('HOD/Admin workspace uses real authorized APIs and preserves conflict bound
   );
   for (const token of [
     '"requests"',
-    '"borrower-history"',
+    '/api/admin/reports?report=overdue',
     '"inspections"',
     '"history"',
     '"policies"',
     '"adjustments"',
     '/api/admin/reports',
   ])
-    assert.ok(source.includes(token), token);
-  assert.ok(source.includes('request.borrowerId===session.user.id?[]'));
-  assert.ok(source.includes('line.stage==="HOD"&&line.hodId===session.user.id'));
-  assert.ok(source.includes('proposers cannot approve their own proposals'));
-  assert.ok(
-    source.includes('administrator authority never bypasses approval or handover conflicts')
+    assert.ok(sourceContains(source, token), token);
+  assert.ok(sourceContains(source, 'request.borrowerId===session.user.id?[]'));
+  assert.ok(sourceContains(source, 'line.stage==="HOD"&&line.hodId===session.user.id'));
+  const inventoryOps = readFileSync(
+    new URL('../src/components/inventory/inventory.tsx', import.meta.url), 'utf8'
   );
-  assert.ok(source.includes('UNCONFIGURED'));
+  // Approval safeguards now live in the dedicated Stock Adjustments flow.
+  assert.ok(sourceContains(inventoryOps, 'row.proposer === session.user.id'));
+  assert.ok(sourceContains(inventoryOps, 'Review independent approval'));
+  assert.ok(
+    sourceContains(source, 'administrator authority never bypasses approval or handover conflicts')
+  );
+  assert.ok(sourceContains(source, 'UNCONFIGURED'));
 });
 
 test('reports integrate all mandatory server filters and real CSV/XLSX exports', () => {
   const source = readFileSync(
-    new URL('../src/components/hod-admin/workspace.tsx', import.meta.url),
+    new URL('../src/components/hod-admin/report-filters.tsx', import.meta.url),
     'utf8'
   );
   for (const filter of [
@@ -67,11 +73,13 @@ test('reports integrate all mandatory server filters and real CSV/XLSX exports',
     'stage',
     'kind',
   ])
-    assert.ok(source.includes(filter), filter);
-  assert.ok(source.includes('format:${format}') || source.includes('format=${format}'));
-  assert.ok(source.includes('"csv"|"xlsx"'));
-  assert.ok(source.includes('scope:"operations"') || source.includes('value="operations"'));
-  assert.ok(source.includes('value="security"'));
+    assert.ok(sourceContains(source, filter), filter);
+  const exports = readFileSync(new URL('../src/components/hod-admin/workspace.tsx', import.meta.url), 'utf8');
+  assert.ok(sourceContains(exports, '&format=${format}'));
+  assert.ok(sourceContains(exports, "format: 'csv' | 'xlsx'"));
+  assert.ok(sourceContains(exports, "'csv' | 'xlsx'"));
+  assert.ok(sourceContains(exports, "value='operations'"));
+  assert.ok(sourceContains(exports, 'value="security"'));
 });
 
 test('admin shell follows reference dimensions and compact responsive composition', () => {
@@ -80,8 +88,8 @@ test('admin shell follows reference dimensions and compact responsive compositio
     'utf8'
   );
   const css = readFileSync(new URL('../src/app/workspace.css', import.meta.url), 'utf8');
-  assert.ok(shell.includes('AdminNavigation'));
-  assert.ok(shell.includes('admin-shell'));
+  assert.ok(sourceContains(shell, 'AdminNavigation'));
+  assert.ok(sourceContains(shell, 'admin-shell'));
   for (const token of [
     '--sidebar-width:250px',
     'height:28px',
@@ -94,7 +102,7 @@ test('admin shell follows reference dimensions and compact responsive compositio
     'admin-advanced-filters',
     '@media(max-width:480px)',
   ])
-    assert.ok(css.includes(token), token);
+    assert.ok(sourceContains(css, token), token);
 });
 
 test('admin routes prioritize the HOD workspace while preserving official branding', () => {
@@ -102,15 +110,21 @@ test('admin routes prioritize the HOD workspace while preserving official brandi
     new URL('../src/app/admin/[resource]/page.tsx', import.meta.url),
     'utf8'
   );
-  const workspace = readFileSync(new URL('../src/app/workspace/page.tsx', import.meta.url), 'utf8');
+  const workspace = readFileSync(new URL('../src/components/workspace-home.tsx', import.meta.url), 'utf8');
   const shell = readFileSync(
     new URL('../src/components/identity/session.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(route.includes('adminViews.includes'));
-  assert.ok(route.includes('<AdminWorkspace'));
-  assert.ok(
-    workspace.indexOf('includes("ADMIN")') < workspace.indexOf('includes("TECHNICAL_OFFICER")')
+  assert.ok(sourceContains(route, 'adminViews.includes'));
+  // Server page gates authorization; client entry owns the render-prop.
+  const entry = readFileSync(
+    new URL('../src/components/hod-admin/entry.tsx', import.meta.url), 'utf8'
   );
-  assert.ok(shell.includes('src="/foe-logo.png"'));
+  assert.ok(sourceContains(route, '<AdminEntry'));
+  assert.ok(sourceContains(route, "requirePageRole(['ADMIN'])"));
+  assert.ok(sourceContains(entry, '<AdminWorkspace'));
+  assert.ok(
+    workspace.indexOf("includes('ADMIN')") < workspace.indexOf("includes('TECHNICAL_OFFICER')")
+  );
+  assert.ok(sourceContains(shell, 'src="/foe-logo.png"'));
 });
