@@ -3,14 +3,13 @@
 import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2,
-  ClipboardCheck, ClipboardList, Clock3, Minus, Package, Plus,
+  ClipboardList, Clock3, Minus, Package, Plus,
   Search, ShieldCheck, Trash2 } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
 import { ApiError } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
