@@ -71,6 +71,9 @@ export function RequestBuilder({
     resolveBorrowingSources(selected, choices, lecturers.data?.items ?? [], session.user.id),
     [selected, choices, lecturers.data, session.user.id]);
   const needsLecturer = Boolean(resolved?.lines.some(line => policyRequiresLecturer(line.policy)));
+  const approvalRequirement = resolved?.lines.some(line => line.policy === 'BOTH' || line.policy === 'HOD')
+    ? needsLecturer ? 'Lecturer and HOD' : 'HOD'
+    : needsLecturer ? 'Lecturer' : 'No academic approval';
   const chosenLecturer = resolved?.eligible.find(person => person.id === lecturerId)?.id ?? '';
   const dateStart = collectAt ? Date.parse(collectAt) : NaN;
   const dateEnd = returnAt ? Date.parse(returnAt) : NaN;
@@ -99,6 +102,7 @@ export function RequestBuilder({
           ? [...current, { itemId, quantity: Math.min(quantity,limit) }]
           : current);
     setSubmissionDraft(null);
+    setMessage('');
   }
   function reset() {
     setStep(0); setSelected([]); setPurpose(''); setCollectAt(''); setReturnAt('');
@@ -175,12 +179,12 @@ export function RequestBuilder({
     <Button onClick={reset} variant="outline">Create another request</Button>
   </Card>;
 
-  return <Card className={'request-wizard '+(student?'request-wizard-student':'')}>
+  return <Card className={'request-wizard request-wizard-full '+(student?'request-wizard-student':'')}>
     <CardHeader className="request-wizard-heading">
       <p className="request-wizard-eyebrow">EQUIPMENT LENDING</p>
       <div className="request-wizard-title-row">
         <div><CardTitle>{draft?.predecessorId?'Correct borrowing request':'New borrowing request'}</CardTitle>
-          <CardDescription>Select equipment, provide the purpose and borrowing period, then submit.</CardDescription></div>
+          <CardDescription>Choose equipment, enter your borrowing details, and submit one request.</CardDescription></div>
         {selected.length>0 && <Badge variant="secondary">{selected.length} {selected.length===1?'item':'items'}</Badge>}
       </div>
     </CardHeader>
@@ -258,12 +262,12 @@ export function RequestBuilder({
                   disabled={busy||Boolean(uncertain)} onClick={()=>updateSelection(itemId,0)}><Trash2/></Button>
               </li>)}</ul> :
               <p className="request-wizard-cart-empty">Equipment you add will appear here.</p>}
-            <p className="request-wizard-cart-note">Quantities are checked again by the laboratory when your request progresses.</p>
+            <p className="request-wizard-cart-note">One request for all selected equipment.</p>
           </aside>
         </div>
         {selected.length>0 && !resolved && <Alert variant="destructive" className="mt-4">
-          <AlertTitle>Unable to arrange these items together</AlertTitle>
-          <AlertDescription>Current stock or lecturer coverage cannot support this combination. Reduce quantities, remove an item or contact the laboratory.</AlertDescription>
+          <AlertTitle>Selection needs attention</AlertTitle>
+          <AlertDescription>Check quantities and availability. Items requiring lecturer approval must have a common eligible lecturer.</AlertDescription>
         </Alert>}
       </section>}
 
@@ -284,6 +288,7 @@ export function RequestBuilder({
             <Input id="wizard-return" type="datetime-local" value={returnAt}
               onChange={e=>{setReturnAt(e.target.value);setSubmissionDraft(null);}}/></div>
         </div>
+        {!resolved && <Alert variant="destructive"><AlertTitle>Review your equipment selection</AlertTitle><AlertDescription>Adjust quantities or change equipment to match available stock and approval coverage.</AlertDescription></Alert>}
         {needsLecturer && <div className="request-wizard-lecturer">
           <label htmlFor="wizard-lecturer">Approving lecturer</label>
           <select id="wizard-lecturer" value={chosenLecturer}
@@ -291,12 +296,10 @@ export function RequestBuilder({
             <option value="">Select eligible lecturer</option>
             {resolved?.eligible.map(person=><option value={person.id} key={person.id}>{person.displayName}</option>)}
           </select>
-          <p>The lecturer must be authorized for the requested equipment. HOD approval, if needed, follows automatically.</p>
+
         </div>}
-        <div className="request-wizard-details-note"><ShieldCheck className="size-5" aria-hidden="true"/>
-          <p>Collection and return are handled by the Technical Officer. You do not need to choose a stock location or equipment serial number.</p>
-        </div>
-        {!detailsValid && <p className="request-wizard-validation">
+
+        {resolved && !detailsValid && <p className="request-wizard-validation">
           Enter a purpose, choose a future collection date, and select a later return date{needsLecturer?' and an eligible lecturer':''}.
         </p>}
       </section>}
@@ -318,9 +321,7 @@ export function RequestBuilder({
               <span>{item?.title??'Equipment'}</span><strong>{quantity} {item?.uom??'units'}</strong></li>)}</ul>
           </section>
         </div>
-        <div className="request-wizard-details-note"><ShieldCheck className="size-5" aria-hidden="true"/>
-          <p>Submitting sends the request through the applicable lecturer/HOD approvals. Stock and item policy are checked again by the server before issue.</p>
-        </div>
+        <div className="request-wizard-approval-summary"><ShieldCheck className="size-5" aria-hidden="true"/><span>Required approval: <strong>{approvalRequirement}</strong></span></div>
       </section>}
     </CardContent>
     <CardFooter className="request-wizard-footer">
@@ -330,7 +331,7 @@ export function RequestBuilder({
           onClick={()=>setStep(step-1)}><ArrowLeft className="size-4"/>Back</Button>}
         {step===0 && <Button variant="ghost" type="button" disabled={busy||Boolean(uncertain)}
           onClick={reset}>Clear selection</Button>}
-        {step<2 ? <Button type="button" disabled={busy||Boolean(uncertain)||!resolved||(step===1&&!detailsValid)}
+        {step<2 ? <Button type="button" disabled={busy||Boolean(uncertain)||!selected.length||(step===1&&(!resolved||!detailsValid))}
           onClick={()=>{setMessage('');setStep(step+1);}}>
           {step===0?'Continue to details':'Review request'}<ArrowRight className="size-4"/>
         </Button>:
