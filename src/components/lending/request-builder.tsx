@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardCheck,
-  Minus, Package, Plus, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2,
+  ClipboardCheck, ClipboardList, Clock3, Minus, Package, Plus,
+  Search, ShieldCheck, Trash2 } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
 import { ApiError } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
@@ -21,6 +23,7 @@ import { isStudent, readSelection, basketKey, approvalPath } from './student-mod
 import { availablePerEquipment, resolveBorrowingSources, type BorrowSelection } from './request-source-selector';
 
 const stepNames = ['Choose equipment', 'Request details', 'Review & submit'] as const;
+const stepDescriptions = ['Build your list', 'Purpose and schedule', 'Final confirmation'] as const;
 const toLocal = (date?: string) =>
   date ? new Date(new Date(date).getTime() - new Date(date).getTimezoneOffset() * 60000)
     .toISOString().slice(0,16) : '';
@@ -171,17 +174,73 @@ export function RequestBuilder({
     <p>Loading available equipment…</p><Skeleton className="h-80 w-full rounded-xl"/>
   </div>;
 
-  if (success) return <Card className="request-wizard-success" role="status">
-    <CheckCircle2 className="size-12 text-emerald-700" aria-hidden="true"/>
-    <CardTitle>Borrowing request submitted</CardTitle>
-    <CardDescription>Your request has been sent for the required approvals.
-      You can follow its progress in My Requests.</CardDescription>
-    <Button onClick={reset} variant="outline">Create another request</Button>
-  </Card>;
+  if (success) return (
+    <section className="request-complete" aria-labelledby="request-complete-title">
+      <div className="request-complete-banner">
+        <div className="request-complete-icon" aria-hidden="true"><Check className="size-9" /></div>
+        <div className="request-complete-intro" role="status">
+          <span className="request-complete-kicker"><CheckCircle2 className="size-4" /> Successfully submitted</span>
+          <h2 id="request-complete-title">Your request is in.</h2>
+          <p>Your equipment request has been recorded. You can follow its progress in My Requests.</p>
+        </div>
+        <div className="request-complete-status" aria-label="Request status">
+          <span>Current status</span>
+          <strong><CheckCircle2 className="size-4" /> Submitted</strong>
+          <small>{selected.length} equipment {selected.length === 1 ? 'type' : 'types'}</small>
+        </div>
+      </div>
+      <div className="request-complete-body">
+        <div className="request-complete-primary">
+          <div className="request-complete-section-title">
+            <div><span className="request-complete-eyebrow">REQUEST OVERVIEW</span><h3>Submission summary</h3></div>
+            <span className="request-complete-count">{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</span>
+          </div>
+          <dl className="request-complete-facts">
+            <div className="request-complete-purpose"><dt>Purpose</dt><dd>{purpose}</dd></div>
+            <div><dt><CalendarDays className="size-4" /> Collection</dt><dd>{new Date(dateStart).toLocaleString()}</dd></div>
+            <div><dt><Clock3 className="size-4" /> Expected return</dt><dd>{new Date(dateEnd).toLocaleString()}</dd></div>
+            <div><dt><ShieldCheck className="size-4" /> Approval route</dt><dd>{approvalRequirement}</dd></div>
+          </dl>
+          <div className="request-complete-items">
+            <h4><Package className="size-4" /> Requested equipment</h4>
+            <ul>{selectedRows.map(({itemId, quantity, item}) =>
+              <li key={itemId}><span className="request-complete-item-icon"><Package className="size-4" /></span>
+                <span className="request-complete-item-name">{item?.title ?? 'Equipment'}</span>
+                <span className="request-complete-item-quantity">{quantity} {item?.uom ?? 'units'}</span>
+              </li>
+            )}</ul>
+          </div>
+        </div>
+        <aside className="request-complete-next" aria-labelledby="request-next-title">
+          <span className="request-complete-eyebrow">NEXT STEPS</span>
+          <h3 id="request-next-title">What happens next?</h3>
+          <ol className="request-complete-timeline">
+            <li className="is-complete"><span className="request-complete-timeline-mark"><Check className="size-4" /></span>
+              <div><strong>Request submitted</strong><p>Your equipment list and borrowing details were received.</p></div>
+            </li>
+            <li><span className="request-complete-timeline-mark">2</span>
+              <div><strong>Review and processing</strong><p>Any required academic approvals will appear in your request status.</p></div>
+            </li>
+            <li><span className="request-complete-timeline-mark">3</span>
+              <div><strong>Ready for collection</strong><p>Check the request status before collecting equipment.</p></div>
+            </li>
+          </ol>
+          <div className="request-complete-track"><ClipboardList className="size-5" aria-hidden="true" />
+            <p>Track the request in <strong>My Requests</strong>.</p></div>
+        </aside>
+      </div>
+      <div className="request-complete-actions">
+        <Button asChild className="request-complete-primary-action">
+          <Link href="/borrowing?view=requests"><ClipboardList className="size-4" /> View my requests <ArrowRight className="size-4" /></Link>
+        </Button>
+        <Button type="button" variant="outline" onClick={reset}><Plus className="size-4" /> Create another request</Button>
+      </div>
+    </section>
+  );
 
   return <Card className={'request-wizard request-wizard-full '+(student?'request-wizard-student':'')}>
     <CardHeader className="request-wizard-heading">
-      <p className="request-wizard-eyebrow">EQUIPMENT LENDING</p>
+      <p className="request-wizard-eyebrow"><span className="request-wizard-eyebrow-mark" aria-hidden="true" /> EQUIPMENT LENDING / NEW REQUEST</p>
       <div className="request-wizard-title-row">
         <div><CardTitle>{draft?.predecessorId?'Correct borrowing request':'New borrowing request'}</CardTitle>
           <CardDescription>Choose equipment, enter your borrowing details, and submit one request.</CardDescription></div>
@@ -194,7 +253,7 @@ export function RequestBuilder({
           className={index===step?'is-current':index<step?'is-done':''}
           aria-current={index===step?'step':undefined}>
           <span className="request-wizard-progress-dot">{index<step?<Check className="size-4" aria-hidden="true"/>:index+1}</span>
-          <span>{name}</span>
+          <span className="request-wizard-progress-label"><strong>{name}</strong><small>{stepDescriptions[index]}</small></span>
         </li>)}
       </ol>
       {draft?.predecessorId && <p className="request-wizard-context">This corrects an earlier request. Its previous decisions remain in the history.</p>}
@@ -244,8 +303,8 @@ export function RequestBuilder({
                         disabled={busy||Boolean(uncertain)||chosen.quantity>=item.available}
                         onClick={()=>updateSelection(item.id,chosen.quantity+1)}><Plus/></Button>
                     </div> :
-                    <Button type="button" disabled={busy||Boolean(uncertain)||item.available<=0||selected.length>=20}
-                      onClick={()=>updateSelection(item.id,1)}><Plus className="size-4"/>Add</Button>}
+                    <Button type="button" className="request-wizard-add-button" disabled={busy||Boolean(uncertain)||item.available<=0||selected.length>=20}
+                      onClick={()=>updateSelection(item.id,1)}><Plus className="size-4"/>Add item</Button>}
                 </article>;
               })}
               {!matching.length && <div className="request-wizard-empty">
@@ -261,7 +320,7 @@ export function RequestBuilder({
                 <Button type="button" size="icon" variant="ghost" aria-label={'Remove '+(item?.title??'equipment')}
                   disabled={busy||Boolean(uncertain)} onClick={()=>updateSelection(itemId,0)}><Trash2/></Button>
               </li>)}</ul> :
-              <p className="request-wizard-cart-empty">Equipment you add will appear here.</p>}
+              <div className="request-wizard-cart-empty"><Package className="size-7" aria-hidden="true" /><strong>Nothing selected yet</strong><span>Choose equipment from the list to get started.</span></div>}
             <p className="request-wizard-cart-note">One request for all selected equipment.</p>
           </aside>
         </div>
