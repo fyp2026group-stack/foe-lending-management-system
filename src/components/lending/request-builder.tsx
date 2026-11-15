@@ -55,7 +55,7 @@ export function RequestBuilder({
         .map(line => [line.itemId, { itemId: line.itemId, quantity: line.quantity }] as const)).values());
     } catch { return []; }
   });
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(draft ? 1 : 0);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('ALL');
   const [purpose, setPurpose] = useState(draft?.payload.purpose ?? '');
@@ -243,7 +243,11 @@ export function RequestBuilder({
         <Button asChild className="request-complete-primary-action">
           <Link href="/borrowing?view=requests"><ClipboardList className="size-4" /> View my requests <ArrowRight className="size-4" /></Link>
         </Button>
-        <Button type="button" variant="outline" onClick={reset}><Plus className="size-4" /> Create another request</Button>
+        {draft ? (
+          <Button asChild variant="outline"><Link href="/borrowing?view=new"><Plus className="size-4" /> Create another request</Link></Button>
+        ) : (
+          <Button type="button" variant="outline" onClick={reset}><Plus className="size-4" /> Create another request</Button>
+        )}
       </div>
     </section>
   );
