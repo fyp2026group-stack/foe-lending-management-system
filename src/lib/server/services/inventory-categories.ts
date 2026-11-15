@@ -19,7 +19,8 @@ function catalogueQuery(payload: Record<string, unknown>): Query | null {
   const allowed = new Set([
     'limit','offset','q','labId','itemId','categoryId','kind','assetId','active','sort',
   ]);
-  if (Object.keys(payload).some(k => !allowed.has(k) || typeof payload[k] !== 'string')) {
+  if (Object.keys(payload).some(k => !allowed.has(k) ||
+    (['limit','offset'].includes(k) ? typeof payload[k] !== 'number' && typeof payload[k] !== 'string' : typeof payload[k] !== 'string'))) {
     return null;
   }
   const integer = (value: unknown, fallback: number) =>
