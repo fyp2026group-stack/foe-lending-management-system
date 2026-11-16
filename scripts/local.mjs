@@ -55,11 +55,13 @@ switch (command) {
     break;
   case 'db:migrate':
     requireConfig();
+    node('scripts/provision-runtime.mjs');
     node('scripts/database.mjs', 'migrate');
     node('scripts/prisma-migrations.mjs');
     break;
   case 'prisma:deploy':
     requireConfig();
+    node('scripts/provision-runtime.mjs');
     node('scripts/prisma-migrations.mjs');
     break;
   case 'db:seed':
