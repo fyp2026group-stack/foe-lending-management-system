@@ -2,6 +2,7 @@ import { transaction } from './db';
 import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
 import { readInventoryCategories } from './services/inventory-categories';
+import { mutateInventoryCategory } from './services/inventory-category-mutations';
 const resources = [
   'categories',
   'items',
@@ -64,6 +65,7 @@ export async function inventory(request: Request, path: string[]) {
     if (path.length !== 2 || !['categories', 'items', 'locations'].includes(op))
       return { status: 404, code: 'NOT_FOUND' };
     if (url.searchParams.size || 'id' in p) return { status: 422, code: 'UNSUPPORTED_FIELD' };
+    if (op === 'categories') return mutateInventoryCategory(token, csrf, 'patch_categories', { ...p, id: path[1] });
     return rpc('patch_' + op, { ...p, id: path[1] });
   }
   if (path[0] === 'imports' && path[1] === 'preview' && path.length === 2) {
@@ -95,5 +97,6 @@ export async function inventory(request: Request, path: string[]) {
     !['categories', 'items', 'locations', 'receipts', 'assets', 'stock', 'adjustments'].includes(op)
   )
     return { status: 404, code: 'NOT_FOUND' };
+  if (op === 'categories') return mutateInventoryCategory(token, csrf, 'categories', p);
   return rpc(op, p);
 }
