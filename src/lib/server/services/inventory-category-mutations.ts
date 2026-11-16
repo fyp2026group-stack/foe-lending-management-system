@@ -33,7 +33,7 @@ function nameValue(value: unknown): string | undefined {
 function allowedKeys(payload: Record<string, unknown>, keys: string[]): boolean {
   return Object.keys(payload).every(key => keys.includes(key));
 }
-function uuid(value: unknown): value is string {
+export function uuid(value: unknown): value is string {
   return typeof value === 'string' && uuidPattern.test(value);
 }
 
