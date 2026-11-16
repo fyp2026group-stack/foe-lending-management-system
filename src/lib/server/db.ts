@@ -71,3 +71,44 @@ export async function prismaTransaction<T>(
     timeout: 30000,
   });
 }
+
+/**
+ * Native Prisma mutation boundary for explicitly migrated services.
+ * The lab_orm account has narrowly scoped column grants; it is not the
+ * legacy lab_runtime user or the migration owner. Database and hostname
+ * must agree with the legacy connection to prevent cross-database writes.
+ */
+let ormClient: PrismaClient | undefined;
+function ormConnection(): PrismaClient {
+  const raw = process.env.ORM_DATABASE_URL;
+  const legacy = process.env.DATABASE_URL;
+  if (!raw || !legacy) throw new Error('ORM database configuration required');
+  const target = new URL(raw);
+  const expected = new URL(legacy);
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)
+      || target.hostname !== expected.hostname
+      || target.port !== expected.port
+      || target.pathname !== expected.pathname
+      || decodeURIComponent(target.username) !== 'lab_orm') {
+    throw new Error('Restricted ORM database connection required');
+  }
+  ormClient ??= new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString: raw,
+      max: 5,
+      connectionTimeoutMillis: 3000,
+      statement_timeout: 5000,
+    }),
+  });
+  return ormClient;
+}
+
+export async function nativeOrmTransaction<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  return ormConnection().$transaction(fn, {
+    isolationLevel: 'ReadCommitted',
+    maxWait: 3000,
+    timeout: 30000,
+  });
+}
