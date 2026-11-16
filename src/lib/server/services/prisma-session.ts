@@ -62,7 +62,7 @@ export async function authorizePrismaSession(
     return { status: 403, code: 'DENIED' };
   }
   // Keep sliding-session expiry checks and activity touch atomic with the read.
-  await tx.sessions.updateMany({
+  const touched = await tx.sessions.updateMany({
     where: {
       token_hash: hash,
       revoked: false,
@@ -71,6 +71,7 @@ export async function authorizePrismaSession(
     },
     data: { last_seen_at: now },
   });
+  if (touched.count !== 1) return { status: 401, code: 'UNAUTHENTICATED' };
   return { userId: session.user_id, roles };
 }
 
