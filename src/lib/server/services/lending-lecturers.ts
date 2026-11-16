@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import { nativeOrmTransaction } from '../db';
 import { isUuid } from './uuid';
+import { authorizePrismaSession, isAuthFailure } from './prisma-session';
 
 type Response =
   | { items: { id: string; displayName: string; labIds: string[] }[]; limit: number; offset: number }
@@ -33,33 +33,12 @@ export async function readEligibleLecturers(
   const page = pageOf(payload);
   if (!page) return { status: 422, code: 'INVALID' };
   return nativeOrmTransaction(async tx => {
-    const hash = createHash('sha256').update(token).digest('hex');
-    const session = token ? await tx.sessions.findUnique({
-      where: { token_hash: hash },
-      select: { user_id: true, revoked: true, expires_at: true, last_seen_at: true },
-    }) : null;
-    const now = new Date();
-    if (!session || session.revoked || session.expires_at <= now
-      || session.last_seen_at.getTime() <= now.getTime() - 30 * 60_000) {
-      return { status: 401, code: 'UNAUTHENTICATED' };
-    }
-    const user = await tx.users.findUnique({
-      where: { id: session.user_id }, select: { disabled: true },
-    });
-    if (!user || user.disabled) return { status: 401, code: 'UNAUTHENTICATED' };
-    const roles = await tx.user_roles.findMany({
-      where: { user_id: session.user_id }, select: { role: true },
-    });
-    if (!roles.some(row =>
-      ['ADMIN','STUDENT','LECTURER','TECHNICAL_OFFICER'].includes(row.role)
-    )) return { status: 403, code: 'DENIED' };
-    await tx.sessions.updateMany({
-      where: { token_hash: hash }, data: { last_seen_at: now },
-    });
+    const auth = await authorizePrismaSession(tx, token);
+    if (isAuthFailure(auth)) return auth;
     const users = await tx.users.findMany({
       where: {
         disabled: false,
-        id: { not: session.user_id },
+        id: { not: auth.userId },
         user_roles: { some: { role: 'LECTURER' } },
         staff_labs: {
           some: page.labId ? { laboratory_id: page.labId } : {},
