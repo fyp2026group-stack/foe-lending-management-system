@@ -22,6 +22,10 @@ function requireConfig() {
   if (!existsSync(envFile))
     throw new Error('Local configuration is missing. Run: npm run local:config');
   process.loadEnvFile(envFile);
+  // Older local configurations predate the dedicated ORM role. Upgrade
+  // in place without changing their existing credentials.
+  node('scripts/upgrade-orm-config.mjs');
+  process.loadEnvFile(envFile);
 }
 function node(script, ...args) {
   run(process.execPath, [resolve(root, script), ...args]);
