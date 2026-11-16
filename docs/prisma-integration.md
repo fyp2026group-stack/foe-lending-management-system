@@ -185,6 +185,47 @@ for command replay, concurrency, cancellations, returns, inspection,
 maintenance, immutable audit and history. Current SQL triggers deliberately
 protect direct Prisma writes once that transition occurs.
 
+## Native Prisma services (2026-11-16)
+
+A new `lab_orm` database role enables *actual* Prisma model operations
+without granting the old `lab_runtime` role arbitrary access to protected
+tables. Its password is generated separately; existing loopback
+`.verification/m2.env` files receive only the new `LOCAL_ORM_PASSWORD`
+and `ORM_DATABASE_URL` entries on first use. Existing credentials are
+preserved. Provisioning this role precedes Prisma's guarded migration
+deployment.
+
+The native service implementation is limited to:
+
+- Inventory category **POST/PATCH** (ORM transactions for catalogue
+  changes, idempotent `inv_commands`, audit insertion, optimistic versions
+  and current ADMIN / session / CSRF validation).
+- Lending lecturer directory **GET** (ORM session verification, live
+  lecturer role and laboratory membership, self-exclusion and narrow DTO).
+- Previously migrated ORM reads of inventory categories, equipment
+  policies and administrative reference data remain available.
+
+Prisma migration SQL deliberately keeps database constraints, advisory
+locks, protected triggers and field-level grants. The category-update
+guard allows `lab_orm` updates **only** on categories with a checked
+version increment and active-item safety. `lab_orm` has no read access
+to stock, loans, password hashes or audit contents; no update/delete
+access to audit or command ledgers. Tests in
+`tests/m3-inventory.integration.mjs`,
+`tests/m2-identity.integration.mjs`, and
+`tests/prisma-native-category.test.mjs` cover these services.
+
+**Status: still a hybrid backend.** The following are still protected
+SQL-function operations and are NOT certified as native Prisma services:
+sessions/login and governance, equipment items and locations mutation,
+receipts/stock movements/imports/adjustments, borrowing submissions,
+approval decisions, reservation, issue/return/inspection/maintenance,
+reports and audit history. Removing those functions or broadening
+`lab_orm` privileges before independent parity and concurrency
+verification would be unsafe. The legacy 53-file SQL initialization
+sequence and its guarded Prisma baseline remain necessary for clean
+database builds.
+
 ## Release gate
 
 Only deploy after the Prisma branch passes CI checks for Prisma validation,
