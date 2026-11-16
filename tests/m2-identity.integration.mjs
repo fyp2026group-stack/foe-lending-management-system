@@ -229,6 +229,25 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       assert.equal((await request('lending/lecturers?labId=invalid', { actor: actors.student })).status, 422);
       assert.equal((await request('lending/lecturers?limit=101', { actor: actors.student })).status, 422);
     });
+    await t.test('native inventory location directory restricts locations to active staff coverage', async () => {
+      assert.equal((await request('inventory/locations')).status,401);
+      const asAdmin=await request('inventory/locations',{actor:admin});
+      assert.equal(asAdmin.status,200);
+      assert.ok(asAdmin.data.items.some(row=>row.name==='Synthetic Store'));
+      const asStudent=await request('inventory/locations',{actor:actors.student});
+      assert.equal(asStudent.status,200);
+      assert.deepEqual(asStudent.data.items,[]);
+      const asLecturer=await request('inventory/locations',{actor:actors.lecturer});
+      assert.equal(asLecturer.status,200);
+      assert.deepEqual(asLecturer.data.items,[]);
+      const outsideLab=await request('inventory/locations?labId=10000000-0000-4000-8000-000000000002',{actor:actors.officer});
+      assert.equal(outsideLab.status,200);
+      assert.deepEqual(outsideLab.data.items,[]);
+      const currentLab=await request('inventory/locations?labId='+lab,{actor:actors.officer});
+      assert.equal(currentLab.status,200);
+      assert.ok(Array.isArray(currentLab.data.items));
+      assert.equal((await request('inventory/locations?labId=invalid',{actor:actors.officer})).status,422);
+    });
     await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
       const page = (route, actor) => fetch(cfg.origin + route, {
         redirect: 'manual',
