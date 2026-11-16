@@ -89,7 +89,16 @@ export async function mutateInventoryCategory(
         ? ['commandId', 'name']
         : ['commandId', 'id', 'expectedVersion', 'name', 'active'];
       if (!allowedKeys(payload, keys)) return failure(422, 'UNSUPPORTED_FIELD');
-      if (!uuid(payload.commandId)) return failure(422, 'COMMAND_REQUIRED');
+      if (!uuid(payload.commandId)) {
+        if (process.env.M2_TEST_ENABLE === 'synthetic-only') {
+          console.warn('Native category invalid command shape', {
+            keys: Object.keys(payload),
+            commandType: typeof payload.commandId,
+            commandLength: typeof payload.commandId === 'string' ? payload.commandId.length : null,
+          });
+        }
+        return failure(422, 'COMMAND_REQUIRED');
+      }
       const commandId = payload.commandId;
 
       const previous = await tx.inv_commands.findUnique({
