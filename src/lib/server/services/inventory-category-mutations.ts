@@ -1,10 +1,10 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { nativeOrmTransaction } from '../db';
+import { isUuid } from './uuid';
 
 type Result = Record<string, unknown>;
 type Failure = { status: number; code: string };
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const failure = (status: number, code: string): Failure => ({ status, code });
 
 /** A semantic JSON comparison, independent of user-supplied property order. */
@@ -32,9 +32,6 @@ function nameValue(value: unknown): string | undefined {
 }
 function allowedKeys(payload: Record<string, unknown>, keys: string[]): boolean {
   return Object.keys(payload).every(key => keys.includes(key));
-}
-export function uuid(value: unknown): value is string {
-  return typeof value === 'string' && uuidPattern.test(value);
 }
 
 /**
@@ -89,7 +86,7 @@ export async function mutateInventoryCategory(
         ? ['commandId', 'name']
         : ['commandId', 'id', 'expectedVersion', 'name', 'active'];
       if (!allowedKeys(payload, keys)) return failure(422, 'UNSUPPORTED_FIELD');
-      if (!uuid(payload.commandId)) return failure(422, 'COMMAND_REQUIRED');
+      if (!isUuid(payload.commandId)) return failure(422, 'COMMAND_REQUIRED');
       const commandId = payload.commandId;
 
       const previous = await tx.inv_commands.findUnique({
@@ -123,7 +120,7 @@ export async function mutateInventoryCategory(
         targetId = created.id;
         auditAction = 'INVENTORY_CREATE_CATEGORIES';
       } else {
-        if (!uuid(payload.id)) return failure(422, 'INVALID');
+        if (!isUuid(payload.id)) return failure(422, 'INVALID');
         if (!Number.isSafeInteger(payload.expectedVersion)
           || (payload.expectedVersion as number) < 0) return failure(422, 'INVALID');
         if (payload.name !== undefined && !nameValue(payload.name)) return failure(422, 'INVALID');
