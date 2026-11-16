@@ -1,4 +1,5 @@
-import { prismaTransaction } from '../db';
+import { nativeOrmTransaction } from '../db';
+import { authorizePrismaSession, isAuthFailure } from './prisma-session';
 
 type PolicyPage = {
   items: { itemId: string; name: string; policy: string; hodId: string | null }[];
@@ -26,8 +27,8 @@ function parsePage(payload: Record<string, unknown>):
 
 /**
  * Replaces the read_policies stored-function operation.
- * Session validation and Prisma SELECTs are in one consistent snapshot.
- * The runtime role has column-level SELECT grants only for the necessary
+ * Native session validation and Prisma SELECTs share a transaction.
+ * The restricted ORM role has column-level SELECT grants only for the necessary
  * catalogue and policy columns. No global table or write access is granted.
  */
 export async function readLendingPolicies(
@@ -36,17 +37,9 @@ export async function readLendingPolicies(
 ): Promise<PolicyPage | ApiFailure> {
   const page = parsePage(payload);
   if (!page) return { status: 422, code: 'INVALID' };
-  return prismaTransaction(async (tx) => {
-    const validation = await tx.$queryRaw<{
-      result: { status?: number; code?: string; user?: { id: string } };
-    }[]>`
-      SELECT lab.identity_call(
-        ${token}, ${''}, ${'me'}, NULL::uuid, '{}'::jsonb
-      ) AS result
-    `;
-    if (!validation[0]?.result.user) {
-      return { status: 401, code: 'UNAUTHENTICATED' };
-    }
+  return nativeOrmTransaction(async (tx) => {
+    const auth = await authorizePrismaSession(tx, token);
+    if (isAuthFailure(auth)) return auth;
     const rows = await tx.inv_items.findMany({
       select: {
         id: true,
