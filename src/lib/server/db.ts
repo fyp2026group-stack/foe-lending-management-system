@@ -1,11 +1,8 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-// All application database calls run through the existing security-definer
-// PostgreSQL RPC layer. Prisma supplies pooling and transaction management;
-// it must not replace authorization, inventory posting, or audit functions.
-// JSONB inputs are explicitly cast at their SQL call sites.
-// Existing stored functions return heterogeneous JSON envelopes.
+// Transitional adapter: existing RPC routes remain until they have native Prisma service replacements.
+// Native Prisma mutations use the restricted ORM role, and both adapters use parameterized inputs.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 export type Client = {
@@ -16,15 +13,17 @@ let prisma: PrismaClient | undefined;
 
 function connection(): PrismaClient {
   const url = process.env.DATABASE_URL;
-  if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) {
-    throw new Error('Local database required');
+  if (!url) throw new Error('DATABASE_URL is required');
+  const parsed = new URL(url);
+  if (!['postgresql:', 'postgres:'].includes(parsed.protocol)) {
+    throw new Error('PostgreSQL connection required');
   }
   prisma ??= new PrismaClient({
     adapter: new PrismaPg({
       connectionString: url,
-      max: 5,
-      connectionTimeoutMillis: 3000,
-      statement_timeout: 5000,
+      max: Number(process.env.DATABASE_POOL_SIZE ?? 5),
+      connectionTimeoutMillis: 10000,
+      statement_timeout: 30000,
     }),
   });
   return prisma;
@@ -73,10 +72,11 @@ export async function prismaTransaction<T>(
 }
 
 /**
- * Native Prisma mutation boundary for explicitly migrated services.
- * The lab_orm account has narrowly scoped column grants; it is not the
- * legacy lab_runtime user or the migration owner. Database and hostname
- * must agree with the legacy connection to prevent cross-database writes.
+ * Dedicated ORM connection. Supabase pooler credentials may append a project
+ * suffix to the role name (lab_orm.<project-ref>).
+ * Grant least-privilege access to this database role before enabling writes.
+ * Legacy and ORM credentials must point to the same PostgreSQL database;
+ * the deployment operator must verify this when using separate poolers.
  */
 let ormClient: PrismaClient | undefined;
 function ormConnection(): PrismaClient {
@@ -85,19 +85,17 @@ function ormConnection(): PrismaClient {
   if (!raw || !legacy) throw new Error('ORM database configuration required');
   const target = new URL(raw);
   const expected = new URL(legacy);
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)
-      || target.hostname !== expected.hostname
-      || target.port !== expected.port
-      || target.pathname !== expected.pathname
-      || decodeURIComponent(target.username) !== 'lab_orm') {
-    throw new Error('Restricted ORM database connection required');
+  if (!['postgresql:', 'postgres:'].includes(target.protocol)
+      || !['postgresql:', 'postgres:'].includes(expected.protocol)
+      || decodeURIComponent(target.username).split('.')[0] !== 'lab_orm') {
+    throw new Error('Restricted lab_orm PostgreSQL connection required');
   }
   ormClient ??= new PrismaClient({
     adapter: new PrismaPg({
       connectionString: raw,
       max: 5,
-      connectionTimeoutMillis: 3000,
-      statement_timeout: 5000,
+      connectionTimeoutMillis: 10000,
+      statement_timeout: 30000,
     }),
   });
   return ormClient;
