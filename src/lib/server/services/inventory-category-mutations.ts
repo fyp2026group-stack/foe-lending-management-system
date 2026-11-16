@@ -181,7 +181,8 @@ export async function mutateInventoryCategory(
       console.warn('Native Prisma category transaction diagnostic', {
         errorType: issue.constructor?.name,
         prismaCode: issue.code,
-        sqlState: issue.meta?.code,
+        sqlState: issue.meta?.code
+          ?? (error instanceof Error ? /Database error\\. Code: ([A-Z0-9]+)/.exec(error.message)?.[1] : undefined),
       });
     }
     // Expected PostgreSQL uniqueness and foreign-key violations are mapped
