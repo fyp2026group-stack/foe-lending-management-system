@@ -1,12 +1,15 @@
 import pg from 'pg';
 const url = process.env.MIGRATION_DATABASE_URL,
-  password = process.env.LOCAL_RUNTIME_PASSWORD;
+  password = process.env.LOCAL_RUNTIME_PASSWORD,
+  ormPassword = process.env.LOCAL_ORM_PASSWORD;
 if (
   !url ||
   !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname) ||
   !/^\/(lab_inventory|lab_m2_test_[a-z0-9_]+)$/.test(new URL(url).pathname) ||
   !password ||
-  password.length < 20
+  password.length < 20 ||
+  !ormPassword ||
+  ormPassword.length < 20
 )
   throw Error('Local database and runtime password20+ required');
 const c = new pg.Client({ connectionString: url, connectionTimeoutMillis: 3000 });
@@ -16,10 +19,15 @@ try {
   if (!(await c.query("SELECT 1 FROM pg_roles WHERE rolname='lab_runtime'")).rows.length)
     await c.query('CREATE ROLE lab_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT');
   await c.query("ALTER ROLE lab_runtime PASSWORD '" + password.replaceAll("'", "''") + "'");
+  if (!(await c.query("SELECT 1 FROM pg_roles WHERE rolname='lab_orm'")).rows.length)
+    await c.query('CREATE ROLE lab_orm LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT');
+  await c.query("ALTER ROLE lab_orm PASSWORD '" + ormPassword.replaceAll("'", "''") + "'");
   const db = '"' + new URL(url).pathname.slice(1) + '"';
   await c.query('REVOKE ALL ON DATABASE ' + db + ' FROM PUBLIC');
   await c.query('GRANT CONNECT ON DATABASE ' + db + ' TO lab_runtime');
   await c.query('REVOKE TEMPORARY ON DATABASE ' + db + ' FROM lab_runtime');
+  await c.query('GRANT CONNECT ON DATABASE ' + db + ' TO lab_orm');
+  await c.query('REVOKE TEMPORARY ON DATABASE ' + db + ' FROM lab_orm');
   await c.query('COMMIT');
 } catch (e) {
   await c.query('ROLLBACK');
