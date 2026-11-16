@@ -1,6 +1,7 @@
 import { transaction } from './db';
 import { boundedBody } from './work';
 import { readLendingPolicies } from './services/lending-policies';
+import { readEligibleLecturers } from './services/lending-lecturers';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -89,6 +90,9 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'policies') {
     return readLendingPolicies(token, payload);
+  }
+  if (request.method === 'GET' && name === 'lecturers') {
+    return readEligibleLecturers(token, payload);
   }
   return transaction(
     async (c) =>
