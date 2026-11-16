@@ -1,6 +1,6 @@
-import {createHash} from 'node:crypto';
 import {nativeOrmTransaction} from '../db';
 import {isUuid} from './uuid';
+import { authorizePrismaSession, isAuthFailure } from './prisma-session';
 
 const allowed = new Set(['limit','offset','q','labId','itemId','categoryId','kind','assetId','active','sort']);
 function parse(p:Record<string,unknown>) {
@@ -19,18 +19,17 @@ function parse(p:Record<string,unknown>) {
 export async function readInventoryLocations(token:string,p:Record<string,unknown>) {
   const f=parse(p); if(!f)return {status:422,code:'INVALID'};
   return nativeOrmTransaction(async tx=>{
-    const hash=createHash('sha256').update(token).digest('hex'),now=new Date();
-    const session=token?await tx.sessions.findUnique({where:{token_hash:hash},select:{user_id:true,revoked:true,expires_at:true,last_seen_at:true}}):null;
-    if(!session||session.revoked||session.expires_at<=now||session.last_seen_at.getTime()<=now.getTime()-1800000)return {status:401,code:'UNAUTHENTICATED'};
-    const user=await tx.users.findUnique({where:{id:session.user_id},select:{disabled:true}});
-    if(!user||user.disabled)return {status:401,code:'UNAUTHENTICATED'};
-    const roles=await tx.user_roles.findMany({where:{user_id:session.user_id},select:{role:true}});
-    const set=new Set(roles.map(x=>x.role));
-    if(![...set].some(x=>['ADMIN','STUDENT','LECTURER','TECHNICAL_OFFICER'].includes(x)))return {status:403,code:'DENIED'};
-    await tx.sessions.updateMany({where:{token_hash:hash},data:{last_seen_at:now}});
-    if(!set.has('ADMIN')&&!set.has('TECHNICAL_OFFICER'))return {items:[],limit:f.limit,offset:f.offset};
-    const labs=set.has('ADMIN')?undefined:(await tx.staff_labs.findMany({where:{user_id:session.user_id},select:{laboratory_id:true}})).map(x=>x.laboratory_id);
-    if(labs&&labs.length===0)return {items:[],limit:f.limit,offset:f.offset};
+    const auth = await authorizePrismaSession(tx, token);
+    if (isAuthFailure(auth)) return auth;
+    const roles = new Set(auth.roles);
+    if (!roles.has('ADMIN') && !roles.has('TECHNICAL_OFFICER')) {
+      return { items: [], limit: f.limit, offset: f.offset };
+    }
+    const labs = roles.has('ADMIN') ? undefined :
+      (await tx.staff_labs.findMany({
+        where: { user_id: auth.userId }, select: { laboratory_id: true },
+      })).map(row => row.laboratory_id);
+    if (labs && labs.length === 0) return { items: [], limit: f.limit, offset: f.offset };
     const items=await tx.inv_locations.findMany({
       where:{
         ...(f.labId?{lab_id:f.labId}:{}),
