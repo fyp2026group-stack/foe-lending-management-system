@@ -179,6 +179,14 @@ export async function mutateInventoryCategory(
       return result;
     });
   } catch (error) {
+    if (process.env.M2_TEST_ENABLE === 'synthetic-only') {
+      const issue = error as { code?: string; meta?: { code?: string }; constructor?: { name?: string } };
+      console.warn('Native Prisma category transaction diagnostic', {
+        errorType: issue.constructor?.name,
+        prismaCode: issue.code,
+        sqlState: issue.meta?.code,
+      });
+    }
     // Expected PostgreSQL uniqueness and foreign-key violations are mapped
     // without leaking internal database error details to API clients.
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
