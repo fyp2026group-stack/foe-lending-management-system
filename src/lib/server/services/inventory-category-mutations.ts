@@ -116,7 +116,7 @@ export async function mutateInventoryCategory(
         const name = nameValue(payload.name);
         if (!name) return failure(422, 'INVALID');
         const created = await tx.inv_categories.create({
-          data: { id: randomUUID(), name },
+          data: { id: randomUUID(), name, active: true, version: 0 },
           select: { id: true, active: true, version: true },
         });
         result = created;
