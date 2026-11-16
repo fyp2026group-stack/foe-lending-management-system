@@ -204,6 +204,31 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       assert.equal((await request('inventory/categories?limit=101', { actor: actors.student })).status,422);
       assert.equal((await request('inventory/categories?unexpected=value', { actor: actors.student })).status,422);
     });
+    await t.test('native Prisma lecturer directory exposes scoped names and laboratory IDs only', async () => {
+      const anonymous = await request('lending/lecturers');
+      assert.equal(anonymous.status, 401);
+      const student = await request('lending/lecturers', { actor: actors.student });
+      assert.equal(student.status, 200);
+      assert.ok(Array.isArray(student.data.items));
+      const eligible = student.data.items.find(row => row.id === accounts.lecturer.id);
+      assert.ok(eligible, 'assigned lecturer must appear to the borrower');
+      assert.deepEqual(eligible.labIds, [lab]);
+      assert.equal(eligible.displayName, 'Synthetic QA lecturer');
+      assert.equal(eligible.email, undefined);
+      assert.equal(student.data.limit, 50);
+      assert.equal(student.data.offset, 0);
+      const own = await request('lending/lecturers', { actor: actors.lecturer });
+      assert.equal(own.status, 200);
+      assert.ok(!own.data.items.some(row => row.id === accounts.lecturer.id));
+      const byLab = await request('lending/lecturers?labId=' + lab, { actor: actors.student });
+      assert.equal(byLab.status, 200);
+      assert.ok(byLab.data.items.some(row => row.id === accounts.lecturer.id));
+      const empty = await request('lending/lecturers?labId=' + randomUUID(), { actor: actors.student });
+      assert.equal(empty.status, 200);
+      assert.equal(empty.data.items.length, 0);
+      assert.equal((await request('lending/lecturers?labId=invalid', { actor: actors.student })).status, 422);
+      assert.equal((await request('lending/lecturers?limit=101', { actor: actors.student })).status, 422);
+    });
     await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
       const page = (route, actor) => fetch(cfg.origin + route, {
         redirect: 'manual',
