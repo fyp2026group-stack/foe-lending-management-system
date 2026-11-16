@@ -1,18 +1,19 @@
 import { existsSync } from 'node:fs';
 import { defineConfig } from 'prisma/config';
 
-// The application uses a local-only, generated configuration by design.
-// Prisma CLI commands may be run directly without changing that policy.
+// Local Docker verification is optional; cloud builds use injected env vars.
 if (!process.env.DATABASE_URL && existsSync('.verification/m2.env')) {
   process.loadEnvFile('.verification/m2.env');
 }
 
+// Always apply schema migrations through a direct/admin connection when
+// available; use the transaction pooler URL only for application queries.
+const migrationUrl = process.env.MIGRATION_DATABASE_URL
+  ?? process.env.DIRECT_URL
+  ?? process.env.DATABASE_URL;
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
-  // Existing database/*.sql migrations remain authoritative. Do not run migrate
-  // dev/deploy or db push against this database: protected SQL functions,
-  // ownership, triggers and security policies are managed outside Prisma.
-  ...(process.env.DATABASE_URL
-    ? { datasource: { url: process.env.DATABASE_URL } }
-    : {}),
+  migrations: { path: 'prisma/migrations' },
+  ...(migrationUrl ? { datasource: { url: migrationUrl } } : {}),
 });
