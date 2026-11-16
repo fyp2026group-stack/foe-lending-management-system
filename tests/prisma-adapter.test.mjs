@@ -4,14 +4,16 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Prisma adapter preserves transaction and local connection boundary', () => {
+test('Prisma adapter supports PostgreSQL connections and transactions', () => {
   const db = read('src/lib/server/db.ts');
   assert.match(db, /new PrismaPg\(/);
   assert.match(db, /new PrismaClient\(/);
   assert.match(db, /\.\$transaction\(/);
   assert.match(db, /\.\$queryRawUnsafe/);
   assert.match(db, /\.\$executeRawUnsafe/);
-  assert.match(db, /Local database required/);
+  assert.match(db, /DATABASE_URL is required/);
+  assert.match(db, /postgresql:/);
+  assert.doesNotMatch(db, /Local database required/);
   assert.doesNotMatch(db, /require\(['"]pg['"]\)/);
   assert.doesNotMatch(db, /new Pool\(/);
 });
