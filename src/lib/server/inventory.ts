@@ -2,6 +2,7 @@ import { transaction } from './db';
 import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
 import { readInventoryCategories } from './services/inventory-categories';
+import { readInventoryLocations } from './services/inventory-locations';
 import { mutateInventoryCategory } from './services/inventory-category-mutations';
 const resources = [
   'categories',
@@ -48,6 +49,7 @@ export async function inventory(request: Request, path: string[]) {
       } else p[key] = value;
     }
     if (op === 'categories') return readInventoryCategories(token, p);
+    if (op === 'locations') return readInventoryLocations(token, p);
     return rpc('read_' + op, p);
   }
   if (request.headers.get('origin') !== (process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000'))
