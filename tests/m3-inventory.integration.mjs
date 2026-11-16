@@ -92,7 +92,7 @@ test('M3 inventory PostgreSQL HTTP contract', async (t) => {
     }
     const command = (body) => ({ ...body, commandId: randomUUID() });
     const success = (result) => {
-      assert.ok([200, 201].includes(result.status), `Inventory mutation returned ${result.status}`);
+      assert.ok([200, 201].includes(result.status), `Inventory mutation returned ${result.status}: ${JSON.stringify(result.data)}`);
       return result.data;
     };
     await t.test('all four roles read catalogue', async () => {
