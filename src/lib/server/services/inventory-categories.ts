@@ -1,4 +1,5 @@
-import { prismaTransaction } from '../db';
+import { nativeOrmTransaction } from '../db';
+import { authorizePrismaSession, isAuthFailure } from './prisma-session';
 
 type CataloguePage = {
   items: { id: string; name: string; active: boolean; version: number }[];
@@ -60,19 +61,9 @@ export async function readInventoryCategories(
   const query = catalogueQuery(payload);
   if (!query) return { status: 422, code: 'INVALID' };
 
-  return prismaTransaction(async tx => {
-    const validation = await tx.$queryRaw<{
-      result: { user?: { roles?: string[] } };
-    }[]>`
-      SELECT lab.identity_call(
-        ${token}, ${''}, ${'me'}, NULL::uuid, '{}'::jsonb
-      ) AS result
-    `;
-    const user = validation[0]?.result.user;
-    if (!user) return { status: 401, code: 'UNAUTHENTICATED' };
-    if (!user.roles?.some(role =>
-      ['ADMIN','STUDENT','LECTURER','TECHNICAL_OFFICER'].includes(role)
-    )) return { status: 403, code: 'DENIED' };
+  return nativeOrmTransaction(async tx => {
+    const auth = await authorizePrismaSession(tx, token);
+    if (isAuthFailure(auth)) return auth;
 
     const rows = await tx.inv_categories.findMany({
       select: { id:true, name:true, active:true, version:true },
