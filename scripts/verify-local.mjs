@@ -11,11 +11,45 @@ if (
   new URL(ownerUrl).pathname !== '/lab_m2_test_identity'
 )
   throw Error('Isolated database required');
+const ormUrl = process.env.ORM_DATABASE_URL;
+if (!ormUrl || new URL(ormUrl).hostname !== '127.0.0.1'
+  || new URL(ormUrl).pathname !== '/lab_m2_test_identity'
+  || new URL(ormUrl).username !== 'lab_orm') throw Error('Restricted ORM database required');
 const c = new pg.Client({ connectionString: url }),
-  owner = new pg.Client({ connectionString: ownerUrl });
-await Promise.all([c.connect(), owner.connect()]);
+  owner = new pg.Client({ connectionString: ownerUrl }),
+  orm = new pg.Client({ connectionString: ormUrl });
+await Promise.all([c.connect(), owner.connect(), orm.connect()]);
 try {
   assert.equal((await c.query('SELECT current_user')).rows[0].current_user, 'lab_runtime');
+  assert.equal((await orm.query('SELECT current_user')).rows[0].current_user, 'lab_orm');
+  for (const table of [
+    'lab.inv_cells','lab.inv_movements','lab.lend_lines','lab.lend_loans','lab.login_challenges',
+  ]) {
+    assert.equal(
+      (await orm.query("SELECT has_table_privilege(current_user,$1,'SELECT') AS allowed", [table])).rows[0].allowed,
+      false, 'Native ORM role must not read protected data: ' + table
+    );
+  }
+  for (const [table, column] of [
+    ['lab.users', 'password_hash'], ['lab.sessions', 'token_hash'],
+    ['lab.audit', 'details'], ['lab.inv_items', 'specifications'],
+  ]) {
+    const allowed = (await orm.query(
+      "SELECT has_column_privilege(current_user,$1,$2,'SELECT') AS allowed",
+      [table,column]
+    )).rows[0].allowed;
+    assert.equal(allowed, table === 'lab.sessions',
+      'Native ORM must not read unrestricted protected columns: '+table+'.'+column);
+  }
+  for (const [table, privilege] of [
+    ['lab.audit','UPDATE'],['lab.audit','DELETE'],['lab.inv_commands','UPDATE'],
+    ['lab.inv_commands','DELETE'],['lab.inv_cells','INSERT'],['lab.lend_lines','INSERT'],
+  ]) {
+    assert.equal((await orm.query(
+      'SELECT has_table_privilege(current_user,$1,$2) AS allowed',
+      [table,privilege]
+    )).rows[0].allowed,false,'Native ORM excessive privilege: '+table+' '+privilege);
+  }
   const required = [
     'admin@example.invalid',
     'student@example.invalid',
@@ -111,5 +145,5 @@ try {
     'Runtime verification passed: required fixtures and roles exist; protected-table/DDL/audit access denied'
   );
 } finally {
-  await Promise.all([c.end(), owner.end()]);
+  await Promise.all([c.end(), owner.end(), orm.end()]);
 }
