@@ -87,6 +87,9 @@ function ormConnection(): PrismaClient {
   const expected = new URL(legacy);
   if (!['postgresql:', 'postgres:'].includes(target.protocol)
       || !['postgresql:', 'postgres:'].includes(expected.protocol)
+      || target.hostname !== expected.hostname
+      || target.port !== expected.port
+      || target.pathname !== expected.pathname
       || decodeURIComponent(target.username).split('.')[0] !== 'lab_orm') {
     throw new Error('Restricted lab_orm PostgreSQL connection required');
   }
