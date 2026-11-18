@@ -2,6 +2,7 @@ import { transaction } from './db';
 import { boundedBody } from './work';
 import { readLendingPolicies } from './services/lending-policies';
 import { readEligibleLecturers } from './services/lending-lecturers';
+import { readLendingComments, writeLendingComment } from './services/lending-comments';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -93,6 +94,11 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
+  }
+  if (name === 'comments') {
+    return request.method === 'GET'
+      ? readLendingComments(token, payload)
+      : writeLendingComment(token, csrf, payload);
   }
   return transaction(
     async (c) =>
