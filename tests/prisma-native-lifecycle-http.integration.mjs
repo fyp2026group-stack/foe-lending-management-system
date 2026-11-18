@@ -13,7 +13,7 @@ test('native HTTP: request-wide approvals through return and inspection', async 
   const db=new pg.Client({connectionString:cfg.database,connectionTimeoutMillis:3000});
   await db.connect();
   const run=randomUUID(),suffix=run.slice(0,8),password=randomBytes(24).toString('hex');
-  const batch=randomUUID(),lab=randomUUID(),category=randomUUID(),item=randomUUID(),location=randomUUID();
+  const batch=randomUUID(),lab=randomUUID(),category=randomUUID(),item=randomUUID(),freeItem=randomUUID(),location=randomUUID();
   const roles=['admin','student','lecturer','officer'];
   const accounts=Object.fromEntries(roles.map(r=>[r,{
     id:randomUUID(),email:`prisma-${r}-${run}@example.invalid`,
@@ -28,6 +28,8 @@ test('native HTTP: request-wide approvals through return and inspection', async 
       await db.query('INSERT INTO lab.inv_categories(id,name) VALUES($1,$2)',[category,'Native category '+run]);
       await db.query('INSERT INTO lab.inv_items(id,category_id,name,kind,uom) VALUES($1,$2,$3,$4,$5)',
         [item,category,'Native multimeter '+run,'RETURNABLE','unit']);
+      await db.query('INSERT INTO lab.inv_items(id,category_id,name,kind,uom) VALUES($1,$2,$3,$4,$5)',
+        [freeItem,category,'Native no-approval adaptor '+run,'RETURNABLE','unit']);
       await db.query('INSERT INTO lab.inv_locations(id,lab_id,name) VALUES($1,$2,$3)',
         [location,lab,'Native shelf '+run]);
       for(const role of roles){
@@ -41,6 +43,8 @@ test('native HTTP: request-wide approvals through return and inspection', async 
       }
       await db.query('INSERT INTO lab.lend_policies(item_id,policy,hod_id) VALUES($1,$2,$3)',
         [item,'BOTH',accounts.admin.id]);
+      await db.query('INSERT INTO lab.lend_policies(item_id,policy,hod_id) VALUES($1,$2,$3)',
+        [freeItem,'NONE',null]);
       await db.query('COMMIT');
     }catch(error){await db.query('ROLLBACK');throw error;}
 
@@ -72,19 +76,33 @@ test('native HTTP: request-wide approvals through return and inspection', async 
       quantity:1,provenance:'native-http-'+run,
     });
     assert.equal(received.status,200,'stock receipt '+JSON.stringify(received.data));
+    const otherReceipt=await call('inventory/receipts',actors.officer,{
+      commandId:c(),itemId:freeItem,labId:lab,locationId:location,
+      quantity:1,provenance:'native-other-'+run,
+    });
+    assert.equal(otherReceipt.status,200,'other receipt '+JSON.stringify(otherReceipt.data));
     const request=await call('lending/requests',actors.student,{
       commandId:c(),purpose:'Native integration laboratory equipment',
       collectAt:new Date(Date.now()+3600_000).toISOString(),
       returnAt:new Date(Date.now()+3*86400_000).toISOString(),
       lecturerId:accounts.lecturer.id,
-      lines:[{itemId:item,labId:lab,locationId:location,quantity:1}],
+      lines:[
+        {itemId:item,labId:lab,locationId:location,quantity:1},
+        {itemId:freeItem,labId:lab,locationId:location,quantity:1},
+      ],
     });
     assert.equal(request.status,200,'create request '+JSON.stringify(request.data));
     const requestId=request.data.id;
-    const line=(await db.query('SELECT id FROM lab.lend_lines WHERE request_id=$1',[requestId])).rows[0];
-    assert.ok(line?.id);
+    const requestLines=(await db.query('SELECT id,item_id FROM lab.lend_lines WHERE request_id=$1',[requestId])).rows;
+    assert.equal(requestLines.length,2);
+    const line=requestLines.find(x=>x.item_id===item);
+    const freeLine=requestLines.find(x=>x.item_id===freeItem);
+    assert.ok(line?.id&&freeLine?.id);
     const early=await call('lending/reserve',actors.student,{commandId:c(),lineId:line.id});
     assert.equal(early.status,409,'request not approved: '+JSON.stringify(early.data));
+    const earlyFree=await call('lending/reserve',actors.student,{commandId:c(),lineId:freeLine.id});
+    assert.equal(earlyFree.status,409,
+      'NONE-policy equipment must wait for approval of the entire request');
     const wrong=await call('lending/decisions',actors.student,{
       commandId:c(),lineId:line.id,decision:'APPROVE',remarks:'self',
     });
@@ -99,6 +117,11 @@ test('native HTTP: request-wide approvals through return and inspection', async 
     });
     assert.equal(hod.status,200,JSON.stringify(hod.data));
     assert.equal(hod.data.stage,'APPROVED');
+    const freeReserved=await call('lending/reserve',actors.student,{
+      commandId:c(),lineId:freeLine.id,
+    });
+    assert.equal(freeReserved.status,200,
+      'NONE-policy equipment should reserve after all request approvals');
     const reserved=await call('lending/reserve',actors.student,{
       commandId:c(),lineId:line.id,
     });
