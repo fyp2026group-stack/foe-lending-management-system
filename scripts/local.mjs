@@ -86,13 +86,13 @@ switch (command) {
   case 'db:setup:legacy':
     requireConfig();
     docker('up', '-d', '--wait');
-    node('scripts/provision-runtime.mjs');
+    node('scripts/provision-runtime.mjs', '--legacy');
     legacyBootstrap();
     node('scripts/provision-verifier.mjs');
     break;
   case 'db:migrate:legacy':
     requireConfig();
-    node('scripts/provision-runtime.mjs');
+    node('scripts/provision-runtime.mjs', '--legacy');
     legacyBootstrap();
     break;
   case 'prisma:deploy':
