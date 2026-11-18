@@ -13,7 +13,7 @@ function parse(payload: Record<string, unknown>): Page | null {
   const n = (x: unknown, fallback: number) =>
     x === undefined ? fallback :
     typeof x === 'number' && Number.isSafeInteger(x) ? x :
-    typeof x === 'string' && /^\\d+$/.test(x) ? Number(x) : NaN;
+    typeof x === 'string' && /^\d+$/.test(x) ? Number(x) : NaN;
   const limit = n(payload.limit, 20), offset = n(payload.offset, 0);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
       !Number.isSafeInteger(offset) || offset < 0 || offset > 10000) return null;
