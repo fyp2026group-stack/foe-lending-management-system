@@ -9,7 +9,13 @@ async function route(request: Request, { params }: { params: Promise<{ path: str
       status: status ?? 200,
       headers: { 'Cache-Control': 'no-store' },
     });
-  } catch {
+  } catch (error) {
+    // Diagnostic details are restricted to synthetic, non-production CI runs.
+    if (process.env.NODE_ENV !== 'production' && process.env.M2_TEST_ENABLE === 'synthetic-only') {
+      const detail = error instanceof Error ? error.message : 'unknown exception';
+      console.error('INVENTORY_SYNTHETIC_TEST_FAILURE', error instanceof Error ? error.name : 'Unknown',
+        detail.replace(/postgres(?:ql)?:\\/\\/\\S+/gi, '[redacted]').slice(0, 500));
+    }
     return Response.json(
       { code: 'UNAVAILABLE', correlationId },
       { status: 503, headers: { 'Cache-Control': 'no-store' } }
