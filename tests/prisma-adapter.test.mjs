@@ -24,13 +24,15 @@ test('Every protected JSONB RPC has an explicit cast', () => {
     ['src/lib/server/identity.ts', 'admin_governance'],
     ['src/lib/server/inventory.ts', 'inventory_call'],
     ['src/lib/server/lending.ts', 'lending_call'],
-    ['src/lib/server/reports.ts', 'admin_report'],
   ]) {
     const source = read(path);
     const statement = source.match(new RegExp('SELECT lab\\.' + name + '\\([^\\n]+'));
     assert.ok(statement, `Missing ${name} in ${path}`);
     assert.match(statement[0], /::jsonb/, `${name} must cast JSONB`);
   }
+  const report = read('src/lib/server/reports.ts');
+  assert.match(report, /readAdminReport\(/);
+  assert.doesNotMatch(report, /lab\.admin_report\(/);
   const google = read('src/lib/server/google-oauth.ts');
   assert.match(google, /googleRegister\(identity, profile\)/);
   assert.doesNotMatch(google, /lab\.google_student_(login|register|options)/);
