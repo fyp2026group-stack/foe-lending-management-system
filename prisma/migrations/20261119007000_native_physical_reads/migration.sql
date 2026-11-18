@@ -1,6 +1,6 @@
 -- Native physical read surfaces: event history is read-only; officer metrics
 -- are restricted by active server-side session and laboratory membership.
-GRANT SELECT (id,asset_id,item_id,lab_id,serial) ON lab.inv_assets TO lab_orm;
+GRANT SELECT (id,item_id,lab_id,serial) ON lab.inv_assets TO lab_orm;
 GRANT SELECT (id,actor_id,loan_id,quantity,condition,created_at)
  ON lab.lend_returns TO lab_orm;
 GRANT SELECT (id,return_id,asset_id,borrower_id,status,version,created_at)
