@@ -13,6 +13,7 @@ import { mutateInventoryItem } from './services/inventory-item-mutations';
 import { admitInventoryImport } from './services/inventory-import-admission';
 import { readInventoryMovements } from './services/inventory-movements';
 import { readInventoryAssets } from './services/inventory-assets';
+import { receiveInventory } from './services/inventory-receipts';
 const resources = [
   'categories',
   'items',
@@ -115,5 +116,6 @@ export async function inventory(request: Request, path: string[]) {
   if (op === 'categories') return mutateInventoryCategory(token, csrf, 'categories', p);
   if (op === 'locations') return mutateInventoryLocation(token, csrf, 'locations', p);
   if (op === 'items') return mutateInventoryItem(token, csrf, 'items', p);
+  if (op === 'receipts') return receiveInventory(token, csrf, p);
   return rpc(op, p);
 }
