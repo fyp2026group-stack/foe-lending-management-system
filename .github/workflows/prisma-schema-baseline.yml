@@ -27,7 +27,7 @@ jobs:
       - name: Provision isolated copy using existing SQL migrations
         run: |
           npm run local:config
-          npm run db:setup
+          npm run db:setup:legacy
       - name: Introspect full schema using isolated migration account
         run: |
           set -a
