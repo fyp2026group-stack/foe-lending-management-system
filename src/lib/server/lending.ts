@@ -10,6 +10,7 @@ import { decideLendingRequest } from './services/lending-decisions';
 import { reserveLendingLine } from './services/lending-reservations';
 import { issueLendingAllocation } from './services/lending-handovers';
 import { receiveLendingReturn } from './services/lending-returns';
+import { readLendingRequests } from './services/lending-request-reads';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -118,6 +119,9 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method !== 'GET' && name === 'requests') {
     return createLendingRequest(token, csrf, payload);
+  }
+  if (request.method === 'GET' && name === 'requests') {
+    return readLendingRequests(token, payload);
   }
   if (request.method === 'GET' && name === 'drafts') {
     return readLendingDrafts(token, payload);
