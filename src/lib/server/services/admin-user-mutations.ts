@@ -124,6 +124,13 @@ export async function changeAdminUser(
       }
 
       const id = userId ?? randomUUID();
+      const beforeRoles = creating ? [] : (await tx.user_roles.findMany({
+        where: { user_id: id }, select: { role: true }, orderBy: { role: 'asc' },
+      })).map(x => x.role);
+      const beforeLabs = creating ? [] : (await tx.staff_labs.findMany({
+        where: { user_id: id }, select: { laboratory_id: true },
+        orderBy: { laboratory_id: 'asc' },
+      })).map(x => x.laboratory_id);
       const oldBatches = creating ? [] : (await tx.user_batch_memberships.findMany({
         where: { user_id: id, ended_at: null },
         select: { batch_id: true },
@@ -196,8 +203,14 @@ export async function changeAdminUser(
           id: randomUUID(), actor_id: auth.userId, target_id: id,
           action: creating ? 'CREATE_USER' : 'PATCH_USER',
           details: {
-            roles: assignedRoles, batchIds: finalBatches,
-            laboratories: staffLabs, disabled: body.disabled ?? false,
+            before: creating ? null : {
+              disabled: current!.disabled, roles: beforeRoles, labs: beforeLabs,
+            },
+            after: {
+              disabled: creating ? false : body.disabled as boolean,
+              roles: [...assignedRoles].sort(), labs: [...staffLabs].sort(),
+            },
+            batchIds: finalBatches,
           },
         }],
       });
