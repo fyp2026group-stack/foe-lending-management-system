@@ -71,11 +71,11 @@ export async function changeLendingPolicy(
           operation: 'policies', payload: p as Prisma.InputJsonValue, result,
         },
       });
-      await tx.audit.create({
-        data: {
+      await tx.audit.createMany({
+        data: [{
           id: randomUUID(), actor_id: auth.userId,
           action: 'LENDING_POLICIES', target_id: null,
-        },
+        }],
       });
       return result;
     });
