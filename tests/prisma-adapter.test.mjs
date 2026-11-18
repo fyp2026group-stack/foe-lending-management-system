@@ -18,15 +18,13 @@ test('Prisma adapter supports PostgreSQL connections and transactions', () => {
   assert.doesNotMatch(db, /new Pool\(/);
 });
 
-test('Every protected JSONB RPC has an explicit cast', () => {
-  for (const [path, name] of [
-    ['src/lib/server/lending.ts', 'lending_call'],
-  ]) {
-    const source = read(path);
-    const statement = source.match(new RegExp('SELECT lab\\.' + name + '\\([^\\n]+'));
-    assert.ok(statement, `Missing ${name} in ${path}`);
-    assert.match(statement[0], /::jsonb/, `${name} must cast JSONB`);
-  }
+test('All protected application handlers invoke native Prisma services', () => {
+  const lending = read('src/lib/server/lending.ts');
+  assert.match(lending, /changeLendingDraft\(/);
+  assert.match(lending, /changePhysicalInspection\(/);
+  assert.match(lending, /changeLendingExtension\(/);
+  assert.match(lending, /readPhysicalLending\(/);
+  assert.doesNotMatch(lending, /lab\.lending_call\(/);
   const inventory = read('src/lib/server/inventory.ts');
   assert.match(inventory, /changeInventoryStock\(/);
   assert.doesNotMatch(inventory, /lab\.inventory_call\(/);
@@ -42,7 +40,7 @@ test('Every protected JSONB RPC has an explicit cast', () => {
   assert.doesNotMatch(google, /lab\.google_student_(login|register|options)/);
 });
 
-test('SQL migrations and function authorization remain authoritative', () => {
+test('Prisma migrations preserve baseline schema and historic protected invariants', () => {
   const schema = read('prisma/schema.prisma');
   const pkg = JSON.parse(read('package.json'));
   assert.match(schema, /datasource db/);
@@ -52,5 +50,5 @@ test('SQL migrations and function authorization remain authoritative', () => {
   assert.ok(!pkg.scripts['db:migrate'].includes('prisma'));
   assert.match(read('database/023_basic_lending.sql'), /SECURITY DEFINER/);
   assert.match(read('database/035_lending_lifecycle.sql'), /lend_reserve/);
-  assert.match(read('src/lib/server/lending.ts'), /lab\.lending_call/);
+  assert.doesNotMatch(read('src/lib/server/lending.ts'), /lab\.lending_call/);
 });
