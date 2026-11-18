@@ -75,7 +75,7 @@ jobs:
             sleep 1
           done
           curl --silent --fail http://127.0.0.1:3000/login >/dev/null
-          node --test tests/prisma-native-lifecycle-http.integration.mjs
+          node --test --test-concurrency=1 tests/prisma-native-lifecycle-http.integration.mjs tests/prisma-native-admin-report-http.integration.mjs
       - name: Verify balanced ledger and permissions
         if: success()
         run: |
