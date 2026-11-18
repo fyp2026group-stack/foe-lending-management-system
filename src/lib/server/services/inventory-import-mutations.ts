@@ -109,7 +109,8 @@ export async function commitInventoryImport(token:string,csrf:string,body:Record
         ? old.result as Record<string,unknown>:{status:409,code:'IDENTITY_CONFLICT'};
       if(stage.committed)return {status:409,code:'STATE_CONFLICT'};
       const invalid=await validateRows(tx,auth.userId,rows);
-      if(invalid)return invalid;
+      if(invalid)return invalid.code==='DUPLICATE_ROW'
+        ? {status:409,code:'DUPLICATE_ROW'} : invalid;
       for(const row of rows){
         const cell=await ensureCell(tx,{itemId:row.itemId,labId:row.labId,locationId:row.locationId,state:'AVAILABLE'});
         const movementId=await postStockMovement(tx,{actorId:auth.userId,itemId:row.itemId,labId:row.labId,
