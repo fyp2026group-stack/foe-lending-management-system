@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { transaction } from '@/lib/server/db';
+import { currentIdentity } from '@/lib/server/services/identity-session';
 import { canOpenRoute, type AppRole } from '@/lib/role-policy';
 
 /** Runs before streamed Server Components; never use sidebar visibility for authorization. */
@@ -11,20 +11,15 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('lab_session')?.value ?? '';
   if (!/^[a-f0-9]{64}$/.test(token))
     return NextResponse.redirect(new URL('/login', request.url), 307);
-  let result: { status?: number; user?: { roles?: AppRole[]; id?: string } };
+  let result: Awaited<ReturnType<typeof currentIdentity>>;
   try {
-    result = await transaction(async (client) =>
-      (await client.query(
-        "SELECT lab.identity_call($1,'','me',NULL,'{}'::jsonb) AS result",
-        [token]
-      )).rows[0].result
-    );
+    result = await currentIdentity(token);
   } catch {
     return NextResponse.json({ code: 'SESSION_CHECK_UNAVAILABLE' }, { status: 503, headers });
   }
-  if (!result?.user?.id || result.status === 401)
+  if ('status' in result || !result.user?.id)
     return NextResponse.redirect(new URL('/login', request.url), 307);
-  if (!canOpenRoute(pathname, searchParams.get('view'), result.user.roles ?? []))
+  if (!canOpenRoute(pathname, searchParams.get('view'), result.user.roles as AppRole[]))
     return new NextResponse('Not Found', { status: 404, headers });
   const response = NextResponse.next();
   response.headers.set('Cache-Control', 'no-store');
