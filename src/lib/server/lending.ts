@@ -12,6 +12,10 @@ import { issueLendingAllocation } from './services/lending-handovers';
 import { receiveLendingReturn } from './services/lending-returns';
 import { readLendingRequests } from './services/lending-request-reads';
 import { readLendingLoans } from './services/lending-loan-reads';
+import { changePhysicalInspection } from './services/lending-inspection-mutations';
+import { changeLendingExtension } from './services/lending-extension-mutations';
+import { changeLendingDraft } from './services/lending-draft-mutations';
+import { cancelLending } from './services/lending-cancellations';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -105,6 +109,20 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
+  }
+  if (request.method !== 'GET' && (name === 'inspections' || name === 'maintenance')) {
+    return changePhysicalInspection(token, csrf, name, payload);
+  }
+  if (request.method !== 'GET' &&
+      (name === 'extensions' || name === 'extension-decisions')) {
+    return changeLendingExtension(token, csrf, name, payload);
+  }
+  if (request.method !== 'GET' &&
+      (name === 'drafts' || name === 'submit' || name === 'revisions')) {
+    return changeLendingDraft(token, csrf, name, payload);
+  }
+  if (request.method !== 'GET' && name === 'cancel') {
+    return cancelLending(token, csrf, payload);
   }
   if (request.method !== 'GET' && name === 'returns') {
     return receiveLendingReturn(token, csrf, payload);
