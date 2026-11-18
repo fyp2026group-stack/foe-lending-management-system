@@ -41,9 +41,9 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm test
       - name: Build production application
         run: npm run build
+      - name: Unit tests (includes production-server smoke tests)
+        run: npm test
       - name: Require complete native Prisma migration
         run: npm run prisma:readiness:enforce
