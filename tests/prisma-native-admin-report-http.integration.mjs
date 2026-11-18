@@ -78,16 +78,16 @@ test('native Prisma administration, inventory catalogue, and report export', asy
     const listing=await request('inventory/items',actors.admin);
     assert.equal(listing.status,200,JSON.stringify(listing.data));
     assert.ok(listing.data.items.some(x=>x.id===item.data.id));
-    const report=await request('reports?report=audit&format=json',actors.admin);
+    const report=await request('admin/reports?report=audit&format=json',actors.admin);
     assert.equal(report.status,200,JSON.stringify(report.data));
     assert.ok(report.data.items.length>=1);
     assert.ok(report.data.items.some(x=>x.action==='CREATE_BATCH'||x.action==='CREATE_LABORATORY'));
-    const noReport=await request('reports?report=audit&format=json',actors.student);
+    const noReport=await request('admin/reports?report=audit&format=json',actors.student);
     assert.equal(noReport.status,403);
-    const csv=await request('reports?report=audit&format=csv',actors.admin);
+    const csv=await request('admin/reports?report=audit&format=csv',actors.admin);
     assert.equal(csv.status,200,String(csv.data).slice(0,350));
     assert.match(csv.headers.get('content-type'),/text\/csv/);
-    const xlsx=await fetch(cfg.origin+'/api/reports?report=inventory&format=xlsx',{
+    const xlsx=await fetch(cfg.origin+'/api/admin/reports?report=inventory&format=xlsx',{
       headers:{Cookie:actors.admin.cookie},
       signal:AbortSignal.timeout(15000),
     });
