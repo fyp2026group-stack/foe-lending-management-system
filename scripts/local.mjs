@@ -66,6 +66,7 @@ switch (command) {
     node('scripts/provision-runtime.mjs');
     node('scripts/database.mjs', 'migrate');
     node('scripts/prisma-migrations.mjs');
+    node('scripts/provision-verifier.mjs');
     break;
   case 'db:migrate':
     requireConfig();
