@@ -91,7 +91,7 @@ export async function changeLendingExtension(token:string,csrf:string,op:Operati
             decision:next,remarks:(p.remarks as string).trim()},
           select:{id:true},
         });
-        let dueAt=loan.due_at,loanVersion=loan.version;
+        let dueAt: Date | null = loan.due_at, loanVersion=loan.version;
         if(next==='APPROVE'){
           const updated=await tx.lend_loans.update({
             where:{id:loan.id},data:{due_at:extension!.proposed_due_at},
