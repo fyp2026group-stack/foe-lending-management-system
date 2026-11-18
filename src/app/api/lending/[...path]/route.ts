@@ -4,9 +4,9 @@ async function route(request: Request, { params }: { params: Promise<{ path: str
   const correlationId = crypto.randomUUID();
   try {
     const result = await lending(request, (await params).path);
-    const { status, ...data } = result;
+    const { status, ...data } = result as Record<string, unknown>;
     return Response.json(status ? { ...data, correlationId } : data, {
-      status: status ?? 200,
+      status: typeof status === 'number' ? status : 200,
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
