@@ -9,6 +9,7 @@ import { createLendingRequest } from './services/lending-request-mutations';
 import { decideLendingRequest } from './services/lending-decisions';
 import { reserveLendingLine } from './services/lending-reservations';
 import { issueLendingAllocation } from './services/lending-handovers';
+import { receiveLendingReturn } from './services/lending-returns';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -102,6 +103,9 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
+  }
+  if (request.method !== 'GET' && name === 'returns') {
+    return receiveLendingReturn(token, csrf, payload);
   }
   if (request.method !== 'GET' && name === 'issues') {
     return issueLendingAllocation(token, csrf, payload);
