@@ -8,6 +8,7 @@ import { readInventoryImports, readInventoryImportDetail } from './services/inve
 import { readInventoryAdjustments } from './services/inventory-adjustments';
 import { readInventoryLocations } from './services/inventory-locations';
 import { mutateInventoryCategory } from './services/inventory-category-mutations';
+import { mutateInventoryLocation } from './services/inventory-location-mutations';
 const resources = [
   'categories',
   'items',
@@ -76,6 +77,7 @@ export async function inventory(request: Request, path: string[]) {
       return { status: 404, code: 'NOT_FOUND' };
     if (url.searchParams.size || 'id' in p) return { status: 422, code: 'UNSUPPORTED_FIELD' };
     if (op === 'categories') return mutateInventoryCategory(token, csrf, 'patch_categories', { ...p, id: path[1] });
+    if (op === 'locations') return mutateInventoryLocation(token, csrf, 'patch_locations', { ...p, id: path[1] });
     return rpc('patch_' + op, { ...p, id: path[1] });
   }
   if (path[0] === 'imports' && path[1] === 'preview' && path.length === 2) {
@@ -108,5 +110,6 @@ export async function inventory(request: Request, path: string[]) {
   )
     return { status: 404, code: 'NOT_FOUND' };
   if (op === 'categories') return mutateInventoryCategory(token, csrf, 'categories', p);
+  if (op === 'locations') return mutateInventoryLocation(token, csrf, 'locations', p);
   return rpc(op, p);
 }
