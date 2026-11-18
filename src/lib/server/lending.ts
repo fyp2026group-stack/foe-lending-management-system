@@ -1,4 +1,3 @@
-import { transaction } from './db';
 import { boundedBody } from './work';
 import { readLendingPolicies } from './services/lending-policies';
 import { readEligibleLecturers } from './services/lending-lecturers';
@@ -16,6 +15,9 @@ import { changePhysicalInspection } from './services/lending-inspection-mutation
 import { changeLendingExtension } from './services/lending-extension-mutations';
 import { changeLendingDraft } from './services/lending-draft-mutations';
 import { cancelLending } from './services/lending-cancellations';
+import { readBorrowingSources } from './services/lending-source-reads';
+import { readPhysicalLending } from './services/lending-physical-reads';
+import { readOfficerOperations } from './services/lending-operations-summary';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -107,6 +109,16 @@ export async function lending(request: Request, path: string[]) {
       ? readLendingPolicies(token, payload)
       : changeLendingPolicy(token, csrf, payload);
   }
+  if (request.method === 'GET' && name === 'sources')
+    return readBorrowingSources(token, payload);
+  if (request.method === 'GET' && name === 'operations-summary')
+    return readOfficerOperations(token, payload);
+  if (request.method === 'GET' &&
+      ['borrowed','expected','overdue','inspections','maintenance',
+       'extensions','borrower-history','handover-assets'].includes(name))
+    return readPhysicalLending(token,
+      name as 'borrowed'|'expected'|'overdue'|'inspections'|'maintenance'|
+        'extensions'|'borrower-history'|'handover-assets',payload);
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
   }
@@ -154,15 +166,5 @@ export async function lending(request: Request, path: string[]) {
       ? readLendingComments(token, payload)
       : writeLendingComment(token, csrf, payload);
   }
-  return transaction(
-    async (c) =>
-      (
-        await c.query('SELECT lab.lending_call($1,$2,$3,$4::jsonb) AS result', [
-          token,
-          csrf,
-          (request.method === 'GET' ? 'read_' : '') + name,
-          payload,
-        ])
-      ).rows[0].result
-  );
+  return { status: 404, code: 'NOT_FOUND' };
 }
