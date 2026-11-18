@@ -43,6 +43,7 @@ export async function readLendingLoans(token:string,kind:Kind,body:Record<string
           lend_lines:{select:{
             item_id:true,lab_id:true,location_id:true,lecturer_id:true,hod_id:true,
             inv_items:{select:{name:true}},
+            laboratories:{select:{name:true}},
             lend_requests:{select:{
               id:true,borrower_id:true,purpose:true,collect_at:true,return_at:true,
               users:{select:{display_name:true,batch_id:true}},
@@ -62,6 +63,7 @@ export async function readLendingLoans(token:string,kind:Kind,body:Record<string
         return {id:a.id,lineId:a.line_id,quantity:a.quantity,issued:a.issued,
           cancelledQuantity:a.cancelled,remaining:a.quantity-a.issued-a.cancelled,
           itemId:l.item_id,item:l.inv_items.name,labId:l.lab_id,
+          labName:l.laboratories.name,
           locationId:l.location_id,requestId:r.id,purpose:r.purpose,
           collectAt:r.collect_at,returnAt:r.return_at,
           borrowerId:r.borrower_id,borrower:r.users.display_name};
@@ -81,6 +83,7 @@ export async function readLendingLoans(token:string,kind:Kind,body:Record<string
       select:{
         id:true,allocation_id:true,borrower_id:true,asset_id:true,quantity:true,
         returned:true,issued_by:true,issued_at:true,due_at:true,
+        lend_handovers:{select:{loan_id:true,actor_id:true,movement_id:true,remarks:true,created_at:true}},
         users_lend_loans_borrower_idTousers:{
           select:{display_name:true,batch_id:true},
         },
@@ -91,6 +94,7 @@ export async function readLendingLoans(token:string,kind:Kind,body:Record<string
         lend_allocations:{select:{lend_lines:{select:{
           item_id:true,lab_id:true,request_id:true,lecturer_id:true,hod_id:true,
           inv_items:{select:{name:true}},
+          laboratories:{select:{name:true}},
         }}}},
       },
       orderBy:[{issued_at:'desc'},{id:'asc'}],take:10001,
@@ -112,7 +116,9 @@ export async function readLendingLoans(token:string,kind:Kind,body:Record<string
         assetId:n.asset_id,quantity:n.quantity,returned:n.returned,
         outstanding:n.quantity-n.returned,dueAt:n.due_at,issuedAt:n.issued_at,
         issuedBy:n.issued_by,itemId:l.item_id,item:l.inv_items.name,
-        labId:l.lab_id,requestId:l.request_id,status,
+        labId:l.lab_id,labName:l.laboratories.name,
+        handover:n.lend_handovers,
+        requestId:l.request_id,status,
         returns:n.lend_returns.map(t=>({
           id:t.id,quantity:t.quantity,condition:t.condition,
           actorId:t.actor_id,createdAt:t.created_at,
