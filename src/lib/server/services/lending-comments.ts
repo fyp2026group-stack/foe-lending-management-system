@@ -19,17 +19,21 @@ async function visible(
   auth: AuthorizedSession,
   requestId: string
 ) {
-  const coverage = auth.roles.includes('TECHNICAL_OFFICER')
+  const scopedStaff = auth.roles.includes('TECHNICAL_OFFICER') ||
+    auth.roles.includes('LECTURER');
+  const coverage = scopedStaff
     ? (await tx.staff_labs.findMany({
-        where: { user_id: auth.userId }, select: { laboratory_id: true },
+        where: { user_id: auth.userId },
+        select: { laboratory_id: true },
       })).map(x => x.laboratory_id)
     : [];
   const scope: PrismaTypes.lend_linesWhereInput[] = [
     { lend_requests: { borrower_id: auth.userId } },
-    { lecturer_id: auth.userId },
-    { hod_id: auth.userId },
   ];
-  if (coverage.length) scope.push({ lab_id: { in: coverage } });
+  if (auth.roles.includes('LECTURER') && coverage.length)
+    scope.push({ lecturer_id: auth.userId, lab_id: { in: coverage } });
+  if (auth.roles.includes('TECHNICAL_OFFICER') && coverage.length)
+    scope.push({ lab_id: { in: coverage } });
   const match = await tx.lend_lines.findFirst({
     where: { request_id: requestId, ...(auth.roles.includes('ADMIN') ? {} : { OR: scope }) },
     select: { id: true },
