@@ -117,12 +117,12 @@ export async function mutateInventoryLocation(
           operation, payload: body as Prisma.InputJsonValue, result,
         },
       });
-      await tx.audit.create({
-        data: {
+      await tx.audit.createMany({
+        data: [{
           id: randomUUID(), actor_id: auth.userId, target_id: targetId,
           action: operation === 'locations' ? 'INVENTORY_CREATE_LOCATIONS' : 'INVENTORY_UPDATE_LOCATIONS',
           ...(details ? { details } : {}),
-        },
+        }],
       });
       return result;
     });
