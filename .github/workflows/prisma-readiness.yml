@@ -87,10 +87,12 @@ jobs:
         run: |
           PGPASSWORD=disposable-ci-only psql -h 127.0.0.1 -U postgres -d lab_m2_test_native -v ON_ERROR_STOP=1 -c "ALTER ROLE lab_orm LOGIN PASSWORD 'disposable-orm-ci-only'"
           node scripts/prisma-verify-native.mjs
+      - name: Build production application for clean-schema HTTP integration
+        run: npm run build
       - name: Run native HTTP lending and inventory integration on a clean Prisma database
         run: |
           set -euo pipefail
-          node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000 >/tmp/prisma-http.log 2>&1 &
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 >/tmp/prisma-http.log 2>&1 &
           server_pid=$!
           cleanup() {
             status=$?
