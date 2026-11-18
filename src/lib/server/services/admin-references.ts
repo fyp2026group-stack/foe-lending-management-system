@@ -73,8 +73,14 @@ export async function patchUserPreservingBatches(
   payload: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   return prismaTransaction(async (tx) => {
-    const auth = await authorizePrismaSession(tx, token, { requiredRoles: ['ADMIN'] });
-    if (isAuthFailure(auth)) return auth;
+    const verified = await tx.$queryRaw<{ result: { user?: { id: string; roles: string[] } } }[]>`
+      SELECT lab.identity_call(
+        ${token}, ${''}, ${'me'}, NULL::uuid, '{}'::jsonb
+      ) AS result
+    `;
+    const identity = verified[0]?.result;
+    if (!identity?.user) return { status: 401, code: 'UNAUTHENTICATED' };
+    if (!identity.user.roles.includes('ADMIN')) return { status: 403, code: 'DENIED' };
 
     const memberships = await tx.user_batch_memberships.findMany({
       where: { user_id: userId, ended_at: null },
