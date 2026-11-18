@@ -1,5 +1,5 @@
 import { csv, xlsx } from './report-export';
-import { transaction, type Client } from './db';
+import { readAdminReport, type ReportName } from './services/admin-reports';
 
 const reports = new Set(['borrowing', 'overdue', 'inventory', 'approvals', 'audit']);
 const allowed = new Set([
@@ -65,48 +65,25 @@ export async function reportResponse(request: Request) {
   const payload = Object.fromEntries(
     [...params].filter(([key]) => !['report', 'format'].includes(key))
   );
-  const invoke = (client: Client, body: Record<string, string | number>) =>
-    client
-      .query('SELECT lab.admin_report($1,$2,$3::jsonb) result', [token(request), name, body])
-      .then((value) => value.rows[0].result as Result);
-  const call = (body: Record<string, string | number>) =>
-    transaction((client) => invoke(client, body));
+  const result = await readAdminReport(
+    token(request), name as ReportName, payload, format !== 'json'
+  );
+  if ('status' in result) {
+    return Response.json(
+      { code: result.code },
+      { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
   if (format === 'json') {
-    const result = await call(payload);
-    if (result.status)
-      return Response.json(
-        { code: result.code },
-        { status: result.status, headers: { 'Cache-Control': 'no-store' } }
-      );
     return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
   }
-  const exported = await transaction(async (client) => {
-    await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-    const rows: Record<string, unknown>[] = [];
-    let offset = 0,
-      total = 0;
-    do {
-      const result = await invoke(client, { ...payload, limit: 100, offset });
-      if (result.status) return { result, rows, total };
-      const page = result.items ?? [];
-      rows.push(...page);
-      total = result.total ?? rows.length;
-      offset += page.length;
-      if (!page.length) break;
-    } while (rows.length < total && rows.length < 100000);
-    return { rows, total };
-  });
-  if (exported.result?.status)
-    return Response.json(
-      { code: exported.result.code },
-      { status: exported.result.status, headers: { 'Cache-Control': 'no-store' } }
-    );
-  const { rows, total } = exported;
-  if (rows.length < total)
+  const { items: rows, total } = result;
+  if (rows.length < total) {
     return Response.json(
       { code: 'EXPORT_TOO_LARGE' },
       { status: 413, headers: { 'Cache-Control': 'no-store' } }
     );
+  }
   const filename = `${name}-report.${format}`;
   // Copy the ZIP bytes into an ArrayBuffer accepted by the Web Response API.
   // A Uint8Array<ArrayBufferLike> is not a guaranteed BodyInit in TS 5.9+.
