@@ -102,6 +102,10 @@ switch (command) {
     break;
   case 'db:verify':
     requireConfig();
+    node('scripts/prisma-verify-native.mjs');
+    break;
+  case 'db:verify:legacy':
+    requireConfig();
     node('scripts/verify-local.mjs');
     break;
   case 'db:shell':
@@ -122,7 +126,7 @@ switch (command) {
     break;
   default:
     console.error(
-      'Use config, db:up, db:down, db:setup, db:setup:legacy, db:reset-empty, db:migrate, db:migrate:legacy, db:verify, db:shell, prisma:deploy, dev, build, or start.'
+      'Use config, db:up, db:down, db:setup, db:setup:legacy, db:reset-empty, db:migrate, db:migrate:legacy, db:verify, db:verify:legacy, db:shell, prisma:deploy, dev, build, or start.'
     );
     process.exit(2);
 }
