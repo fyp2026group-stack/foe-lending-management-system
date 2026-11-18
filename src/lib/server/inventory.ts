@@ -1,4 +1,3 @@
-import { transaction } from './db';
 import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
 import { readInventoryCategories } from './services/inventory-categories';
@@ -38,12 +37,6 @@ export async function inventory(request: Request, path: string[]) {
       .find((x) => x.startsWith('lab_session='))
       ?.slice(12) ?? '';
   const csrf = request.headers.get('x-csrf-token') ?? '';
-  const rpc = (op: string, p: unknown) =>
-    transaction(
-      async (c) =>
-        (await c.query('SELECT lab.inventory_call($1,$2,$3,$4::jsonb) AS result', [token, csrf, op, p]))
-          .rows[0].result
-    );
   let op = path[0];
   if (!resources.includes(op)) return { status: 404, code: 'NOT_FOUND' };
   if (!write && op === 'imports' && path.length === 2) {
@@ -68,7 +61,7 @@ export async function inventory(request: Request, path: string[]) {
     if (op === 'imports') return readInventoryImports(token, p);
     if (op === 'adjustments') return readInventoryAdjustments(token, p);
     if (op === 'locations') return readInventoryLocations(token, p);
-    return rpc('read_' + op, p);
+    return { status: 404, code: 'NOT_FOUND' };
   }
   if (request.headers.get('origin') !== (process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000'))
     return { status: 403, code: 'ORIGIN_DENIED' };
@@ -88,7 +81,7 @@ export async function inventory(request: Request, path: string[]) {
     if (op === 'categories') return mutateInventoryCategory(token, csrf, 'patch_categories', { ...p, id: path[1] });
     if (op === 'locations') return mutateInventoryLocation(token, csrf, 'patch_locations', { ...p, id: path[1] });
     if (op === 'items') return mutateInventoryItem(token, csrf, 'patch_items', { ...p, id: path[1] });
-    return rpc('patch_' + op, { ...p, id: path[1] });
+    return { status: 404, code: 'NOT_FOUND' };
   }
   if (path[0] === 'imports' && path[1] === 'preview' && path.length === 2) {
     if (Object.keys(p).some((k) => !['commandId', 'format', 'content'].includes(k)))
@@ -123,5 +116,5 @@ export async function inventory(request: Request, path: string[]) {
   if (op === 'commit') return commitInventoryImport(token, csrf, p);
   if (op === 'assets' || op === 'stock' || op === 'adjustments' || op === 'approve')
     return changeInventoryStock(token, csrf, op, p);
-  return rpc(op, p);
+  return { status: 404, code: 'NOT_FOUND' };
 }
