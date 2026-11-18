@@ -1,8 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { derive, boundedBody } from './work';
-import { transaction } from './db';
 import { runAdmitted } from './admission';
-import { readAdminReferences, patchUserPreservingBatches } from './services/admin-references';
+import { readAdminReferences } from './services/admin-references';
 import { currentIdentity, logoutIdentity } from './services/identity-session';
 import { loginIdentity } from './services/identity-login';
 import { readAdminUsers } from './services/admin-users';
@@ -169,32 +168,6 @@ export async function handle(
       !body.roles.some((role: string) => ['LECTURER', 'TECHNICAL_OFFICER'].includes(role)))
   )
     fail(422, 'STAFF_ROLE_REQUIRED');
-  const call = async (op: string, target: string | null, p: unknown) =>
-    transaction(
-      async (c) =>
-        (
-          await c.query('SELECT lab.identity_call($1,$2,$3,$4,$5::jsonb) AS result', [
-            cookie(r),
-            r.headers.get('x-csrf-token') ?? '',
-            op,
-            target,
-            p,
-          ])
-        ).rows[0].result
-    );
-  const governance = async (op: string, target: string | null, p: unknown) =>
-    transaction(
-      async (c) =>
-        (
-          await c.query('SELECT lab.admin_governance($1,$2,$3,$4,$5::jsonb) AS result', [
-            cookie(r),
-            r.headers.get('x-csrf-token') ?? '',
-            op,
-            target,
-            p,
-          ])
-        ).rows[0].result
-    );
   const resultResponse = (result: Record<string, unknown>) => {
     if (typeof result.status === 'number')
       return { status: result.status, data: { code: result.code } };
@@ -250,43 +223,28 @@ export async function handle(
       cookie(r), r.headers.get('x-csrf-token') ?? '', path[2], body
     ));
   }
-  let op = path[1];
-  if (r.method === 'POST') {
-    op = { users: 'create_user', batches: 'create_batch', laboratories: 'create_laboratory' }[
-      path[1]
-    ]!;
-    if (path[1] === 'users') {
-      const admitted = await runAdmitted(
-        () => admitAdminHash(cookie(r), r.headers.get('x-csrf-token') ?? ''),
-        async () => {
-          const salt = randomBytes(16).toString('hex');
-          body.passwordHash =
-            'scrypt$' + salt + '$' + (await derive(body.password, salt)).toString('hex');
-          delete body.password;
-          return { admitted: true };
-        }
-      );
-      if ('status' in admitted && admitted.status) {
-        await recordDenial(r, admitted.code ?? 'DENIED');
-        return resultResponse(admitted as Record<string, unknown>);
+  if (collection && path[1] === 'users' && r.method === 'POST') {
+    const admitted = await runAdmitted(
+      () => admitAdminHash(cookie(r), r.headers.get('x-csrf-token') ?? ''),
+      async () => {
+        const salt = randomBytes(16).toString('hex');
+        body.passwordHash =
+          'scrypt$' + salt + '$' + (await derive(body.password, salt)).toString('hex');
+        delete body.password;
+        return { admitted: true };
       }
-      const result = await changeAdminUser(
-        cookie(r), r.headers.get('x-csrf-token') ?? '', null, body
-      );
-      return {
-        ...resultResponse(result),
-        ...(!('status' in result) ? { status: 201 } : {}),
-      };
+    );
+    if ('status' in admitted && admitted.status) {
+      await recordDenial(r, admitted.code ?? 'DENIED');
+      return resultResponse(admitted as Record<string, unknown>);
     }
-  } else if (patch)
-    op = { users: 'patch_user', batches: 'patch_batch', laboratories: 'patch_laboratory' }[
-      path[1]
-    ]!;
-  if (collection && r.method === 'GET') op = 'read_' + path[1];
-  const result = await governance(op, patch ? path[2] : null, body);
-  if (result.status === 401 || result.code === 'CSRF_DENIED') await recordDenial(r, result.code);
-  return {
-    ...resultResponse(result),
-    ...(!result.status && r.method === 'POST' ? { status: 201 } : {}),
-  };
+    const result = await changeAdminUser(
+      cookie(r), r.headers.get('x-csrf-token') ?? '', null, body
+    );
+    return {
+      ...resultResponse(result),
+      ...(!('status' in result) ? { status: 201 } : {}),
+    };
+  }
+  return { status: 404, data: { code: 'NOT_FOUND' } };
 }
