@@ -59,7 +59,7 @@ jobs:
       - name: Prisma migration repeatability and privilege verification
         run: |
           npm run db:migrate:legacy
-          npm run db:verify
+          npm run db:verify:legacy
       - name: Prisma schema validation
         run: npm run prisma:validate
       - name: PostgreSQL lifecycle and security integration
