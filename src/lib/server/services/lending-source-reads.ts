@@ -79,7 +79,7 @@ export async function readBorrowingSources(token:string, p:Record<string,unknown
       });
     }
     const items=[...grouped.values()].sort((a,b)=>
-      a.item.localeCompare(b.item)||a.lab.localeCompare(b.lab)||
+      a.item.localeCompare(b.item)||a['lab'].localeCompare(b['lab'])||
       a.location.localeCompare(b.location));
     return {items:items.slice(offset,offset+limit),limit,offset};
   });
