@@ -10,6 +10,7 @@ import { readInventoryLocations } from './services/inventory-locations';
 import { mutateInventoryCategory } from './services/inventory-category-mutations';
 import { mutateInventoryLocation } from './services/inventory-location-mutations';
 import { mutateInventoryItem } from './services/inventory-item-mutations';
+import { admitInventoryImport } from './services/inventory-import-admission';
 const resources = [
   'categories',
   'items',
@@ -85,11 +86,7 @@ export async function inventory(request: Request, path: string[]) {
   if (path[0] === 'imports' && path[1] === 'preview' && path.length === 2) {
     if (Object.keys(p).some((k) => !['commandId', 'format', 'content'].includes(k)))
       return { status: 422, code: 'UNSUPPORTED_FIELD' };
-    const admit = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.inventory_import_admit($1,$2) AS result', [token, csrf])).rows[0]
-          .result
-    );
+    const admit = await admitInventoryImport(token, csrf);
     if (admit.status) return admit;
     try {
       p = { commandId: p.commandId, rows: await importRows(p.format, p.content) };
