@@ -170,6 +170,7 @@ export async function createLendingRequest(
           id: requestId, borrower_id: auth.userId,
           purpose: p.purpose, collect_at: p.collectAt, return_at: p.returnAt,
         },
+        select: { id: true },
       });
       await tx.lend_lines.createMany({
         data: p.lines.map(line => {
