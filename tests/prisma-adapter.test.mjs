@@ -9,9 +9,10 @@ test('Prisma adapter supports PostgreSQL connections and transactions', () => {
   assert.match(db, /new PrismaPg\(/);
   assert.match(db, /new PrismaClient\(/);
   assert.match(db, /\.\$transaction\(/);
-  assert.match(db, /\.\$queryRawUnsafe/);
-  assert.match(db, /\.\$executeRawUnsafe/);
-  assert.match(db, /DATABASE_URL is required/);
+  assert.doesNotMatch(db, /\.\$queryRawUnsafe/);
+  assert.doesNotMatch(db, /\.\$executeRawUnsafe/);
+  assert.match(db, /ORM_DATABASE_URL is required/);
+  assert.match(db, /lab_orm/);
   assert.match(db, /postgresql:/);
   assert.doesNotMatch(db, /Local database required/);
   assert.doesNotMatch(db, /require\(['"]pg['"]\)/);
@@ -47,7 +48,7 @@ test('Prisma migrations preserve baseline schema and historic protected invarian
   assert.match(schema, /@@schema\("lab"\)/);
   assert.ok(pkg.dependencies['@prisma/adapter-pg']);
   assert.ok(pkg.devDependencies.prisma);
-  assert.ok(!pkg.scripts['db:migrate'].includes('prisma'));
+  assert.ok(pkg.scripts['prisma:deploy'].includes('prisma'));
   assert.match(read('database/023_basic_lending.sql'), /SECURITY DEFINER/);
   assert.match(read('database/035_lending_lifecycle.sql'), /lend_reserve/);
   assert.doesNotMatch(read('src/lib/server/lending.ts'), /lab\.lending_call/);
