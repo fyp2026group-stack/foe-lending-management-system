@@ -14,7 +14,9 @@ test('HOD server page passes only serializable props to client entry component',
 
 test('role checks are server-authoritative and precede protected page renders', () => {
   const guard = contents('src/lib/server/page-access.ts');
-  assert.ok(guard.includes("lab.identity_call($1,'','me'"));
+  assert.ok(guard.includes('nativeOrmTransaction('));
+  assert.ok(guard.includes('authorizePrismaSession(tx, token)'));
+  assert.doesNotMatch(guard, /lab\.identity_call\(/);
   assert.ok(guard.includes('allowed.includes(role)'));
   assert.ok(guard.includes('notFound()'));
   assert.ok(guard.includes("redirect('/login')"));
