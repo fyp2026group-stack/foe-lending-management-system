@@ -6,6 +6,7 @@ import { readAdminReferences, patchUserPreservingBatches } from './services/admi
 import { currentIdentity, logoutIdentity } from './services/identity-session';
 import { loginIdentity } from './services/identity-login';
 import { readAdminUsers } from './services/admin-users';
+import { changeAdminReference } from './services/admin-reference-mutations';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -231,6 +232,18 @@ export async function handle(
     (path[1] === 'batches' || path[1] === 'laboratories')
   ) {
     return resultResponse(await readAdminReferences(cookie(r), path[1]));
+  }
+  if ((collection || patch) &&
+      (path[1] === 'batches' || path[1] === 'laboratories') &&
+      r.method !== 'GET') {
+    const result = await changeAdminReference(
+      cookie(r), r.headers.get('x-csrf-token') ?? '',
+      path[1], patch ? path[2] : null, body
+    );
+    return {
+      ...resultResponse(result),
+      ...(!('status' in result) && r.method === 'POST' ? { status: 201 } : {}),
+    };
   }
   if (patch && path[1] === 'users' && body.batchIds === undefined) {
     const result = await patchUserPreservingBatches(
