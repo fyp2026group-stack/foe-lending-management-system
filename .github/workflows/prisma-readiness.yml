@@ -47,3 +47,34 @@ jobs:
         run: npm test
       - name: Require complete native Prisma migration
         run: npm run prisma:readiness:enforce
+
+  fresh-schema:
+    name: Clean PostgreSQL Prisma migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: prisma_native_verification
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prisma_native_verification"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATION_DATABASE_URL: postgresql://postgres:disposable-ci-only@127.0.0.1:5432/prisma_native_verification?schema=lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Apply clean Prisma migration chain (without legacy schema)
+        run: npx prisma migrate deploy --config prisma7.config.ts
+      - name: Check migration history
+        run: npx prisma migrate status --config prisma7.config.ts
