@@ -44,7 +44,7 @@ jobs:
       - name: Generate isolated synthetic environment
         run: npm run local:config
       - name: Provision and verify local PostgreSQL
-        run: npm run db:setup
+        run: npm run db:setup:legacy
       - name: Provision disposable synthetic integration fixtures
         run: node --env-file=.verification/m2.env scripts/test-fixtures.mjs
       - name: Verify Google student registration and duplicate identifier rejection
