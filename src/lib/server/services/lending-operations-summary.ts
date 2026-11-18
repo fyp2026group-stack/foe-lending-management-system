@@ -51,5 +51,5 @@ export async function readOfficerOperations(token:string,body:Record<string,unkn
       completed:{handovers,receipts,inspections,maintenance,
         total:handovers+receipts+inspections+maintenance},
     };
-  });
+  }, { isolationLevel: 'RepeatableRead' });
 }
