@@ -16,6 +16,8 @@ DECLARE
  ) THEN RETURN jsonb_build_object('awaitingApprovals',true);END IF;
 $text$;
 BEGIN
+  -- Fresh native schema uses transactional TypeScript reservation guards.
+  IF to_regprocedure('lab.lend_reserve(uuid,uuid)') IS NULL THEN RETURN; END IF;
   SELECT pg_get_functiondef('lab.lend_reserve(uuid,uuid)'::regprocedure) INTO definition;
   IF definition IS NULL OR position(needle IN definition)=0
      OR position('awaitingApprovals' IN definition)>0 THEN
@@ -44,6 +46,7 @@ DECLARE
    END IF;
 $text$;
 BEGIN
+  IF to_regprocedure('lab.lending_call_cp2(text,text,text,jsonb)') IS NULL THEN RETURN; END IF;
   SELECT pg_get_functiondef('lab.lending_call_cp2(text,text,text,jsonb)'::regprocedure)
     INTO definition;
   IF definition IS NULL OR position(needle IN definition)=0 THEN
