@@ -4,6 +4,7 @@ import { boundedBody } from './work';
 import { readInventoryCategories } from './services/inventory-categories';
 import { readInventoryItems } from './services/inventory-items';
 import { readInventoryStock } from './services/inventory-stock';
+import { readInventoryImports, readInventoryImportDetail } from './services/inventory-imports';
 import { readInventoryLocations } from './services/inventory-locations';
 import { mutateInventoryCategory } from './services/inventory-category-mutations';
 const resources = [
@@ -38,7 +39,7 @@ export async function inventory(request: Request, path: string[]) {
   if (!resources.includes(op)) return { status: 404, code: 'NOT_FOUND' };
   if (!write && op === 'imports' && path.length === 2) {
     if (url.searchParams.size) return { status: 422, code: 'INVALID' };
-    return rpc('read_import_detail', { id: path[1] });
+    return readInventoryImportDetail(token, path[1]);
   }
   if (!write) {
     if (path.length !== 1) return { status: 404, code: 'NOT_FOUND' };
@@ -53,6 +54,7 @@ export async function inventory(request: Request, path: string[]) {
     if (op === 'categories') return readInventoryCategories(token, p);
     if (op === 'items') return readInventoryItems(token, p);
     if (op === 'stock') return readInventoryStock(token, p);
+    if (op === 'imports') return readInventoryImports(token, p);
     if (op === 'locations') return readInventoryLocations(token, p);
     return rpc('read_' + op, p);
   }
