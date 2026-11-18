@@ -97,7 +97,7 @@ BEGIN
     'inv_movements','inv_entries','inv_receipts','lend_decisions',
     'lend_returns','lend_inspection_events','lend_maintenance_events',
     'lend_extension_decisions','lend_handovers','lend_comments',
-    'lend_commands','inv_commands'
+    'inv_commands'
   ] LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_catalog.pg_trigger
