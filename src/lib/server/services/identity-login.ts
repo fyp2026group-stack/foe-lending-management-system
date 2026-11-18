@@ -55,7 +55,7 @@ export async function loginIdentity(email: string, password: string):
     }
     return { credential: active?.password_hash ?? '', userId: active?.id ?? null };
   });
-  if ('status' in admitted) return admitted;
+  if (admitted.status === 429) return { status: 429, code: 'LOGIN_LIMITED' };
 
   const valid = await verifyPassword(password, admitted.credential);
   return nativeOrmTransaction(async tx => {
