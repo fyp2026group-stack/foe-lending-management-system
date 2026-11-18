@@ -1,7 +1,8 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
-import { transaction } from '@/lib/server/db';
+import { nativeOrmTransaction } from '@/lib/server/db';
+import { authorizePrismaSession, isAuthFailure } from '@/lib/server/services/prisma-session';
 import { canOpenBorrowingView } from '@/lib/role-policy';
 
 type Role = 'STUDENT' | 'LECTURER' | 'TECHNICAL_OFFICER' | 'ADMIN';
@@ -13,12 +14,12 @@ export async function requirePageRole(allowed: readonly Role[] = PAGE_ROLES): Pr
   if (!/^[a-f0-9]{64}$/.test(token)) redirect('/login');
   let profile: Profile;
   try {
-    profile = await transaction(async (client) =>
-      (await client.query(
-        "SELECT lab.identity_call($1,'','me',NULL,'{}'::jsonb) AS result",
-        [token]
-      )).rows[0].result as Profile
-    );
+    profile = await nativeOrmTransaction(async tx => {
+      const auth = await authorizePrismaSession(tx, token);
+      return isAuthFailure(auth)
+        ? { status: auth.status }
+        : { user: { id: auth.userId, roles: auth.roles } };
+    });
   } catch {
     // A DB outage is not a permission denial; do not disclose internal data.
     throw new Error('Unable to verify the current session.');
