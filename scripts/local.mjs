@@ -79,10 +79,6 @@ switch (command) {
     node('scripts/provision-runtime.mjs');
     node('scripts/prisma-migrations.mjs');
     break;
-  case 'db:seed':
-    requireConfig();
-    node('scripts/database.mjs', 'seed');
-    break;
   case 'db:verify':
     requireConfig();
     node('scripts/verify-local.mjs');
@@ -105,7 +101,7 @@ switch (command) {
     break;
   default:
     console.error(
-      'Use config, db:up, db:down, db:setup, db:reset-empty, db:migrate, db:seed, db:verify, db:shell, prisma:deploy, dev, build, or start.'
+      'Use config, db:up, db:down, db:setup, db:reset-empty, db:migrate, db:verify, db:shell, prisma:deploy, dev, build, or start.'
     );
     process.exit(2);
 }
