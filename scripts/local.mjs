@@ -33,6 +33,19 @@ function node(script, ...args) {
 function docker(...args) {
   run('docker', [...compose, ...args]);
 }
+function prismaDeploy() {
+  // Run migrations from source against the migration-owner connection.
+  // No historical SQL bootstrap or synthetic test fixtures are involved.
+  run(process.execPath, [
+    resolve(root, 'node_modules', 'prisma', 'build', 'index.js'),
+    'migrate', 'deploy', '--config', 'prisma7.config.ts',
+  ]);
+}
+function legacyBootstrap() {
+  node('scripts/database.mjs', 'migrate');
+  node('scripts/prisma-migrations.mjs');
+}
+
 
 const command = process.argv[2];
 switch (command) {
@@ -51,9 +64,7 @@ switch (command) {
     requireConfig();
     docker('up', '-d', '--wait');
     node('scripts/provision-runtime.mjs');
-    node('scripts/database.mjs', 'migrate');
-    node('scripts/prisma-migrations.mjs');
-    node('scripts/provision-verifier.mjs');
+    prismaDeploy();
     // Intentionally leave the database empty. Seed data is opt-in and will be designed separately.
     break;
   case 'db:reset-empty':
@@ -64,21 +75,30 @@ switch (command) {
     docker('down', '--volumes');
     docker('up', '-d', '--wait');
     node('scripts/provision-runtime.mjs');
-    node('scripts/database.mjs', 'migrate');
-    node('scripts/prisma-migrations.mjs');
-    node('scripts/provision-verifier.mjs');
+    prismaDeploy();
     node('scripts/verify-empty.mjs');
     break;
   case 'db:migrate':
     requireConfig();
     node('scripts/provision-runtime.mjs');
-    node('scripts/database.mjs', 'migrate');
-    node('scripts/prisma-migrations.mjs');
+    prismaDeploy();
+    break;
+  case 'db:setup:legacy':
+    requireConfig();
+    docker('up', '-d', '--wait');
+    node('scripts/provision-runtime.mjs');
+    legacyBootstrap();
+    node('scripts/provision-verifier.mjs');
+    break;
+  case 'db:migrate:legacy':
+    requireConfig();
+    node('scripts/provision-runtime.mjs');
+    legacyBootstrap();
     break;
   case 'prisma:deploy':
     requireConfig();
     node('scripts/provision-runtime.mjs');
-    node('scripts/prisma-migrations.mjs');
+    prismaDeploy();
     break;
   case 'db:verify':
     requireConfig();
@@ -102,7 +122,7 @@ switch (command) {
     break;
   default:
     console.error(
-      'Use config, db:up, db:down, db:setup, db:reset-empty, db:migrate, db:verify, db:shell, prisma:deploy, dev, build, or start.'
+      'Use config, db:up, db:down, db:setup, db:setup:legacy, db:reset-empty, db:migrate, db:migrate:legacy, db:verify, db:shell, prisma:deploy, dev, build, or start.'
     );
     process.exit(2);
 }
