@@ -3,6 +3,7 @@ import { boundedBody } from './work';
 import { readLendingPolicies } from './services/lending-policies';
 import { readEligibleLecturers } from './services/lending-lecturers';
 import { readLendingComments, writeLendingComment } from './services/lending-comments';
+import { readLendingDrafts } from './services/lending-drafts';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -94,6 +95,9 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
+  }
+  if (request.method === 'GET' && name === 'drafts') {
+    return readLendingDrafts(token, payload);
   }
   if (name === 'comments') {
     return request.method === 'GET'
