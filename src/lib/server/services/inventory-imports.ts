@@ -45,15 +45,26 @@ export async function readInventoryImportDetail(token: string, importId: string)
   return nativeOrmTransaction(async tx => {
     const auth = await authorizePrismaSession(tx, token);
     if (isAuthFailure(auth)) return auth;
+    if (!auth.roles.includes('TECHNICAL_OFFICER')) return { status: 404, code: 'NOT_FOUND' };
+    const coverage = await tx.staff_labs.findMany({
+      where: { user_id: auth.userId }, select: { laboratory_id: true },
+    });
+    const allowedLabs = new Set(coverage.map(row => row.laboratory_id));
     const existing = await tx.inv_imports.findFirst({
       where: { id: importId, owner_id: auth.userId },
       select: { id: true, committed: true, rows: true },
     });
     if (!existing) return { status: 404, code: 'NOT_FOUND' };
+    const rows = existing.rows;
+    if (!Array.isArray(rows) || rows.some(row =>
+      !row || typeof row !== 'object' || Array.isArray(row)
+      || !('labId' in row) || !allowedLabs.has(String(row.labId))
+    )) return { status: 404, code: 'NOT_FOUND' };
     return {
       id: existing.id,
       committed: existing.committed,
-      rows: existing.rows,
+      rowCount: rows.length,
+      rows,
     };
   });
 }
