@@ -5,6 +5,7 @@ import { runAdmitted } from './admission';
 import { readAdminReferences, patchUserPreservingBatches } from './services/admin-references';
 import { currentIdentity, logoutIdentity } from './services/identity-session';
 import { loginIdentity } from './services/identity-login';
+import { readAdminUsers } from './services/admin-users';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -218,6 +219,9 @@ export async function handle(
         ? {}
         : { cookie: 'lab_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' }),
     };
+  }
+  if (collection && r.method === 'GET' && path[1] === 'users') {
+    return resultResponse(await readAdminUsers(cookie(r)));
   }
   // Migrated reference-data reads: authorized via the existing session
   // authority, then retrieved through Prisma with restricted SELECT grants.
