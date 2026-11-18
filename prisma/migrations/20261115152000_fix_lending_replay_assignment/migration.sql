@@ -14,6 +14,8 @@ DECLARE
   repaired_statement text :=
     'EXECUTE ''UPDATE lab.lend_commands c SET result=$1 WHERE c.actor_id=$2 AND c.command_id=$3'' USING result,actor,cmd;';
 BEGIN
+  -- Fresh Prisma-only schemas have no legacy business RPC to patch.
+  IF to_regprocedure('lab.lending_call_cp2(text,text,text,jsonb)') IS NULL THEN RETURN; END IF;
   SELECT pg_get_functiondef('lab.lending_call_cp2(text,text,text,jsonb)'::regprocedure)
     INTO definition;
   IF definition IS NULL OR position(previous_statement IN definition)=0 THEN
