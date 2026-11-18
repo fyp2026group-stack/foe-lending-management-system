@@ -24,7 +24,7 @@ function parse(payload: Record<string, unknown>): Filters | null {
   const num = (value: unknown, fallback: number) =>
     value === undefined ? fallback :
     typeof value === 'number' && Number.isSafeInteger(value) ? value :
-    typeof value === 'string' && /^\\d+$/.test(value) ? Number(value) : Number.NaN;
+    typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : Number.NaN;
   const limit = num(payload.limit, 20);
   const offset = num(payload.offset, 0);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100
