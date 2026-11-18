@@ -12,6 +12,7 @@ import { mutateInventoryLocation } from './services/inventory-location-mutations
 import { mutateInventoryItem } from './services/inventory-item-mutations';
 import { admitInventoryImport } from './services/inventory-import-admission';
 import { readInventoryMovements } from './services/inventory-movements';
+import { readInventoryAssets } from './services/inventory-assets';
 const resources = [
   'categories',
   'items',
@@ -60,6 +61,7 @@ export async function inventory(request: Request, path: string[]) {
     if (op === 'items') return readInventoryItems(token, p);
     if (op === 'stock') return readInventoryStock(token, p);
     if (op === 'movements') return readInventoryMovements(token, p);
+    if (op === 'assets') return readInventoryAssets(token, p);
     if (op === 'imports') return readInventoryImports(token, p);
     if (op === 'adjustments') return readInventoryAdjustments(token, p);
     if (op === 'locations') return readInventoryLocations(token, p);
