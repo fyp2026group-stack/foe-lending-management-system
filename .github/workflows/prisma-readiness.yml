@@ -33,6 +33,8 @@ jobs:
           cache: npm
       - name: Install reproducibly
         run: npm ci
+      - name: Generate ephemeral local-only test configuration
+        run: npm run local:config
       - name: Validate Prisma schema
         run: npm run prisma:validate
       - name: Generate Prisma client and typecheck
