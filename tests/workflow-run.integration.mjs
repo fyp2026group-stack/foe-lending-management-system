@@ -59,6 +59,7 @@ try {
       'tests/m2-identity.integration.mjs',
       'tests/m3-inventory.integration.mjs',
       'tests/workflow-basic.integration.mjs',
+      'tests/prisma-native-lifecycle-http.integration.mjs',
     ],
     { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
   );
