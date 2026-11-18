@@ -3,6 +3,7 @@ import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
 import { readInventoryCategories } from './services/inventory-categories';
 import { readInventoryItems } from './services/inventory-items';
+import { readInventoryStock } from './services/inventory-stock';
 import { readInventoryLocations } from './services/inventory-locations';
 import { mutateInventoryCategory } from './services/inventory-category-mutations';
 const resources = [
@@ -51,6 +52,7 @@ export async function inventory(request: Request, path: string[]) {
     }
     if (op === 'categories') return readInventoryCategories(token, p);
     if (op === 'items') return readInventoryItems(token, p);
+    if (op === 'stock') return readInventoryStock(token, p);
     if (op === 'locations') return readInventoryLocations(token, p);
     return rpc('read_' + op, p);
   }
