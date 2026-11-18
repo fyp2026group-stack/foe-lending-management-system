@@ -170,12 +170,12 @@ export async function mutateInventoryItem(
           result,
         },
       });
-      await tx.audit.create({
-        data: {
+      await tx.audit.createMany({
+        data: [{
           id: randomUUID(), actor_id: auth.userId, target_id: id,
           action: operation === 'items' ? 'INVENTORY_CREATE_ITEMS' : 'INVENTORY_UPDATE_ITEMS',
           ...(details ? { details } : {}),
-        },
+        }],
       });
       return result;
     });
