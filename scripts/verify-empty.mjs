@@ -4,7 +4,7 @@ const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) throw Error('MIGRATION_DATABASE_URL is required');
 const target = new URL(url);
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname)
-  || !/^\\/(lab_inventory|lab_m2_test_[a-z0-9_]+)$/.test(target.pathname)) {
+  || !/^\/(lab_inventory|lab_m2_test_[a-z0-9_]+)$/.test(target.pathname)) {
   throw Error('Empty database verification is restricted to a local test database');
 }
 
