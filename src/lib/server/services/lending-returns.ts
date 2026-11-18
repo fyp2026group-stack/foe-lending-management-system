@@ -112,7 +112,7 @@ export async function receiveLendingReturn(
       await tx.lend_returns.createMany({
         data: [{
           id: returnId, loan_id: loan.id, actor_id: auth.userId,
-          quantity: 1, condition: body.condition.trim(),
+          quantity: 1, condition: (body.condition as string).trim(),
         }],
       });
       await tx.lend_inspections.createMany({
