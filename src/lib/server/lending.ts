@@ -4,6 +4,7 @@ import { readLendingPolicies } from './services/lending-policies';
 import { readEligibleLecturers } from './services/lending-lecturers';
 import { readLendingComments, writeLendingComment } from './services/lending-comments';
 import { readLendingDrafts } from './services/lending-drafts';
+import { changeLendingPolicy } from './services/lending-policy-mutations';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -90,8 +91,10 @@ export async function lending(request: Request, path: string[]) {
       return { status: 422, code: 'INVALID' };
     }
   }
-  if (request.method === 'GET' && name === 'policies') {
-    return readLendingPolicies(token, payload);
+  if (name === 'policies') {
+    return request.method === 'GET'
+      ? readLendingPolicies(token, payload)
+      : changeLendingPolicy(token, csrf, payload);
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
