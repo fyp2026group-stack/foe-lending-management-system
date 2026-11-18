@@ -20,8 +20,6 @@ test('Prisma adapter supports PostgreSQL connections and transactions', () => {
 
 test('Every protected JSONB RPC has an explicit cast', () => {
   for (const [path, name] of [
-    ['src/lib/server/identity.ts', 'identity_call'],
-    ['src/lib/server/identity.ts', 'admin_governance'],
     ['src/lib/server/inventory.ts', 'inventory_call'],
     ['src/lib/server/lending.ts', 'lending_call'],
   ]) {
@@ -30,6 +28,10 @@ test('Every protected JSONB RPC has an explicit cast', () => {
     assert.ok(statement, `Missing ${name} in ${path}`);
     assert.match(statement[0], /::jsonb/, `${name} must cast JSONB`);
   }
+  const identity = read('src/lib/server/identity.ts');
+  assert.match(identity, /changeAdminUser\(/);
+  assert.match(identity, /loginIdentity\(/);
+  assert.doesNotMatch(identity, /lab\.(identity_call|admin_governance|login_start|login_finish)\(/);
   const report = read('src/lib/server/reports.ts');
   assert.match(report, /readAdminReport\(/);
   assert.doesNotMatch(report, /lab\.admin_report\(/);
