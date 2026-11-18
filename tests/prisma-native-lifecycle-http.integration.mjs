@@ -53,7 +53,12 @@ test('native HTTP: request-wide approvals through return and inspection', async 
         },
         ...(body!==null?{body:JSON.stringify(body)}:{}),
       });
-      return {status:res.status,data:await res.json(),cookie:res.headers.get('set-cookie')};
+      const raw=await res.text();
+      let data;
+      try{data=JSON.parse(raw);}
+      catch{throw Error('Non-JSON HTTP '+res.status+' on '+path+
+        ': '+raw.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').slice(0,250));}
+      return {status:res.status,data,cookie:res.headers.get('set-cookie')};
     }
     const actors={};
     for(const role of roles){
