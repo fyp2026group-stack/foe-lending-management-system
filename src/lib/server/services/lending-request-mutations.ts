@@ -192,11 +192,11 @@ export async function createLendingRequest(
           operation: 'requests', payload: payload as Prisma.InputJsonValue, result,
         },
       });
-      await tx.audit.create({
-        data: {
+      await tx.audit.createMany({
+        data: [{
           id: randomUUID(), actor_id: auth.userId,
           action: 'LENDING_REQUESTS', target_id: requestId,
-        },
+        }],
       });
       return result;
     });
