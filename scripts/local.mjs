@@ -54,8 +54,18 @@ switch (command) {
     node('scripts/database.mjs', 'migrate');
     node('scripts/prisma-migrations.mjs');
     node('scripts/provision-verifier.mjs');
-    node('scripts/database.mjs', 'seed');
-    node('scripts/verify-local.mjs');
+    // Intentionally leave the database empty. Seed data is opt-in and will be designed separately.
+    break;
+  case 'db:reset-empty':
+    requireConfig();
+    if (process.env.CONFIRM_LOCAL_DB_RESET !== 'DELETE_LOCAL_DATA') {
+      throw new Error('Set CONFIRM_LOCAL_DB_RESET=DELETE_LOCAL_DATA to explicitly erase the local Docker database');
+    }
+    docker('down', '--volumes');
+    docker('up', '-d', '--wait');
+    node('scripts/provision-runtime.mjs');
+    node('scripts/database.mjs', 'migrate');
+    node('scripts/prisma-migrations.mjs');
     break;
   case 'db:migrate':
     requireConfig();
@@ -94,7 +104,7 @@ switch (command) {
     break;
   default:
     console.error(
-      'Use config, db:up, db:down, db:setup, db:migrate, db:seed, db:verify, db:shell, prisma:deploy, dev, build, or start.'
+      'Use config, db:up, db:down, db:setup, db:reset-empty, db:migrate, db:seed, db:verify, db:shell, prisma:deploy, dev, build, or start.'
     );
     process.exit(2);
 }
