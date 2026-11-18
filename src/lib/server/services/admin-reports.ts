@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { nativeOrmTransaction } from '../db';
 import { authorizePrismaSession, isAuthFailure } from './prisma-session';
 import { isUuid } from './uuid';
@@ -265,7 +266,7 @@ export async function readAdminReport(
       data: [{
         id: randomUUID(), actor_id: auth.userId, action: 'REPORT_VIEW',
         details: { report, filters: Object.fromEntries(Object.entries(body).filter(([key]) =>
-          key !== 'offset')) },
+          key !== 'offset')) } as Prisma.InputJsonValue,
       }],
     });
     return {
