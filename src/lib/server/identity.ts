@@ -3,6 +3,7 @@ import { derive, boundedBody } from './work';
 import { transaction } from './db';
 import { runAdmitted } from './admission';
 import { readAdminReferences, patchUserPreservingBatches } from './services/admin-references';
+import { currentIdentity, logoutIdentity } from './services/identity-session';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -224,9 +225,9 @@ export async function handle(
         (process.env.NODE_ENV === 'production' ? '; Secure' : ''),
     };
   }
-  if (route === 'auth/me') return resultResponse(await call('me', null, {}));
+  if (route === 'auth/me') return resultResponse(await currentIdentity(cookie(r)));
   if (route === 'auth/logout') {
-    const result = await call('logout', null, {});
+    const result = await logoutIdentity(cookie(r), r.headers.get('x-csrf-token') ?? '');
     return {
       ...resultResponse(result),
       ...(result.status
