@@ -52,13 +52,13 @@ jobs:
         run: |
           npm run prisma:generate
           test -f node_modules/.prisma/client/default.js
-      - name: Create isolated environment and PostgreSQL
+      - name: Create isolated historical-regression environment and PostgreSQL
         run: |
           npm run local:config
-          npm run db:setup
+          npm run db:setup:legacy
       - name: Prisma migration repeatability and privilege verification
         run: |
-          npm run db:migrate
+          npm run db:migrate:legacy
           npm run db:verify
       - name: Prisma schema validation
         run: npm run prisma:validate
