@@ -4,6 +4,7 @@ import { transaction } from './db';
 import { runAdmitted } from './admission';
 import { readAdminReferences, patchUserPreservingBatches } from './services/admin-references';
 import { currentIdentity, logoutIdentity } from './services/identity-session';
+import { loginIdentity } from './services/identity-login';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -198,29 +199,12 @@ export async function handle(
     return { data: result };
   };
   if (login) {
-    const started = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.login_start($1) AS result', [body.email.trim().toLowerCase()]))
-          .rows[0].result
-    );
-    if (started.status) return resultResponse(started);
-    const valid = await verify(body.password, started.passwordHash);
-    const secret = process.env.LOGIN_VERIFIER_SECRET;
-    if (!secret || secret.length < 32) fail(503, 'VERIFIER_UNAVAILABLE');
-    const proof = valid
-      ? createHmac('sha256', secret!).update(started.challengeId).digest('hex')
-      : 'invalid';
-    const result = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.login_finish($1,$2) AS result', [started.challengeId, proof]))
-          .rows[0].result
-    );
-    if (result.status) return resultResponse(result);
+    const result = await loginIdentity(body.email, body.password);
+    if ('status' in result) return resultResponse(result);
     return {
       data: { csrfToken: result.csrfToken },
       cookie:
-        'lab_session=' +
-        result.token +
+        'lab_session=' + result.token +
         '; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800' +
         (process.env.NODE_ENV === 'production' ? '; Secure' : ''),
     };
