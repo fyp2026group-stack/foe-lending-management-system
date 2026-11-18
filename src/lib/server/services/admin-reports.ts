@@ -273,5 +273,5 @@ export async function readAdminReport(
       report, items, total,
       limit: p.requestedLimit, offset: p.requestedOffset, metrics,
     };
-  });
+  }, { isolationLevel: 'RepeatableRead' });
 }
