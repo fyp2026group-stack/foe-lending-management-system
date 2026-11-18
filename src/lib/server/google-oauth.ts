@@ -2,7 +2,7 @@ import {
   createCipheriv, createDecipheriv, createHash, createPublicKey,
   randomBytes, timingSafeEqual, verify,
 } from 'node:crypto';
-import { transaction } from '@/lib/server/db';
+import { googleBatchOptions, googleSignIn, googleRegister } from './services/google-students';
 
 export type GoogleIdentity = { sub: string; email: string; name: string };
 type Flow = { state: string; verifier: string; nonce: string };
@@ -140,21 +140,14 @@ export async function finishGoogle(request: Request) {
   if (!result.id_token) throw new Error('GOOGLE_ID_TOKEN_MISSING');
   return verifyGoogleIdToken(result.id_token, flow.nonce);
 }
-type SessionResult = { status?: number; code?: string; token?: string };
-export async function connectGoogle(identity: GoogleIdentity): Promise<SessionResult> {
-  return transaction(async client => (
-    await client.query('SELECT lab.google_student_login($1,$2) AS result',[identity.sub,identity.email])
-  ).rows[0].result as SessionResult);
+export async function connectGoogle(identity: GoogleIdentity) {
+  return googleSignIn(identity);
 }
-export async function registerGoogle(identity: GoogleIdentity, profile: unknown): Promise<SessionResult> {
-  return transaction(async client => (
-    await client.query('SELECT lab.google_student_register($1,$2,$3::jsonb) AS result',[identity.sub,identity.email,profile])
-  ).rows[0].result as SessionResult);
+export async function registerGoogle(identity: GoogleIdentity, profile: unknown) {
+  return googleRegister(identity, profile);
 }
-export async function getGoogleBatches(): Promise<{batches: Array<{id:string;name:string}>}> {
-  return transaction(async client => (
-    await client.query('SELECT lab.google_student_options() AS result')
-  ).rows[0].result);
+export async function getGoogleBatches() {
+  return googleBatchOptions();
 }
 export function expectedOrigin(request: Request) {
   const { origin } = configuration();
