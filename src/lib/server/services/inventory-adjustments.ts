@@ -55,11 +55,16 @@ export async function readInventoryAdjustments(
 
     const items = await tx.inv_adjustments.findMany({
       where: {
-        ...(p.labId ? { lab_id: p.labId } : {}),
-        ...(admin ? {} : {
-          proposer: auth.userId,
-          lab_id: { in: allowedLabs! },
-        }),
+        ...(admin
+          ? (p.labId ? { lab_id: p.labId } : {})
+          : {
+              proposer: auth.userId,
+              lab_id: {
+                in: p.labId
+                  ? allowedLabs!.filter(id => id === p.labId)
+                  : allowedLabs!,
+              },
+            }),
       },
       select: {
         id: true, proposer: true, item_id: true, lab_id: true,
