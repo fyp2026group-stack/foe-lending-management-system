@@ -8,6 +8,7 @@ import { loginIdentity } from './services/identity-login';
 import { readAdminUsers } from './services/admin-users';
 import { changeAdminReference } from './services/admin-reference-mutations';
 import { admitAdminHash, changeAdminUser } from './services/admin-user-mutations';
+import { recordNativeDenial } from './services/denial-audit';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -34,9 +35,7 @@ const fail = (status: number, code: string): never => {
   throw new ApiError(status, code);
 };
 export async function recordDenial(r: Request, code: string) {
-  await transaction(async (c) => {
-    await c.query('SELECT lab.denial($1,$2) IS NULL AS recorded', [cookie(r), code]);
-  });
+  await recordNativeDenial(cookie(r), code);
 }
 export async function handle(
   r: Request,
