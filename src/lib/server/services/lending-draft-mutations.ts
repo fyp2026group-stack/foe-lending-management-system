@@ -99,7 +99,8 @@ export async function changeLendingDraft(token:string,csrf:string,operation:Oper
         const payload={
           purpose:request.purpose,collectAt:request.collect_at.toISOString(),
           returnAt:request.return_at.toISOString(),
-          lecturerId:request.lend_lines.find(x=>x.lecturer_id)?.lecturer_id??null,
+          ...(request.lend_lines.find(x=>x.lecturer_id)?.lecturer_id
+            ? {lecturerId:request.lend_lines.find(x=>x.lecturer_id)!.lecturer_id!} : {}),
           lines:request.lend_lines.map(l=>({
             itemId:l.item_id,labId:l.lab_id,locationId:l.location_id,quantity:l.quantity,
           })),
