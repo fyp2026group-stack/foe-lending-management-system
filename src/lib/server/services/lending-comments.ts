@@ -128,11 +128,11 @@ export async function writeLendingComment(
           result,
         },
       });
-      await tx.audit.create({
-        data: {
+      await tx.audit.createMany({
+        data: [{
           id: randomUUID(), actor_id: auth.userId,
           target_id: payload.requestId as string, action: 'LENDING_COMMENTS',
-        },
+        }],
       });
       return result;
     });
