@@ -178,8 +178,8 @@ export async function createLendingRequest(
             id: randomUUID(), request_id: requestId,
             item_id: line.itemId, lab_id: line.labId, location_id: line.locationId,
             quantity: line.quantity, policy: policy.policy,
-            lecturer_id: ['LECTURER','BOTH'].includes(policy.policy) ? p.lecturerId : null,
-            hod_id: ['HOD','BOTH'].includes(policy.policy) ? policy.hod_id : null,
+            lecturer_id: p.lecturerId ?? null,
+            hod_id: policy.hod_id,
             stage: policy.policy === 'NONE' ? 'APPROVED' :
               policy.policy === 'HOD' ? 'HOD' : 'LECTURER',
           };
