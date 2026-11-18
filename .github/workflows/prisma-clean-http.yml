@@ -67,7 +67,15 @@ jobs:
           set -euo pipefail
           node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000 >/tmp/prisma-native-next.log 2>&1 &
           server_pid=$!
-          cleanup() { kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; }
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "Native application diagnostics (CI ephemeral test database):"
+              tail -80 /tmp/prisma-native-next.log || true
+            fi
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
           trap cleanup EXIT
           for i in $(seq 1 45); do
             if curl --silent --fail http://127.0.0.1:3000/login >/dev/null; then break; fi
