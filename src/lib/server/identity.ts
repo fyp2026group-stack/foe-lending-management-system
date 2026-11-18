@@ -7,6 +7,7 @@ import { currentIdentity, logoutIdentity } from './services/identity-session';
 import { loginIdentity } from './services/identity-login';
 import { readAdminUsers } from './services/admin-users';
 import { changeAdminReference } from './services/admin-reference-mutations';
+import { admitAdminHash, changeAdminUser } from './services/admin-user-mutations';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -245,11 +246,10 @@ export async function handle(
       ...(!('status' in result) && r.method === 'POST' ? { status: 201 } : {}),
     };
   }
-  if (patch && path[1] === 'users' && body.batchIds === undefined) {
-    const result = await patchUserPreservingBatches(
+  if (patch && path[1] === 'users') {
+    return resultResponse(await changeAdminUser(
       cookie(r), r.headers.get('x-csrf-token') ?? '', path[2], body
-    );
-    return resultResponse(result);
+    ));
   }
   let op = path[1];
   if (r.method === 'POST') {
@@ -258,28 +258,26 @@ export async function handle(
     ]!;
     if (path[1] === 'users') {
       const admitted = await runAdmitted(
-        async () =>
-          transaction(
-            async (c) =>
-              (
-                await c.query('SELECT lab.admin_hash_admit($1,$2) AS result', [
-                  cookie(r),
-                  r.headers.get('x-csrf-token') ?? '',
-                ])
-              ).rows[0].result
-          ),
+        () => admitAdminHash(cookie(r), r.headers.get('x-csrf-token') ?? ''),
         async () => {
           const salt = randomBytes(16).toString('hex');
           body.passwordHash =
             'scrypt$' + salt + '$' + (await derive(body.password, salt)).toString('hex');
           delete body.password;
-          return { admitted: true, status: undefined, code: undefined };
+          return { admitted: true };
         }
       );
-      if (admitted.status) {
+      if ('status' in admitted && admitted.status) {
         await recordDenial(r, admitted.code ?? 'DENIED');
-        return resultResponse(admitted);
+        return resultResponse(admitted as Record<string, unknown>);
       }
+      const result = await changeAdminUser(
+        cookie(r), r.headers.get('x-csrf-token') ?? '', null, body
+      );
+      return {
+        ...resultResponse(result),
+        ...(!('status' in result) ? { status: 201 } : {}),
+      };
     }
   } else if (patch)
     op = { users: 'patch_user', batches: 'patch_batch', laboratories: 'patch_laboratory' }[
