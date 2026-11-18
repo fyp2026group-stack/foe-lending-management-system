@@ -12,6 +12,8 @@ DECLARE
   old_name text := 'lending_call.result';
   new_name text := 'lending_call_cp2.result';
 BEGIN
+  -- Fresh Prisma-only schemas have no legacy business RPC to patch.
+  IF to_regprocedure('lab.lending_call_cp2(text,text,text,jsonb)') IS NULL THEN RETURN; END IF;
   SELECT pg_get_functiondef('lab.lending_call_cp2(text,text,text,jsonb)'::regprocedure)
     INTO definition;
   IF definition IS NULL THEN
