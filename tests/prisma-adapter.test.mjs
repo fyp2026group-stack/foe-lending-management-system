@@ -25,13 +25,15 @@ test('Every protected JSONB RPC has an explicit cast', () => {
     ['src/lib/server/inventory.ts', 'inventory_call'],
     ['src/lib/server/lending.ts', 'lending_call'],
     ['src/lib/server/reports.ts', 'admin_report'],
-    ['src/lib/server/google-oauth.ts', 'google_student_register'],
   ]) {
     const source = read(path);
     const statement = source.match(new RegExp('SELECT lab\\.' + name + '\\([^\\n]+'));
     assert.ok(statement, `Missing ${name} in ${path}`);
     assert.match(statement[0], /::jsonb/, `${name} must cast JSONB`);
   }
+  const google = read('src/lib/server/google-oauth.ts');
+  assert.match(google, /googleRegister\(identity, profile\)/);
+  assert.doesNotMatch(google, /lab\.google_student_(login|register|options)/);
 });
 
 test('SQL migrations and function authorization remain authoritative', () => {
