@@ -7,6 +7,7 @@ import { readLendingDrafts } from './services/lending-drafts';
 import { changeLendingPolicy } from './services/lending-policy-mutations';
 import { createLendingRequest } from './services/lending-request-mutations';
 import { decideLendingRequest } from './services/lending-decisions';
+import { reserveLendingLine } from './services/lending-reservations';
 const reads = new Set([
   'policies',
   'lecturers',
@@ -100,6 +101,9 @@ export async function lending(request: Request, path: string[]) {
   }
   if (request.method === 'GET' && name === 'lecturers') {
     return readEligibleLecturers(token, payload);
+  }
+  if (request.method !== 'GET' && name === 'reserve') {
+    return reserveLendingLine(token, csrf, payload);
   }
   if (request.method !== 'GET' && name === 'decisions') {
     return decideLendingRequest(token, csrf, payload);
