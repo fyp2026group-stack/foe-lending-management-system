@@ -14,6 +14,9 @@ const patterns = [
 function files(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = join(dir, entry.name);
+    // Prisma-generated documentation includes raw-query examples, not runtime
+    // business calls. This ignored output can remain from an older generator.
+    if (path === join(src, 'generated', 'prisma')) return [];
     return entry.isDirectory()
       ? files(path)
       : /\.(?:ts|tsx|js|jsx)$/.test(entry.name) ? [path] : [];

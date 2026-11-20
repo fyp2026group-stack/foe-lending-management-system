@@ -22,6 +22,10 @@ export async function authorizePrismaSession(
   options: { csrf?: string; requiredRoles?: readonly ApplicationRole[] } = {},
 ): Promise<AuthResult> {
   if (!/^[a-f0-9]{64}$/i.test(token)) return { status: 401, code: 'UNAUTHENTICATED' };
+  // Hold the identity read lock through the caller's protected operation.
+  // Admin role/membership changes take the exclusive counterpart before
+  // revoking sessions; they must not overtake an already authorized write.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(731942) IS NULL AS locked`;
   const hash = sha256(token);
   const now = new Date();
   const session = await tx.sessions.findUnique({

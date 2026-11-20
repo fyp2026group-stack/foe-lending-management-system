@@ -5,7 +5,13 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api, readSession, type Session } from './api';
-export function Login() {
+const googleMessages: Record<string, string> = {
+  unavailable: 'Google sign-in is currently unavailable. Use your assigned account or contact the laboratory administrator.',
+  account: 'This Google account could not access the system. Contact the laboratory administrator to check your account.',
+  denied: 'Google sign-in could not be completed. Try again and allow access with your intended Google account.',
+  expired: 'Your Google registration session expired. Continue with Google again to restart registration.',
+};
+export function Login({ googleStatus }: { googleStatus?: string } = {}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -65,6 +71,12 @@ export function Login() {
             <p>Use your assigned university account to continue.</p>
           </div>
           <form onSubmit={submit} className="login-form" aria-busy={busy}>
+            {googleStatus && Object.hasOwn(googleMessages, googleStatus) && (
+              <div role="alert" className="login-error">
+                <strong>Google sign-in unsuccessful</strong>
+                <span>{googleMessages[googleStatus]}</span>
+              </div>
+            )}
             {error && (
               <div
                 ref={errorRef}

@@ -51,6 +51,8 @@ export async function issueLendingAllocation(
         where: { id: payload.allocationId as string },
         select: {
           id: true, cell_id: true, quantity: true, issued: true, cancelled: true,
+          lend_reserved_assets: { where: { released: false },
+            select: { asset_id: true, cell_id: true }, orderBy: { asset_id: 'asc' } },
           lend_lines: {
             select: {
               id: true, request_id: true, item_id: true, lab_id: true,
@@ -132,20 +134,29 @@ export async function issueLendingAllocation(
         });
         if (!allocatedCell || allocatedCell.state !== 'RESERVED')
           return { status: 409, code: 'STATE_CONFLICT' };
-        assetId = (payload.assetId as string | undefined) ?? allocatedCell.asset_id;
+        // Pooled stock belongs to multiple allocations. Only this allocation's
+        // unclaimed remainder may be exchanged or materialized.
+        const anonymousRemaining = allocation.quantity - allocation.issued -
+          allocation.cancelled - allocation.lend_reserved_assets.length;
+        assetId = (payload.assetId as string | undefined) ?? allocatedCell.asset_id ??
+          (anonymousRemaining === 0 ? allocation.lend_reserved_assets[0]?.asset_id : null);
         if (assetId) {
           if (payload.serial !== undefined) return { status: 409, code: 'STATE_CONFLICT' };
           const selected = await tx.inv_cells.findFirst({
             where: {
               asset_id: assetId, quantity: 1, item_id: line.item_id,
               lab_id: line.lab_id, location_id: line.location_id,
-              OR: [{ state: 'AVAILABLE' }, { id: allocation.cell_id, state: 'RESERVED' }],
+              OR: [{ state: 'AVAILABLE' }, {
+                id: { in: [allocation.cell_id,
+                  ...allocation.lend_reserved_assets.map(x => x.cell_id)] },
+                state: 'RESERVED',
+              }],
             },
             select: { id: true, state: true },
           });
           if (!selected) return { status: 409, code: 'STATE_CONFLICT' };
           if (selected.state === 'AVAILABLE') {
-            if (allocatedCell.asset_id !== null)
+            if (allocatedCell.asset_id !== null || anonymousRemaining < 1)
               return { status: 409, code: 'STATE_CONFLICT' };
             const available = await ensureCell(tx, {
               itemId: line.item_id, labId: line.lab_id,
@@ -160,6 +171,7 @@ export async function issueLendingAllocation(
           }
           sourceCellId = selected.id;
         } else {
+          if (anonymousRemaining < 1) return { status: 409, code: 'STATE_CONFLICT' };
           assetId = randomUUID();
           await tx.inv_assets.createMany({
             data: [{
@@ -201,6 +213,10 @@ export async function issueLendingAllocation(
         actorId: auth.userId, itemId: line.item_id, labId: line.lab_id,
         sourceCellId, destCellId: destination.id,
         quantity: q as number, kind: 'ISSUE', reason: 'physical handover',
+      });
+      if (assetId) await tx.lend_reserved_assets.updateMany({
+        where: { allocation_id: allocation.id, asset_id: assetId, released: false },
+        data: { released: true },
       });
       await tx.lend_allocations.updateMany({
         where: { id: allocation.id },

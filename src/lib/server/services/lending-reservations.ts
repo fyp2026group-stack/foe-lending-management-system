@@ -95,24 +95,20 @@ export async function reserveLendingLine(
 
       const quantity = target.quantity - target.cancelled;
       if (quantity < 1) return { status: 409, code: 'STATE_CONFLICT' };
-      const available = await tx.inv_cells.findFirst({
+      const available = await tx.inv_cells.findMany({
         where: {
           item_id: target.item_id, lab_id: target.lab_id,
           location_id: target.location_id,
-          state: 'AVAILABLE', asset_id: null, quantity: { gte: quantity },
+          state: 'AVAILABLE', quantity: { gt: 0 },
         },
         orderBy: { id: 'asc' },
-        select: { id: true },
+        select: { id: true, asset_id: true, quantity: true },
       });
-      if (!available) return { status: 409, code: 'INSUFFICIENT_STOCK' };
+      if (available.reduce((sum, cell) => sum + cell.quantity, 0) < quantity)
+        return { status: 409, code: 'INSUFFICIENT_STOCK' };
       const destination = await ensureCell(tx, {
         itemId: target.item_id, labId: target.lab_id,
         locationId: target.location_id, state: 'RESERVED',
-      });
-      const movementId = await postStockMovement(tx, {
-        actorId: auth.userId, itemId: target.item_id, labId: target.lab_id,
-        sourceCellId: available.id, destCellId: destination.id,
-        quantity, kind: 'RESERVE', reason: 'approved lending request',
       });
       const allocationId = randomUUID();
       await tx.lend_allocations.createMany({
@@ -121,6 +117,30 @@ export async function reserveLendingLine(
           quantity, issued: 0, cancelled: 0,
         }],
       });
+      let remaining = quantity;
+      // Prefer anonymous units, then reserve specific identities. Returning
+      // inspected equipment to AVAILABLE must make it lendable again.
+      const ordered = [...available.filter(c => c.asset_id === null),
+        ...available.filter(c => c.asset_id !== null)];
+      let movementId!: string;
+      for (const cell of ordered) {
+        if (remaining === 0) break;
+        const reserved = cell.asset_id ? await ensureCell(tx, {
+          itemId: target.item_id, labId: target.lab_id,
+          locationId: target.location_id, assetId: cell.asset_id, state: 'RESERVED',
+        }) : destination;
+        const moved = Math.min(remaining, cell.quantity);
+        movementId = await postStockMovement(tx, {
+          actorId: auth.userId, itemId: target.item_id, labId: target.lab_id,
+          sourceCellId: cell.id, destCellId: reserved.id,
+          quantity: moved, kind: 'RESERVE', reason: 'approved lending request',
+        });
+        if (cell.asset_id) await tx.lend_reserved_assets.createMany({
+          data: [{ allocation_id: allocationId, asset_id: cell.asset_id,
+            cell_id: reserved.id, released: false }],
+        });
+        remaining -= moved;
+      }
       const result = { allocationId, movementId };
       await tx.lend_commands.create({
         data: {
