@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { CatalogueWorkspace } from './catalogue-workspace';
 import { stockLabel } from './catalogue-model';
+import { Boxes, ClipboardList, History, MapPin, PackageOpen } from 'lucide-react';
 import {
   inventoryRead,
   inventoryWrite,
@@ -126,10 +127,14 @@ export function MutationForm({
   children,
   onSaved,
   context,
+  formId,
+  externalSubmit = false,
 }: {
   title: string;
   path: string;
   session: Session;
+  formId?: string;
+  externalSubmit?: boolean;
   context?: React.ReactNode;
   build: (data: FormData) => unknown;
   children: React.ReactNode;
@@ -187,10 +192,11 @@ export function MutationForm({
         onConfirmed={submit}
         context={context}
         className="mt-4"
+        formId={formId}
       >
         <fieldset disabled={busy} className="grid gap-4">
           {children}
-          <Button type="submit">{busy ? 'Submitting...' : title}</Button>
+          {!externalSubmit && <Button type="submit">{busy ? 'Submitting...' : title}</Button>}
         </fieldset>
       </ConfirmedForm>
       <p className="muted mt-3">
@@ -235,53 +241,50 @@ export function ItemDetail({
   labId?: string;
   physical?: boolean;
 }) {
+  const kind = item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable';
   return (
-    <div className="grid gap-4">
-      <dl className="review-facts">
-        <div>
-          <dt>Item type</dt>
-          <dd>{item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable'}</dd>
+    <div className="equipment-detail">
+      <div className="equipment-detail-chips">
+        <Badge variant="secondary"><Boxes className="size-3.5" aria-hidden="true" />{kind}</Badge>
+        <Badge variant="outline" className={item.active === false ? 'equipment-muted-badge' : 'equipment-active-badge'}>
+          <span aria-hidden="true" className="equipment-status-dot" />
+          {item.active === false ? 'Inactive' : 'Active'}
+        </Badge>
+      </div>
+      <section className="equipment-detail-section" aria-labelledby="equipment-overview-heading">
+        <div className="equipment-section-heading">
+          <ClipboardList className="size-4" aria-hidden="true" />
+          <h2 id="equipment-overview-heading">Equipment overview</h2>
         </div>
-        <div>
-          <dt>Unit</dt>
-          <dd>{item.uom ?? 'Not specified'}</dd>
-        </div>
-        <div>
-          <dt>Available</dt>
-          <dd>{item.available ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Reserved</dt>
-          <dd>{item.reserved ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Borrowed equipment</dt>
-          <dd>{item.borrowed ?? '?'}</dd>
-        </div>
-        <div>
-          <dt>Catalogue status</dt>
-          <dd>{item.active === false ? 'Inactive' : 'Active'}</dd>
-        </div>
-      </dl>
+        <dl className="equipment-facts">
+          <div><dt>Item type</dt><dd>{kind}</dd></div>
+          <div><dt>Unit of measure</dt><dd>{item.uom ?? 'Not specified'}</dd></div>
+          <div><dt>Available</dt><dd>{item.available ?? 'Not disclosed'}</dd></div>
+          <div><dt>Reserved</dt><dd>{item.reserved ?? 'Not disclosed'}</dd></div>
+          <div><dt>Borrowed</dt><dd>{item.borrowed ?? 'Not disclosed'}</dd></div>
+          <div><dt>Awaiting inspection</dt><dd>{item.inspection ?? 'Not disclosed'}</dd></div>
+          <div><dt>In maintenance</dt><dd>{item.maintenance ?? 'Not disclosed'}</dd></div>
+          <div><dt>Catalogue status</dt><dd>{item.active === false ? 'Inactive' : 'Active'}</dd></div>
+        </dl>
+      </section>
       {item.specifications && Object.keys(item.specifications).length > 0 && (
-        <>
-          <h2>Specifications</h2>
-          <dl className="review-facts">
+        <section className="equipment-detail-section" aria-labelledby="equipment-specifications-heading">
+          <div className="equipment-section-heading">
+            <ClipboardList className="size-4" aria-hidden="true" />
+            <h2 id="equipment-specifications-heading">Specifications</h2>
+          </div>
+          <dl className="equipment-facts">
             {Object.entries(item.specifications).map(([key, value]) => (
-              <div key={key}>
-                <dt>{key}</dt>
-                <dd>{value}</dd>
-              </div>
+              <div key={key}><dt>{key}</dt><dd>{value}</dd></div>
             ))}
           </dl>
-        </>
+        </section>
       )}
       {physical ? (
         <PhysicalItemDetail item={item} revision={revision} labId={labId} />
       ) : (
-        <p className="muted">
-          Detailed stock locations and movement history are available to authorized laboratory
-          staff.
+        <p className="equipment-detail-private">
+          Location-specific balances and movement history are restricted to authorized laboratory staff.
         </p>
       )}
     </div>
@@ -296,79 +299,117 @@ function PhysicalItemDetail({
   revision: number;
   labId: string;
 }) {
-  const query =
-    'itemId=' + encodeURIComponent(item.id) + (labId ? '&labId=' + encodeURIComponent(labId) : '');
+  const query = 'itemId=' + encodeURIComponent(item.id) + (labId ? '&labId=' + encodeURIComponent(labId) : '');
   const stock = useInventoryLookup<Stock>('stock?' + query, revision);
   const assets = useInventoryLookup<Asset>('assets?' + query, revision);
   const movements = useInventoryLookup<Movement>('movements?' + query, revision);
   const locations = useInventoryLookup<Named>(
-    'locations' + (labId ? '?labId=' + encodeURIComponent(labId) : ''),
-    revision
+    'locations' + (labId ? '?labId=' + encodeURIComponent(labId) : ''), revision
+  );
+  const positive = stock.data?.items.filter((row) => row.quantity > 0) ?? [];
+  // Identified and quantity-only units can occupy separate internal stock rows.
+  // Group by laboratory, location, and state for a correct human-readable total.
+  const balances = Array.from(
+    positive.reduce((map, row) => {
+      const key = JSON.stringify([row.labId, row.locationId, row.state]);
+      const previous = map.get(key);
+      if (previous) previous.quantity += row.quantity;
+      else map.set(key, {
+        key, labId: row.labId, locationId: row.locationId,
+        state: row.state, quantity: row.quantity,
+      });
+      return map;
+    }, new Map<string, {
+      key: string; labId: string; locationId: string; state: string; quantity: number
+    }>()).values()
   );
   return (
     <>
-      <h2>Stock by location and state</h2>
-      {[stock.error, assets.error, movements.error, locations.error]
-        .filter(Boolean)
-        .map((error, index) => (
-          <ErrorNotice key={index} message={error!} />
-        ))}
-      {!stock.data && !stock.error && <p role="status">Loading balances?</p>}
-      {stock.data?.items
-        .filter((row) => row.quantity > 0)
-        .map((row) => (
-          <div key={row.id} className="stock-balance">
-            <div>
-              <Badge variant="secondary">{stockLabel(row.state)}</Badge>
-              <p className="muted">
-                {locations.data?.items.find((location) => location.id === row.locationId)?.name ??
-                  'Stock location'}
-              </p>
-            </div>
-            <strong>
-              {row.quantity} {item.uom}
-            </strong>
-            <small>Version {row.version}</small>
+      <section className="equipment-detail-section" aria-labelledby="equipment-stock-heading">
+        <div className="equipment-section-heading">
+          <MapPin className="size-4" aria-hidden="true" />
+          <h2 id="equipment-stock-heading">Equipment by location</h2>
+        </div>
+        {[stock.error, assets.error, movements.error, locations.error]
+          .filter(Boolean).map((error, index) => <ErrorNotice key={index} message={error!} />)}
+        {!stock.data && !stock.error && <p role="status" className="equipment-loading">Loading stock balances…</p>}
+        {balances.length > 0 && (
+          <div className="equipment-stock-table" role="region" aria-label="Equipment quantities by location">
+            <table>
+              <thead><tr><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Quantity</th></tr></thead>
+              <tbody>{balances.map((row) => (
+                <tr key={row.key}>
+                  <td>{locations.data?.items.find((location) => location.id === row.locationId)?.name ?? 'Stock location'}</td>
+                  <td><Badge variant="secondary">{stockLabel(row.state)}</Badge></td>
+                  <td className="equipment-quantity">{row.quantity} {item.uom ?? 'units'}</td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
-        ))}
-      {stock.data && !stock.data.items.some((row) => row.quantity > 0) && (
-        <p>No current stock in this scope.</p>
-      )}
+        )}
+        {stock.data && !balances.length && <p className="equipment-empty-inline">No current stock in this scope.</p>}
+      </section>
       {item.kind !== 'CONSUMABLE' && (
-        <>
-          <h2>Physical assets</h2>
-          {!assets.data && !assets.error && <p role="status">Loading physical assets?</p>}
-          {assets.data && !assets.data.items.length && <p>No identified assets recorded.</p>}
-          {assets.data?.items.map((asset) => (
-            <article key={asset.id} className="asset-record">
-              <strong>{asset.serial || 'Serial not recorded'}</strong>
-              <Badge variant="secondary">
-                {asset.state ? stockLabel(asset.state) : 'See stock state'}
-              </Badge>
-              <span className="asset-reference">Permanent asset ID: {asset.id}</span>
-            </article>
-          ))}
-        </>
+        <section className="equipment-detail-section" aria-labelledby="equipment-assets-heading">
+          <div className="equipment-section-heading">
+            <Boxes className="size-4" aria-hidden="true" />
+            <h2 id="equipment-assets-heading">Identified equipment units</h2>
+          </div>
+          {!assets.data && !assets.error && <p role="status" className="equipment-loading">Loading physical assets…</p>}
+          {assets.data && !assets.data.items.length && (
+            <div className="equipment-assets-empty">
+              <PackageOpen className="size-6" aria-hidden="true" />
+              <strong>No individually identified assets recorded</strong>
+              <p>Equipment can be tracked by quantity until an individual asset is identified.</p>
+            </div>
+          )}
+          {assets.data && assets.data.items.length > 0 && (
+            <div className="equipment-assets-list">
+              {assets.data.items.map((asset) => (
+                <article key={asset.id} className="equipment-asset-row">
+                  <div><strong>{asset.serial || 'Serial number not recorded'}</strong>
+                    <span className="asset-reference">Internal reference: {asset.id}</span></div>
+                  <Badge variant="secondary">{asset.state ? stockLabel(asset.state) : 'State unavailable'}</Badge>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       )}
-      <h2>Movement history</h2>
-      {!movements.data && !movements.error && <p role="status">Loading movement history?</p>}
-      {movements.data?.items.map((row) => (
-        <article key={row.id} className="movement-record">
-          <strong>{stockLabel(row.kind)}</strong>
-          <time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString('en-GB')}</time>
-          <p>{row.reason}</p>
-          <ul>
-            {row.entries?.map((entry, index) => (
-              <li key={index}>
-                {entry.locationName ?? (entry.cellId ? 'Stock location' : 'External account')}
-                {entry.state ? ' ? ' + stockLabel(entry.state) : ''}: {entry.delta > 0 ? '+' : ''}
-                {entry.delta}
+      <section className="equipment-detail-section" aria-labelledby="equipment-movements-heading">
+        <div className="equipment-section-heading">
+          <History className="size-4" aria-hidden="true" />
+          <h2 id="equipment-movements-heading">Equipment history</h2>
+        </div>
+        {!movements.data && !movements.error && <p role="status" className="equipment-loading">Loading movement history…</p>}
+        {movements.data && !movements.data.items.length && (
+          <p className="equipment-empty-inline">No recorded movements for this equipment.</p>
+        )}
+        {movements.data && movements.data.items.length > 0 && (
+          <ol className="equipment-movement-timeline">
+            {movements.data.items.map((row) => (
+              <li key={row.id} className="equipment-movement">
+                <div className="equipment-movement-meta">
+                  <Badge variant="secondary">{stockLabel(row.kind)}</Badge>
+                  <time dateTime={row.createdAt}>{new Date(row.createdAt).toLocaleString('en-GB')}</time>
+                </div>
+                <p className="equipment-movement-reason">{row.reason || 'Stock movement recorded'}</p>
+                {Boolean(row.entries?.length) && (
+                  <ul className="equipment-movement-entries">
+                    {row.entries?.map((entry, index) => (
+                      <li key={index}>
+                        {entry.locationName ?? (entry.cellId ? 'Stock location' : 'External account')}
+                        {entry.state ? ' · ' + stockLabel(entry.state) : ''}:
+                        <strong>{entry.delta > 0 ? '+' : ''}{entry.delta}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
-          </ul>
-        </article>
-      ))}
-      {movements.data && !movements.data.items.length && <p>No movements recorded.</p>}
+          </ol>
+        )}
+      </section>
     </>
   );
 }
@@ -376,7 +417,7 @@ function ReceiptFields({ labs, locations }: { labs: Named[]; locations: Named[] 
   const [labId, setLabId] = useState('');
   return (
     <>
-      <ItemPicker name="receiptItem" label="Receipt item" />
+      <ItemPicker name="receiptItem" label="Equipment" compact />
       <div>
         <label htmlFor="receiptLab">Laboratory</label>
         <select
@@ -406,6 +447,28 @@ function ReceiptFields({ labs, locations }: { labs: Named[]; locations: Named[] 
     </>
   );
 }
+export function ReceiveItemsDialog({open,onOpenChange,session,labs,locations,onSaved}:{
+  open:boolean;onOpenChange:(value:boolean)=>void;session:Session;labs:Named[];locations:Named[];onSaved:()=>void;
+}) {
+  return <ReviewSheet open={open} onOpenChange={onOpenChange}
+    title="Add items to inventory"
+    description="Record delivery of equipment already in the catalogue."
+    variant="receipt"
+    footer={<>
+      <Button type="button" variant="outline" onClick={()=>onOpenChange(false)}>Cancel</Button>
+      <Button type="submit" form="inventory-receipt-form">Review & save</Button>
+    </>}>
+    <MutationForm title="Save received items" path="receipts" session={session}
+      formId="inventory-receipt-form" externalSubmit
+      onSaved={()=>{onSaved();onOpenChange(false);}}
+      build={d=>({itemId:d.get('receiptItem'),labId:d.get('receiptLab'),locationId:d.get('receiptLocation'),
+        quantity:Number(d.get('receiptQuantity')),provenance:d.get('provenance')})}>
+      <p className="receipt-form-context">Select equipment, the storage location and quantity received.
+        Serial numbers may be recorded later. Identifying a unit does not increase stock.</p>
+      <div className="receipt-form-fields"><ReceiptFields labs={labs} locations={locations}/></div>
+    </MutationForm>
+  </ReviewSheet>;
+}
 export function StockOperations({
   session,
   items: catalogueItems,
@@ -414,6 +477,7 @@ export function StockOperations({
   onSaved,
   revision,
   inspectionWorkflow = false,
+  reviewOnly = false,
 }: {
   session: Session;
   items: Item[];
@@ -422,6 +486,7 @@ export function StockOperations({
   onSaved: () => void;
   revision: number;
   inspectionWorkflow?: boolean;
+  reviewOnly?: boolean;
 }) {
   const itemLookup = useInventoryLookup<Item>('items', revision);
   const items = itemLookup.data?.items ?? catalogueItems;
@@ -556,8 +621,9 @@ export function StockOperations({
       </>
       {itemLookup.error && <ErrorNotice message={itemLookup.error} />}{' '}
       {stock.error && <ErrorNotice message={stock.error} />}
+      {!reviewOnly && (
       <section className="records p-4">
-        <h2>Current stock cells</h2>
+        <h2>Stock by location</h2>
         <label htmlFor="cell-location">Filter loaded stock by location</label>
         <select
           id="cell-location"
@@ -630,43 +696,24 @@ export function StockOperations({
           ) : null}
         </>
       </section>
+      )}
       {technical && (
         <>
           <Button className="justify-self-start" onClick={() => setReceiptOpen(true)}>
             Receive stock
           </Button>
-          <ReviewSheet
-            open={receiptOpen}
-            onOpenChange={setReceiptOpen}
-            title="Receive stock"
-            description="Record a physical receipt into its laboratory and stock location."
-          >
-            <MutationForm
-              title="Receive stock"
-              path="receipts"
-              session={session}
-              onSaved={onSaved}
-              build={(data) => ({
-                itemId: data.get('receiptItem'),
-                labId: data.get('receiptLab'),
-                locationId: data.get('receiptLocation'),
-                quantity: Number(data.get('receiptQuantity')),
-                provenance: data.get('provenance'),
-              })}
-            >
-              <ReceiptFields labs={labs} locations={locations} />
-            </MutationForm>
-          </ReviewSheet>
+          <ReceiveItemsDialog open={receiptOpen} onOpenChange={setReceiptOpen}
+            session={session} labs={labs} locations={locations} onSaved={onSaved} />
           <section className="border bg-white p-4">
-            <h2>Select a stock cell for a controlled operation</h2>
-            <label htmlFor="stock-cell">Stock cell</label>
+            <h2>Select equipment and location</h2>
+            <label htmlFor="stock-cell">Equipment / location / stock state</label>
             <select
               id="stock-cell"
               className={selectionClass}
               value={cellId}
               onChange={(event) => setCellId(event.target.value)}
             >
-              <option value="">Select stock cell</option>
+              <option value="">Choose equipment and location</option>
               {stock.data?.items
                 .filter((row) => ['AVAILABLE', 'INSPECTION', 'MAINTENANCE'].includes(row.state))
                 .map((row) => (
@@ -1003,21 +1050,9 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
     }
   }
   return (
-    <section className="border bg-white rounded-md p-4">
-      <h2>Receipt import workflow</h2>
-      <p className="muted">Controlled, auditable inventory receipt imports</p>
-      <ol className="officer-flow" aria-label="Receipt import steps">
-        {['Upload CSV/XLSX', 'Validate', 'Preview', 'Commit'].map((step, index) => (
-          <li
-            key={step}
-            aria-current={
-              preview ? (index === 2 ? 'step' : undefined) : index === 0 ? 'step' : undefined
-            }
-          >
-            {index + 1}. {step}
-          </li>
-        ))}
-      </ol>
+    <section className="inventory-import-panel">
+      <h2>Import equipment receipts</h2>
+      <p className="muted">Upload a CSV or Excel file, check the contents, and confirm the stock updates.</p>
       {issues.length > 0 && (
         <div
           className="table-region"
@@ -1048,10 +1083,12 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
           </Table>
         </div>
       )}
-      <p>
-        CSV or XLSX, up to 100 rows. Exact columns: itemId, labId, locationId, quantity, provenance.
-        Server validates and stores the preview; commit revalidates every row atomically.
-      </p>
+      <p className="import-help">Import up to 100 equipment receipt rows from CSV or Excel (.xlsx). No stock is added until you review and confirm.</p>
+      <details className="import-format-help">
+        <summary>Required spreadsheet columns</summary>
+        <p>Use <code>itemId</code>, <code>labId</code>, <code>locationId</code>, <code>quantity</code> and <code>provenance</code> (unique receipt reference).
+        IDs must refer to existing authorized records. The server checks each row before accepting the import.</p>
+      </details>
       {error && <ErrorNotice message={error} />}
       <p role="status">{success}</p>
       <form onSubmit={validate} className="grid gap-4 my-4">
@@ -1140,7 +1177,7 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
         </>
       )}
       <section className="mt-6 border-t pt-4">
-        <h2>My staged imports</h2>
+        <h2>Saved imports</h2>
         <Button
           type="button"
           variant="outline"
@@ -1168,10 +1205,7 @@ export function ImportPanel({ session, onSaved }: { session: Session; onSaved: (
             </Button>
           </div>
         ))}
-        <p className="muted">
-          Reopen fetches the saved rows under your current permissions. Review those rows before
-          committing the existing stage. Committed stages are read only.
-        </p>
+        <p className="muted">Review previously uploaded imports. Completed imports cannot be applied twice.</p>
       </section>
     </section>
   );

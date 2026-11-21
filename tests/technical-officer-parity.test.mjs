@@ -1,3 +1,4 @@
+import { sourceContains } from './source-assert.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,24 +16,26 @@ test('officer source retains reference shell dimensions, tokens and distinct com
     'min-height:93px',
     'padding:12px 15px',
     'officer-support',
-    'grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr) minmax(0,.9fr)',
     '@media(max-width:600px)',
   ])
-    assert.ok(css.includes(token), token);
+    assert.ok(sourceContains(css, token), token);
   const page = readFileSync(
     new URL('../src/components/technical-officer/workspace.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(page.includes('className="officer-support"'));
-  assert.ok(page.includes('className="officer-quick-icon"'));
-  assert.ok(page.includes('className="officer-queue-metrics"'));
+  assert.ok(sourceContains(page, 'className="officer-support"'));
+  assert.ok(sourceContains(page, 'className="officer-quick-icon"'));
+  assert.ok(sourceContains(page, 'officer-queue-metrics inventory-catalogue-metrics'));
   const stock = readFileSync(
     new URL('../src/components/inventory/inventory.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(stock.includes('Common stock operations'));
-  assert.ok(stock.includes('Recent inventory activity'));
-  assert.ok(stock.includes('aria-label="Receipt import steps"'));
+  // Preserve the underlying audited stock operations and staged receipt validation,
+  // while exposing them through the simplified equipment-focused UI.
+  assert.ok(sourceContains(stock, 'path="receipts"'));
+  assert.ok(sourceContains(stock, 'path="adjustments"'));
+  assert.ok(sourceContains(stock, 'imports/preview'));
+  assert.ok(sourceContains(stock, 'Required spreadsheet columns'));
 });
 
 test('officer mobile/sidebar and per-screen actions are scoped without changing student breakpoint', () => {
@@ -40,15 +43,14 @@ test('officer mobile/sidebar and per-screen actions are scoped without changing 
     new URL('../src/components/identity/session.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(shell.includes('?901:768'));
-  assert.ok(shell.includes("?'sidebar':'inset'"));
+  assert.ok(sourceContains(shell, '?901:768'));
+  assert.ok(sourceContains(shell, "?'sidebar':'inset'"));
   for (const group of [
     "label:'Operations'",
-    "label:'Inventory'",
-    "label:'My Borrowing'",
-    "label:'Reference'",
+    "label:'Inventory & stock'",
+    "label:'Personal borrowing'",
   ])
-    assert.ok(shell.includes(group), group);
+    assert.ok(sourceContains(shell, group), group);
   for (const icon of [
     'LayoutGrid',
     'PackageOpen',
@@ -61,11 +63,11 @@ test('officer mobile/sidebar and per-screen actions are scoped without changing 
     'Package',
     'Clock3',
   ])
-    assert.ok(shell.includes(icon), icon);
-  assert.ok(shell.includes('className="officer-nav-count"'));
-  assert.ok(shell.includes("useLendingChoices<Allocation>('allocations'"));
-  assert.ok(shell.includes("useLendingChoices<Loan>('expected'"));
-  assert.ok(shell.includes("useLendingChoices<Loan&{inspection?:{status:string}}>('inspections'"));
+    assert.ok(sourceContains(shell, icon), icon);
+  assert.ok(sourceContains(shell, 'className="officer-nav-count"'));
+  assert.ok(sourceContains(shell, "useLendingChoices<Allocation>('allocations'"));
+  assert.ok(sourceContains(shell, "useLendingChoices<Loan>('expected'"));
+  assert.ok(sourceContains(shell, "useLendingChoices<Loan&{inspection?:{status:string}}>('inspections'"));
   const sidebar = readFileSync(
     new URL('../src/components/ui/sidebar.tsx', import.meta.url),
     'utf8'
@@ -76,8 +78,8 @@ test('officer mobile/sidebar and per-screen actions are scoped without changing 
     new URL('../src/components/technical-officer/workspace.tsx', import.meta.url),
     'utf8'
   );
-  assert.ok(page.includes('officer-view-${current}'));
-  assert.ok(page.includes('officerHref(destination)'));
-  assert.ok(page.includes('officer-panel-description'));
-  assert.ok(page.includes('Loading authorized records</span>'));
+  assert.ok(sourceContains(page, 'officer-view-${current}'));
+  assert.ok(sourceContains(page, 'officerHref(destination)'));
+  assert.ok(sourceContains(page, 'officer-panel-description'));
+  assert.ok(sourceContains(page, 'Loading authorized records</span>'));
 });

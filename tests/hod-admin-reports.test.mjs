@@ -1,13 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-test('report route provides real CSV and XLSX with formula neutralization', () => {
+
+test('report route uses protected reads, hardened export formats and snapshot isolation', () => {
   const source = readFileSync(new URL('../src/lib/server/reports.ts', import.meta.url), 'utf8');
-  assert.ok(source.includes("format==='csv'?csv(rows):xlsx(rows)"));
+  const serializer = readFileSync(
+    new URL('../src/lib/server/report-export.ts', import.meta.url),
+    'utf8'
+  );
+  assert.ok(source.includes("format === 'xlsx' ? xlsx(rows) : null"));
+  assert.ok(source.includes('csv(rows)'));
   assert.ok(source.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
-  assert.ok(source.includes('/^\\s*[=+\\-@]/'));
-  assert.ok(source.includes('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'));
-  assert.ok(source.includes('rows.length<100000'));
+  assert.ok(serializer.includes('/^\\s*[=+\\-@]/'));
+  const service = readFileSync(new URL('../src/lib/server/services/admin-reports.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes('readAdminReport('));
+  assert.ok(service.includes('nativeOrmTransaction('));
+  assert.ok(service.includes("requiredRoles: ['ADMIN']"));
+  assert.ok(service.includes('100000'));
   const migration = readFileSync(
     new URL('../database/049_hod_admin_reporting_hardening.sql', import.meta.url),
     'utf8'

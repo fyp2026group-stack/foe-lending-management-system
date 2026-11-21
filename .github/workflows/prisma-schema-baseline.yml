@@ -1,0 +1,75 @@
+name: Prisma full schema baseline (isolated database)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [prisma]
+    paths:
+      - '.github/workflows/prisma-schema-baseline.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Provision isolated copy using existing SQL migrations
+        run: |
+          npm run local:config
+          npm run db:setup:legacy
+      - name: Introspect full schema using isolated migration account
+        run: |
+          set -a
+          source .verification/m2.env
+          set +a
+          export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
+          npm run prisma:introspect
+          node scripts/prisma-repair-introspection.mjs
+          echo '=== introspected asset and stock relations ==='
+          sed -n '85,145p' prisma/schema.prisma
+          grep -n -E 'inv_cells|inv_assets' prisma/schema.prisma | head -35
+          npm run prisma:validate
+          node -e 'const fs=require("fs");const s=fs.readFileSync("prisma/schema.prisma","utf8");const n=(s.match(/^model /gm)||[]).length;if(n<30)throw Error("Incomplete introspection: "+n+" Prisma models");console.log("Complete introspection:",n,"models")'
+          npm run prisma:generate
+          npm run typecheck
+      - name: Create non-destructive Prisma migration baseline
+        run: |
+          mkdir -p prisma/migrations/0_init
+          npx prisma migrate diff --config prisma7.config.ts --from-empty --to-schema prisma/schema.prisma --script > prisma/migrations/0_init/migration.sql
+          test -s prisma/migrations/0_init/migration.sql
+          grep -q 'CREATE TABLE' prisma/migrations/0_init/migration.sql
+          # Only the privileged migrator may write Prisma's migration history.
+          # Keep the application runtime role without CREATE or table grants.
+          set -a
+          source .verification/m2.env
+          set +a
+          export DATABASE_URL="${MIGRATION_DATABASE_URL}?schema=lab"
+          npx prisma migrate resolve --config prisma7.config.ts --applied 0_init
+          npx prisma migrate status --config prisma7.config.ts
+      - name: Source regression checks
+        run: |
+          npm run lint
+          npm run build
+      - name: Commit verified schema and baseline to prisma branch
+        run: |
+          git add prisma/schema.prisma prisma/migrations/0_init/migration.sql
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "feat(prisma): introspect complete database and baseline migration history"
+            git push origin HEAD:prisma
+          fi
+      - name: Teardown isolated PostgreSQL
+        if: always()
+        run: npm run db:down

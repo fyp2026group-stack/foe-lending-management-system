@@ -26,6 +26,7 @@ const server = spawn(
   { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
 );
 let tests;
+let appLogTail = '';
 try {
   await new Promise((resolve, reject) => {
     let tail = '';
@@ -36,6 +37,7 @@ try {
     };
     const receive = (chunk) => {
       tail = (tail + chunk).slice(-10000);
+      appLogTail = (appLogTail + chunk.toString()).slice(-16000);
       // Do not forward app request logs, which may include credential-related diagnostics.
       if (/EADDRINUSE|Another next dev server|Failed to start server/.test(tail))
         finish(() => reject(Error('Port/project already in use; no unrelated process stopped')));
@@ -57,6 +59,7 @@ try {
       'tests/m2-identity.integration.mjs',
       'tests/m3-inventory.integration.mjs',
       'tests/workflow-basic.integration.mjs',
+      'tests/prisma-native-lifecycle-http.integration.mjs',
     ],
     { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
   );
@@ -66,6 +69,9 @@ try {
   try {
     const [code] = await once(tests, 'exit');
     process.exitCode = code ?? 1;
+    if (process.exitCode !== 0) {
+      process.stderr.write('Application server diagnostics (secrets masked):\\n' + safe(appLogTail.slice(-9000)) + '\\n');
+    }
   } finally {
     clearTimeout(watchdog);
   }

@@ -1,8 +1,15 @@
 import { handle, ApiError, recordDenial } from '@/lib/server/identity';
 export const runtime = 'nodejs';
 async function route(r: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const path = (await params).path;
+  if (path.join('/') === 'auth/login' && (r.method !== 'POST' || new URL(r.url).search)) {
+    return Response.json({ code: 'LOGIN_BODY_REQUIRED' }, {
+      status: r.method !== 'POST' ? 405 : 400,
+      headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', Allow: 'POST' },
+    });
+  }
   try {
-    const result = await handle(r, (await params).path);
+    const result = await handle(r, path);
     const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
     if (result?.cookie) headers['Set-Cookie'] = result.cookie;
     return Response.json(result?.data ?? {}, { status: result?.status ?? 200, headers });

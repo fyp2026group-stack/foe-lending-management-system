@@ -1,6 +1,20 @@
-import { transaction } from './db';
 import { importRows, importIssues } from './inventory-import';
 import { boundedBody } from './work';
+import { readInventoryCategories } from './services/inventory-categories';
+import { readInventoryItems } from './services/inventory-items';
+import { readInventoryStock } from './services/inventory-stock';
+import { readInventoryImports, readInventoryImportDetail } from './services/inventory-imports';
+import { readInventoryAdjustments } from './services/inventory-adjustments';
+import { readInventoryLocations } from './services/inventory-locations';
+import { mutateInventoryCategory } from './services/inventory-category-mutations';
+import { mutateInventoryLocation } from './services/inventory-location-mutations';
+import { mutateInventoryItem } from './services/inventory-item-mutations';
+import { admitInventoryImport } from './services/inventory-import-admission';
+import { readInventoryMovements } from './services/inventory-movements';
+import { readInventoryAssets } from './services/inventory-assets';
+import { receiveInventory } from './services/inventory-receipts';
+import { changeInventoryStock } from './services/inventory-stock-mutations';
+import { previewInventoryImport, commitInventoryImport } from './services/inventory-import-mutations';
 const resources = [
   'categories',
   'items',
@@ -23,17 +37,11 @@ export async function inventory(request: Request, path: string[]) {
       .find((x) => x.startsWith('lab_session='))
       ?.slice(12) ?? '';
   const csrf = request.headers.get('x-csrf-token') ?? '';
-  const rpc = (op: string, p: unknown) =>
-    transaction(
-      async (c) =>
-        (await c.query('SELECT lab.inventory_call($1,$2,$3,$4) AS result', [token, csrf, op, p]))
-          .rows[0].result
-    );
   let op = path[0];
   if (!resources.includes(op)) return { status: 404, code: 'NOT_FOUND' };
   if (!write && op === 'imports' && path.length === 2) {
     if (url.searchParams.size) return { status: 422, code: 'INVALID' };
-    return rpc('read_import_detail', { id: path[1] });
+    return readInventoryImportDetail(token, path[1]);
   }
   if (!write) {
     if (path.length !== 1) return { status: 404, code: 'NOT_FOUND' };
@@ -45,7 +53,15 @@ export async function inventory(request: Request, path: string[]) {
         p[key] = Number(value);
       } else p[key] = value;
     }
-    return rpc('read_' + op, p);
+    if (op === 'categories') return readInventoryCategories(token, p);
+    if (op === 'items') return readInventoryItems(token, p);
+    if (op === 'stock') return readInventoryStock(token, p);
+    if (op === 'movements') return readInventoryMovements(token, p);
+    if (op === 'assets') return readInventoryAssets(token, p);
+    if (op === 'imports') return readInventoryImports(token, p);
+    if (op === 'adjustments') return readInventoryAdjustments(token, p);
+    if (op === 'locations') return readInventoryLocations(token, p);
+    return { status: 404, code: 'NOT_FOUND' };
   }
   if (request.headers.get('origin') !== (process.env.APP_ORIGIN ?? 'http://127.0.0.1:3000'))
     return { status: 403, code: 'ORIGIN_DENIED' };
@@ -62,16 +78,15 @@ export async function inventory(request: Request, path: string[]) {
     if (path.length !== 2 || !['categories', 'items', 'locations'].includes(op))
       return { status: 404, code: 'NOT_FOUND' };
     if (url.searchParams.size || 'id' in p) return { status: 422, code: 'UNSUPPORTED_FIELD' };
-    return rpc('patch_' + op, { ...p, id: path[1] });
+    if (op === 'categories') return mutateInventoryCategory(token, csrf, 'patch_categories', { ...p, id: path[1] });
+    if (op === 'locations') return mutateInventoryLocation(token, csrf, 'patch_locations', { ...p, id: path[1] });
+    if (op === 'items') return mutateInventoryItem(token, csrf, 'patch_items', { ...p, id: path[1] });
+    return { status: 404, code: 'NOT_FOUND' };
   }
   if (path[0] === 'imports' && path[1] === 'preview' && path.length === 2) {
     if (Object.keys(p).some((k) => !['commandId', 'format', 'content'].includes(k)))
       return { status: 422, code: 'UNSUPPORTED_FIELD' };
-    const admit = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.inventory_import_admit($1,$2) AS result', [token, csrf])).rows[0]
-          .result
-    );
+    const admit = await admitInventoryImport(token, csrf);
     if (admit.status) return admit;
     try {
       p = { commandId: p.commandId, rows: await importRows(p.format, p.content) };
@@ -93,5 +108,13 @@ export async function inventory(request: Request, path: string[]) {
     !['categories', 'items', 'locations', 'receipts', 'assets', 'stock', 'adjustments'].includes(op)
   )
     return { status: 404, code: 'NOT_FOUND' };
-  return rpc(op, p);
+  if (op === 'categories') return mutateInventoryCategory(token, csrf, 'categories', p);
+  if (op === 'locations') return mutateInventoryLocation(token, csrf, 'locations', p);
+  if (op === 'items') return mutateInventoryItem(token, csrf, 'items', p);
+  if (op === 'receipts') return receiveInventory(token, csrf, p);
+  if (op === 'preview') return previewInventoryImport(token, csrf, p);
+  if (op === 'commit') return commitInventoryImport(token, csrf, p);
+  if (op === 'assets' || op === 'stock' || op === 'adjustments' || op === 'approve')
+    return changeInventoryStock(token, csrf, op, p);
+  return { status: 404, code: 'NOT_FOUND' };
 }

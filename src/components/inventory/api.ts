@@ -107,6 +107,9 @@ export async function inventoryWrite<T>(
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      if (window.location.pathname !== '/login') window.location.replace('/login');
+    }
     const issues: ImportIssue[] = Array.isArray(data?.errors)
       ? data.errors.filter(
           (issue: ImportIssue) =>

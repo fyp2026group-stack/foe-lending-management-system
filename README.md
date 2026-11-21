@@ -1,284 +1,84 @@
-# University Laboratory Inventory and Equipment Lending System
+# Laboratory Inventory and Lending System
 
-Local development stack:
+## Prisma-native backend
 
-- Next.js 16 and React 19
-- TypeScript
-- PostgreSQL 15 in Docker
-- Synthetic development accounts and records
+The `prisma` branch uses Next.js 16, TypeScript, Prisma 7 and PostgreSQL. Runtime authentication and Google OAuth, administrative user/batch/laboratory management, reports, inventory receipt/movement/import/adjustment operations, approvals, reservation, handover, return, inspection, maintenance, extension, cancellation, revisions and lending reads are implemented as native Prisma transactions. Historical PostgreSQL business functions are not invoked by the current Next.js runtime.
 
-This setup is local-only. Never connect it to real university data or reuse its generated credentials elsewhere.
+Database-level foreign keys, uniqueness, CHECK constraints, restricted SQL permissions, defensive triggers and ledger reconciliation remain intentional. **Prisma does not replace SQL database integrity constraints.**
 
-## Prerequisites
+## Empty local development database
 
-Install:
+Prerequisites: Node.js 24, Docker Desktop and npm.
 
-- Node.js 24.x
-- npm
-- Docker Desktop
-- Git
-
-Open Command Prompt or PowerShell in the project folder:
-
-```bat
-cd C:\Projects\LabInventorySystem
-```
-
-## First-time setup — run in this order
-
-### 1. Install dependencies
-
-```bat
+```powershell
 npm ci
-```
-
-### 2. Generate local credentials and configuration
-
-```bat
 npm run local:config
-```
-
-This creates `.verification/m2.env`. It contains local passwords and is ignored by Git. Do not share, print, or commit it.
-
-Run this command only once. If it reports that configuration already exists, keep the existing file.
-
-### 3. Start and completely prepare the database
-
-Start Docker Desktop first, then run:
-
-```bat
 npm run db:setup
-```
-
-This single command performs the required database work in the correct order:
-
-1. Starts PostgreSQL and waits until it is healthy.
-2. Creates the restricted `lab_runtime` application role.
-3. Applies every numbered migration.
-4. Provisions the login verifier.
-5. Seeds the synthetic users, laboratory, equipment, location, and stock.
-6. Verifies connectivity and restricted runtime permissions.
-
-It is safe to run `npm run db:setup` again. Applied migrations and existing seed records are preserved.
-
-### 4. Start the web application
-
-```bat
+npm run prisma:readiness:enforce
 npm run dev
 ```
 
-Open:
+`npm run dev` and `npm start` validate the restricted `ORM_DATABASE_URL` before starting Next.js. In a local shell without an injected connection they load `.verification/m2.env` (loopback database only). They never provision accounts, change credentials or migrate data. Missing or invalid configuration stops startup with a sanitized error. Existing environment values take precedence. With `NODE_ENV=production`, local files are never used: inject `ORM_DATABASE_URL` through the hosting environment. `npm run build` retains Prisma client generation.
 
-```text
-http://127.0.0.1:3000/login
-```
+`db:setup` provisions the restricted database login and applies the complete Prisma migration chain against an empty Docker PostgreSQL database. It does **not** create administrators, students, laboratories, items, stocks, or example records. The first administrator needs a protected bootstrap process before real usage.
 
-Keep the terminal running. Stop the web application with `Ctrl+C`.
+To apply subsequent migrations without clearing data:
 
-## Synthetic login accounts
-
-| Email                      | Role                           |
-| -------------------------- | ------------------------------ |
-| `admin@example.invalid`    | Administrator                  |
-| `student@example.invalid`  | Student                        |
-| `lecturer@example.invalid` | Lecturer                       |
-| `officer@example.invalid`  | Technical Officer              |
-| `multi@example.invalid`    | Lecturer and Technical Officer |
-
-All synthetic accounts use `SYNTHETIC_ADMIN_PASSWORD` from `.verification/m2.env`. Read it only on your computer and never paste it into source control, documentation, screenshots, or chat.
-
-## Normal daily startup
-
-After the first-time setup, use:
-
-```bat
-npm run db:up
-npm run dev
-```
-
-When finished:
-
-1. Stop Next.js with `Ctrl+C`.
-2. Stop PostgreSQL:
-
-```bat
-npm run db:down
-```
-
-The database volume is preserved, so the next start retains local data.
-
-## Database commands
-
-### Start PostgreSQL
-
-```bat
-npm run db:up
-```
-
-### Stop PostgreSQL without deleting data
-
-```bat
-npm run db:down
-```
-
-### Apply new migrations
-
-```bat
+```powershell
 npm run db:migrate
 ```
 
-### Add any missing synthetic seed records
+The historical SQL schema and its compatibility tests have separate explicit commands, `node scripts/local.mjs db:setup:legacy` and `node scripts/local.mjs db:migrate:legacy`. These are only for existing-data compatibility and regression testing. **Do not run the legacy bootstrap against a fresh production database.**
 
-```bat
-npm run db:seed
+### Destructive local reset (explicit opt-in only)
+
+```powershell
+$env:CONFIRM_LOCAL_DB_RESET = "DELETE_LOCAL_DATA"
+npm run db:reset-empty
+Remove-Item Env:CONFIRM_LOCAL_DB_RESET
 ```
 
-### Verify the local database and runtime restrictions
+This destroys the configured local Docker volume and all its contents, including data created after installation. It never targets Supabase. Make a backup first.
 
-```bat
-npm run db:verify
+## PostgreSQL / Supabase deployment
+
+The source code can live on GitHub, but GitHub repository hosting does not deploy the Next.js application. Use a supported Node.js hosting provider for the Next.js server.
+
+Provide two **server-only** PostgreSQL connections:
+
+- `MIGRATION_DATABASE_URL` (or `DIRECT_URL`): direct migration-owner connection with schema-change privileges. Use it only during releases.
+- `ORM_DATABASE_URL`: restricted `lab_orm` role, with a strong separately provisioned password and only application-granted table/column privileges.
+
+For Supabase, create/configure the `lab_orm` login using an approved privileged SQL administration method; Prisma schema migrations create the least-privileged role without login credentials. Keep database passwords, Google OAuth credentials, and other secrets in the deployment environment. For regular application use, pass only the restricted ORM connection to the server.
+
+After provisioning the database and credentials, apply migrations:
+
+```powershell
+npm ci
+npm run prisma:validate
+npm run prisma:readiness:enforce
+npm run prisma:deploy
+npm run prisma:status
+npm run build
 ```
 
-Expected result:
+`prisma:deploy` uses `prisma migrate deploy`, not `db push`. Never use `prisma migrate reset` or `db:reset-empty` against a shared or live Supabase project. Back up data and validate migrations in staging before promotion.
 
-```text
-Runtime verification passed: five fixtures, four roles, protected-table/DDL/audit access denied
-```
+## Validation
 
-### Open the PostgreSQL command line
-
-```bat
-npm run db:shell
-```
-
-Useful read-only commands inside `psql`:
-
-```sql
-\conninfo
-\dn
-\dt lab.*
-SELECT name, digest FROM public.lab_migrations ORDER BY name;
-SELECT email, display_name, disabled FROM lab.users ORDER BY email;
-SELECT id, name FROM lab.laboratories ORDER BY name;
-```
-
-Exit with:
-
-```text
-\q
-```
-
-Do not manually insert, update, or delete operational records. Use migrations and application operations so authorization, stock accounting, version checks, idempotency, and immutable history remain valid.
-
-## Connect using pgAdmin or DBeaver
-
-| Setting                   | Value                                                |
-| ------------------------- | ---------------------------------------------------- |
-| Host                      | `127.0.0.1`                                          |
-| Port                      | `55239`                                              |
-| Database                  | `lab_m2_test_identity`                               |
-| Application user          | `lab_runtime`                                        |
-| Migration/inspection user | `lab_migration`                                      |
-| Password                  | Matching local value in `.verification/m2.env`       |
-| SSL                       | Disabled for this loopback-only development database |
-
-Use `lab_runtime` to inspect the same restricted access used by the web application. Use `lab_migration` only for migrations and controlled local inspection.
-
-## Verification commands
-
-Run source checks:
-
-```bat
+```powershell
+npm run prisma:validate
 npm run typecheck
 npm run lint
 npm test
-```
-
-Run database-backed integration groups:
-
-```bat
-node --env-file=.verification/m2.env --test tests/m2-run.integration.mjs
-node --env-file=.verification/m2.env --test tests/m3-run.integration.mjs
-node --env-file=.verification/m2.env --test tests/workflow-run.integration.mjs
-```
-
-Create a production build:
-
-```bat
 npm run build
+npm run prisma:readiness:enforce
 ```
 
-Passing automated checks does not replace authenticated desktop/mobile visual, keyboard, and accessibility review.
+GitHub Actions also checks clean Prisma migrations against isolated PostgreSQL, and historical compatibility suites use dedicated disposable local databases. Check the latest `prisma` branch workflow results before deployment.
 
-## Run the production build locally
+### Production readiness boundaries
 
-```bat
-npm run build
-npm run start
-```
+A successful Prisma migration and synthetic HTTP workflow do not constitute a production security audit. Confirm deployment-specific role grants, TLS and Supabase connection settings, first-admin initialization, Google OAuth configuration, multi-user concurrency, backups, recovery and monitoring before release.
 
-Open `http://127.0.0.1:3000`.
-
-## Completely reset the synthetic database
-
-This permanently deletes the local PostgreSQL volume and all local synthetic records. Preserve `.verification/m2.env` unless credentials also need to be replaced.
-
-```bat
-docker compose --env-file .verification/m2.env -f database/compose.yaml down --volumes
-npm run db:setup
-```
-
-## Remove generated application files
-
-These paths are generated and safe to recreate:
-
-```bat
-rmdir /s /q .next
-rmdir /s /q .cache
-del /q tsconfig.tsbuildinfo
-```
-
-Then reinstall or rebuild as needed:
-
-```bat
-npm ci
-npm run build
-```
-
-Do not delete `.verification`, `database`, `docs`, `public`, `scripts`, `src`, or `tests` as cleanup.
-
-## Troubleshooting
-
-### Docker is not ready
-
-Start Docker Desktop and wait for its engine before running `npm run db:setup` or `npm run db:up`.
-
-### Port 55239 is already in use
-
-Stop the conflicting service. The Docker port and every URL in `.verification/m2.env` must always match.
-
-### Login returns `UNAVAILABLE`
-
-Confirm `npm run db:setup` passed, stop any old Next.js process, and restart with `npm run dev`.
-
-### Login says the email or password is incorrect
-
-Use a seeded email and the `SYNTHETIC_ADMIN_PASSWORD` from the same `.verification/m2.env` that created the current database volume. Seeding does not overwrite existing users' passwords.
-
-### `Applied migration changed`
-
-Restore the edited applied migration. Put new schema work in a new numbered migration.
-
-### `--env-file is not allowed in NODE_OPTIONS`
-
-The repository commands no longer require a command-line `--env-file` flag for Next.js. Use `npm run dev`, `npm run build`, or `npm run start`.
-
-## Project locations
-
-- Phase 1 specifications: `docs/phase-1`
-- Database/API evidence: `docs/m2`, `docs/m3`, and `docs/workflow`
-- UI references: `docs/ui-reference`
-- Migrations and Docker Compose: `database`
-- Local command runner and utilities: `scripts`
-- Application source: `src`
-- Automated checks: `tests`
+**The database stays unseeded by default.** Real batches, laboratories, equipment, stock and student accounts must be created through authorized workflows.

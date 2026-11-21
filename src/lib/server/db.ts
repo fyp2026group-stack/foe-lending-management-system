@@ -1,33 +1,59 @@
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-// PostgreSQL result decoding is confined to this adapter; schema constraints remain authoritative.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Row = Record<string, any>;
-export type Client = {
-  query: (sql: string, values?: unknown[]) => Promise<{ rows: Row[] }>;
-  release: () => void;
-};
-let pool: { connect: () => Promise<Client> } | undefined;
-export async function transaction<T>(fn: (c: Client) => Promise<T>): Promise<T> {
-  const url = process.env.DATABASE_URL;
-  if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname))
-    throw new Error('Local database required');
-  pool ??= new (require('pg').Pool)({
-    connectionString: url,
-    max: 5,
-    connectionTimeoutMillis: 3000,
-    statement_timeout: 5000,
+import { PrismaClient, type Prisma } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { retrySnapshot } from './transaction-retry';
+
+/**
+ * Server-only, least-privilege Prisma Client. Browser code must never import
+ * this module or receive connection information. The app no longer uses the
+ * historical lab_runtime SQL RPC adapter.
+ */
+let client: PrismaClient | undefined;
+
+function restrictedConnection(): PrismaClient {
+  const raw = process.env.ORM_DATABASE_URL;
+  if (!raw) throw new Error('ORM_DATABASE_URL is required');
+  const parsed = new URL(raw);
+  if (!['postgresql:', 'postgres:'].includes(parsed.protocol) ||
+      decodeURIComponent(parsed.username).split('.')[0] !== 'lab_orm') {
+    throw new Error('A restricted lab_orm PostgreSQL connection is required');
+  }
+  client ??= new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString: raw,
+      max: Number(process.env.DATABASE_POOL_SIZE ?? 5),
+      connectionTimeoutMillis: 10000,
+      statement_timeout: 30000,
+    }),
   });
-  const c = await pool!.connect();
+  return client;
+}
+
+/**
+ * Every authenticated read/write runs inside the same Prisma transaction as
+ * its session authorization. SQL advisory locks are retained for concurrent
+ * stock conservation, not for legacy application stored procedures.
+ */
+export async function nativeOrmTransaction<T>(
+  work: (tx: Prisma.TransactionClient) => Promise<T>,
+  options: { isolationLevel?: Prisma.TransactionIsolationLevel } = {},
+): Promise<T> {
+  const transaction = () => restrictedConnection().$transaction(work, {
+    isolationLevel: options.isolationLevel ?? 'ReadCommitted',
+    maxWait: 3000,
+    timeout: 30000,
+  });
+  // Snapshot reads touch session activity and may race other dashboard reads.
+  // Retain snapshot isolation; retry only transactions rolled back by PostgreSQL.
   try {
-    await c.query('BEGIN');
-    const result = await fn(c);
-    await c.query('COMMIT');
-    return result;
-  } catch (e) {
-    await c.query('ROLLBACK');
-    throw e;
-  } finally {
-    c.release();
+    return await (options.isolationLevel === 'RepeatableRead'
+      ? retrySnapshot(transaction) : transaction());
+  } catch (error) {
+    // Safe metadata only: no query text, connection details or session values.
+    console.error('DB_TRANSACTION_FAILED', JSON.stringify({
+      at: new Date().toISOString(), isolation: options.isolationLevel ?? 'ReadCommitted',
+      code: typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code) : 'UNKNOWN',
+    }));
+    throw error;
   }
 }

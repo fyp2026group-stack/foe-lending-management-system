@@ -1,517 +1,391 @@
 'use client';
-import { StudentEmptyState } from './student-empty-state';
-import { StudentSelect, NativeSelect } from './student-controls';
-import { useState, useRef, Fragment, type FormEvent } from 'react';
-import { ApiError } from '@/components/identity/api';
-import { lendingWrite, type BorrowDraft } from './api';
-import { ErrorNotice } from '@/components/identity/session';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2,
+  ClipboardList, Clock3, Package, Plus,
+  ShieldCheck } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useStudentClock } from './student-clock';
+import { ApiError } from '@/components/identity/api';
+import { ErrorNotice } from '@/components/identity/session';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { editEquipmentSelection } from './equipment-selection';
+import { displayLabel } from '../display-labels';
+import { EquipmentBrowser } from './equipment-browser';
+import { useSelectedSources } from './selected-sources';
+import { quantityLimit } from './request-options';
+import { useStudentClock } from './student-clock';
 import { useLendingChoices } from './shared';
-import type { Lecturer, LendingSource } from './api';
-import { CommandReplay, draftSavePayload, draftSubmitPayload } from './lifecycle-model';
-import { basketKey, readSelection, isStudent } from './student-model';
-import { eligibleLecturers, quantityLimit } from './request-options';
+import { lendingWrite, type BorrowDraft, type Lecturer, type DraftPayload } from './api';
+import { draftSavePayload, draftSubmitPayload, CommandReplay } from './lifecycle-model';
+import { isStudent, readSelection, basketKey, persistStudentSelection } from './student-model';
+import { availablePerEquipment, resolveBorrowingSources, type BorrowSelection } from './request-source-selector';
 
-const selectClass = 'min-h-11 border rounded-md bg-white px-3 w-full';
-type DraftLine = {
-  key: number;
-  itemId: string;
-  labId: string;
-  locationId: string;
-  quantity: number;
-};
-const blankLine = (key: number): DraftLine => ({
-  key,
-  itemId: '',
-  labId: '',
-  locationId: '',
-  quantity: 1,
-});
-const requiresLecturer = (source: LendingSource) =>
-  source.policy === 'LECTURER' || source.policy === 'BOTH';
+const stepNames = ['Equipment', 'Request details', 'Review', 'Complete'] as const;
+function RequestProgress({ current }: { current: number }) {
+  return <nav className="borrowing-progress" aria-label="Borrowing request progress">
+    <ol>{stepNames.map((label, index) =>
+      <li key={label} className={index < current ? 'is-done' : index === current ? 'is-current' : 'is-upcoming'}
+        aria-current={index === current ? 'step' : undefined}>
+        <span className="borrowing-progress-dot" aria-hidden="true">{index < current || current === 3 ? <Check className="size-5" /> : index === 3 ? <Check className="size-5" /> : index + 1}</span>
+        <span className="borrowing-progress-label">{label}</span>
+      </li>
+    )}</ol>
+  </nav>;
+}
+const toLocal = (date?: string) =>
+  date ? new Date(new Date(date).getTime() - new Date(date).getTimezoneOffset() * 60000)
+    .toISOString().slice(0,16) : '';
+const policyRequiresLecturer = (policy: string) => policy === 'LECTURER' || policy === 'BOTH';
 
 export function RequestBuilder({
-  session,
-  revision,
-  refresh,
-  draft,
+  session, revision, refresh, draft,
 }: {
-  session: Session;
-  revision: number;
-  refresh: () => void;
-  draft?: BorrowDraft;
+  session: Session; revision: number; refresh: () => void; draft?: BorrowDraft;
 }) {
   const student = isStudent(session.user.roles);
   const now = useStudentClock(revision);
-  const Container = student ? Card : 'section';
-  const Header = student ? CardHeader : Fragment;
-  const Title = student ? CardTitle : Fragment;
-  const Content = student ? CardContent : Fragment;
-  const Footer = student ? CardFooter : Fragment;
-  const Purpose = student ? Textarea : Input;
-  const SelectControl = isStudent(session.user.roles) ? StudentSelect : NativeSelect;
-  const sources = useLendingChoices<LendingSource>('sources', revision);
   const lecturers = useLendingChoices<Lecturer>('lecturers', revision);
-  const [lines, setLines] = useState<DraftLine[]>(() => {
-    if (draft) return draft.payload.lines.map((line, key) => ({ ...line, key }));
+  const [selected, setSelected] = useState<BorrowSelection[]>(() => {
+    if (draft) return Array.from(new Map(draft.payload.lines.map(line =>
+      [line.itemId, { itemId: line.itemId, quantity: line.quantity }] as const)).values());
     try {
-      const carried = readSelection(sessionStorage.getItem(basketKey(session.user.id)));
-      if (carried.length) return carried.map((line, key) => ({ ...line, key }));
-    } catch {}
-    return [blankLine(0)];
+      return Array.from(new Map(readSelection(sessionStorage.getItem(basketKey(session.user.id)))
+        .map(line => [line.itemId, { itemId: line.itemId, quantity: line.quantity }] as const)).values());
+    } catch { return []; }
   });
-  const [nextKey, setNextKey] = useState(() => Math.max(lines.length, 1));
-  const [lecturerId, setLecturerId] = useState(draft?.payload.lecturerId ?? '');
-  const [saved, setSaved] = useState(draft);
+  const sources = useSelectedSources(selected.map(line => line.itemId), revision);
+  const [step, setStep] = useState(draft ? 1 : 0);
   const [purpose, setPurpose] = useState(draft?.payload.purpose ?? '');
-  const local = (value?: string) =>
-    value
-      ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16)
-      : '';
-  const [collectAt, setCollectAt] = useState(local(draft?.payload.collectAt));
-  const [returnAt, setReturnAt] = useState(local(draft?.payload.returnAt));
-  const [review, setReview] = useState(false);
+  const [collectAt, setCollectAt] = useState(toLocal(draft?.payload.collectAt));
+  const [returnAt, setReturnAt] = useState(toLocal(draft?.payload.returnAt));
+  const [lecturerId, setLecturerId] = useState(draft?.payload.lecturerId ?? '');
   const [busy, setBusy] = useState(false);
-  const [uncertainPath, setUncertainPath] = useState('');
   const [message, setMessage] = useState('');
-  const pending = useRef(new CommandReplay());
-  async function act(path: string, body: Record<string, unknown>) {
-    const command = pending.current.prepare(path, body);
+  const [success, setSuccess] = useState(false);
+  const [uncertain, setUncertain] = useState('');
+  // Internal draft persistence is a backend transaction requirement; there is
+  // no user-visible draft step or separate Save Draft action.
+  const [internalDraft, setInternalDraft] = useState<BorrowDraft | undefined>(draft);
+  const [submissionDraft, setSubmissionDraft] = useState<BorrowDraft | null>(null);
+  const replay = useRef(new CommandReplay());
+
+  const choices = useMemo(() => sources.data?.items ?? [], [sources.data]);
+  const inventory = useMemo(() => Array.from(new Map(choices.map(source =>
+    [source.itemId, source] as const)).values()).map(source => ({
+      id: source.itemId, title: displayLabel(source.item, 'Equipment name unavailable'), kind: source.kind, uom: source.uom,
+      available: availablePerEquipment(choices, source.itemId),
+      policy: source.policy,
+      stores: choices.filter(row => row.itemId === source.itemId),
+    })).sort((a,b) => a.title.localeCompare(b.title)), [choices]);
+  const resolved = useMemo(() =>
+    resolveBorrowingSources(selected, choices, lecturers.data?.items ?? [], session.user.id),
+    [selected, choices, lecturers.data, session.user.id]);
+  const needsLecturer = Boolean(resolved?.lines.some(line => policyRequiresLecturer(line.policy)));
+  const approvalRequirement = resolved?.lines.some(line => line.policy === 'BOTH' || line.policy === 'HOD')
+    ? needsLecturer ? 'Lecturer and HOD' : 'HOD'
+    : needsLecturer ? 'Lecturer' : 'No academic approval';
+  const chosenLecturer = resolved?.eligible.find(person => person.id === lecturerId)?.id ?? '';
+  const dateStart = collectAt ? Date.parse(collectAt) : NaN;
+  const dateEnd = returnAt ? Date.parse(returnAt) : NaN;
+  const detailsValid = Boolean(purpose.trim() && purpose.trim().length <= 1000 &&
+    Number.isFinite(dateStart) && Number.isFinite(dateEnd) &&
+    dateStart > now && dateEnd > dateStart &&
+    (!needsLecturer || chosenLecturer));
+  const selectedRows = selected.map(line => ({
+    ...line, item: inventory.find(item => item.id === line.itemId),
+  }));
+  const selectedQuantity = selected.reduce((sum,line) => sum + line.quantity, 0);
+
+  useEffect(() => {
+    if (draft || success || !sources.data || !lecturers.data) return;
     try {
-      const result = await lendingWrite<{ id: string; version: number }>(
-        path,
-        command,
-        session.csrfToken
-      );
-      pending.current.resolve();
-      setUncertainPath('');
-      return result;
-    } catch (error) {
-      if (error instanceof ApiError && error.status < 500) {
-        pending.current.resolve();
-        setUncertainPath('');
-      } else setUncertainPath(path);
-      throw error;
+      if (!selected.length) persistStudentSelection(sessionStorage, session.user.id, []);
+      else if (resolved) persistStudentSelection(sessionStorage, session.user.id, resolved.lines);
+    } catch { /* The current selection remains usable when browser storage is disabled. */ }
+  }, [selected, resolved, draft, success, sources.data, lecturers.data, session.user.id]);
+
+  function reset() {
+    setStep(0); setSelected([]); setPurpose(''); setCollectAt(''); setReturnAt('');
+    setLecturerId(''); setInternalDraft(undefined); setSubmissionDraft(null);
+    setSuccess(false); setMessage('');
+  }
+  async function act(path: string, payload: Record<string, unknown>) {
+    const command = replay.current.prepare(path,payload);
+    try {
+      const response = await lendingWrite<{ id: string; version: number }>(
+        path, command, session.csrfToken);
+      replay.current.resolve();
+      setUncertain('');
+      return response;
+    } catch (err) {
+      if (err instanceof ApiError && err.status < 500) {
+        replay.current.resolve();
+        setUncertain('');
+      } else {
+        setUncertain(path);
+      }
+      throw err;
     }
   }
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage('');
+  async function submitRequest() {
+    if (busy || !resolved || !detailsValid || !selected.length) return;
+    setBusy(true); setMessage('');
     try {
-      const payload = {
-        purpose,
-        ...(collectAt ? { collectAt: new Date(collectAt).toISOString() } : {}),
-        ...(returnAt ? { returnAt: new Date(returnAt).toISOString() } : {}),
-        ...(chosenLecturer ? { lecturerId: chosenLecturer } : {}),
-        lines: lines.map(({ itemId, labId, locationId, quantity }) => ({
-          itemId,
-          labId,
-          locationId,
-          quantity,
-        })),
-      };
-      const result = await act('drafts', draftSavePayload(payload, saved));
-      try {
-        sessionStorage.removeItem(basketKey(session.user.id));
-      } catch {}
-      setSaved({ ...result, payload, cancelled: false, updatedAt: new Date().toISOString() });
-      setReview(true);
-      setMessage('Draft saved. Review the saved details before submitting.');
-      refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof ApiError && error.status === 409
-          ? 'The draft changed. Reopen it from My requests before retrying.'
-          : error instanceof Error
-            ? error.message
-            : 'Outcome unknown. Retry the same action.'
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function submit() {
-    if (!saved) return;
-    setBusy(true);
-    try {
+      let saved = submissionDraft;
+      if (!saved) {
+        const payload: DraftPayload = {
+          purpose: purpose.trim(),
+          collectAt: new Date(dateStart).toISOString(),
+          returnAt: new Date(dateEnd).toISOString(),
+          ...(needsLecturer ? { lecturerId: chosenLecturer } : {}),
+          lines: resolved.lines.map(line => ({
+            itemId: line.itemId, labId: line.labId, locationId: line.locationId,
+            quantity: line.quantity,
+          })),
+        };
+        const record = await act('drafts',draftSavePayload(payload,internalDraft));
+        saved = { ...record, payload, cancelled:false, updatedAt:new Date().toISOString() };
+        setInternalDraft(saved); setSubmissionDraft(saved);
+      }
       await act('submit', draftSubmitPayload(saved));
-      setReview(false);
-      setSaved(undefined);
-      setLines([blankLine(nextKey)]);
-      setNextKey(nextKey + 1);
-      setPurpose('');
-      setMessage('Request submitted. View its progress in My requests.');
-      refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof ApiError && error.status === 409
-          ? 'Saved version is stale. Reopen the draft and review again.'
-          : error instanceof Error
-            ? error.message
-            : 'Outcome unknown. Retry submission with the same details.'
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  const choices = sources.data?.items ?? [];
-  const items = Array.from(new Map(choices.map((source) => [source.itemId, source])).values());
-  const sourceFor = (line: DraftLine) =>
-    choices.find(
-      (source) =>
-        source.itemId === line.itemId &&
-        source.labId === line.labId &&
-        source.locationId === line.locationId
-    );
-  const selectedSources = lines.map(sourceFor);
-  const needsLecturer = selectedSources.some((source) => source && requiresLecturer(source));
-  const labsChosen = lines.every((line) => Boolean(line.labId));
-  const eligible = labsChosen
-    ? eligibleLecturers(
-        lecturers.data?.items ?? [],
-        lines.map((line) => line.labId),
-        session.user.id
-      )
-    : [];
-  const chosenLecturer = eligible.some((lecturer) => lecturer.id === lecturerId) ? lecturerId : '';
-  function update(key: number, value: Partial<DraftLine>) {
-    setReview(false);
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, ...value } : line)));
+      setInternalDraft(undefined); setSubmissionDraft(null);
+      try { sessionStorage.removeItem(basketKey(session.user.id)); } catch {}
+      setSuccess(true); refresh();
+    } catch (err) {
+      const conflict = err instanceof ApiError && err.status === 409;
+      if (conflict) setSubmissionDraft(null);
+      setMessage(conflict
+        ? 'The equipment or request has changed. Review the latest availability and try again.'
+        : err instanceof Error ? err.message : 'Unable to complete this request.');
+    } finally { setBusy(false); }
   }
 
   if (sources.error || lecturers.error)
-    return (
-      <section className="records p-4">
-        <h2>Borrowing choices unavailable</h2>
-        {sources.error && <ErrorNotice message={sources.error} />}
-        {lecturers.error && <ErrorNotice message={lecturers.error} />}
-        <p>Use Refresh records to load current borrowing sources and lecturer eligibility again.</p>
-      </section>
-    );
-  if (!sources.data || !lecturers.data)
-    return (
-      <div role="status">
-        <p>Loading borrowing sources and lecturer eligibility...</p>
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
+    return <section className="records p-4">
+      <h2>Equipment choices are unavailable</h2>
+      {sources.error && <ErrorNotice message={sources.error}/>}
+      {lecturers.error && <ErrorNotice message={lecturers.error}/>}
+      <p>Refresh the page to load authorized equipment and approval options again.</p>
+    </section>;
+  if (!lecturers.data) return <div role="status" className="grid gap-3">
+    <p>Loading available equipment…</p><Skeleton className="h-80 w-full rounded-xl"/>
+  </div>;
 
-  return (
-    <Container className={student ? 'cp2-builder student-builder' : 'cp2-builder'}>
-      <Header>
-        <Title>
-          <h2>{draft?.predecessorId ? 'Correct rejected items' : 'Build borrowing request'}</h2>
-        </Title>
-        {student && (
-          <CardDescription>
-            Save a draft, review it, then explicitly submit for the current item policies.
-          </CardDescription>
+  if (success) return (
+    <section className="request-complete" aria-labelledby="request-complete-title">
+      <div className="request-complete-banner">
+        <div className="request-complete-icon" aria-hidden="true"><Check className="size-9" /></div>
+        <div className="request-complete-intro" role="status">
+          <span className="request-complete-kicker"><CheckCircle2 className="size-4" /> Successfully submitted</span>
+          <h2 id="request-complete-title">Request submitted successfully</h2>
+          <p>Your equipment request has been recorded. You can follow its progress in My Requests.</p>
+        </div>
+        <div className="request-complete-status" aria-label="Request status">
+          <span>Current status</span>
+          <strong><CheckCircle2 className="size-4" /> Submitted</strong>
+          <small>{selected.length} equipment {selected.length === 1 ? 'type' : 'types'}</small>
+        </div>
+      </div>
+      <div className="request-complete-progress"><RequestProgress current={3}/></div>
+      <div className="request-complete-body">
+        <div className="request-complete-primary">
+          <div className="request-complete-section-title">
+            <div><span className="request-complete-eyebrow">REQUEST OVERVIEW</span><h3>Submission summary</h3></div>
+            <span className="request-complete-count">{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</span>
+          </div>
+          <dl className="request-complete-facts">
+            <div className="request-complete-purpose"><dt>Purpose</dt><dd>{purpose}</dd></div>
+            <div><dt><CalendarDays className="size-4" /> Collection</dt><dd>{new Date(dateStart).toLocaleString()}</dd></div>
+            <div><dt><Clock3 className="size-4" /> Expected return</dt><dd>{new Date(dateEnd).toLocaleString()}</dd></div>
+            <div><dt><ShieldCheck className="size-4" /> Approval route</dt><dd>{approvalRequirement}</dd></div>
+          </dl>
+          <div className="request-complete-items">
+            <h4><Package className="size-4" /> Requested equipment</h4>
+            <ul>{selectedRows.map(({itemId, quantity, item}) =>
+              <li key={itemId}><span className="request-complete-item-icon"><Package className="size-4" /></span>
+                <span className="request-complete-item-name">{item?.title ?? 'Equipment'}</span>
+                <span className="request-complete-item-quantity">{quantity} {item?.uom ?? 'units'}</span>
+              </li>
+            )}</ul>
+          </div>
+        </div>
+        <aside className="request-complete-next" aria-labelledby="request-next-title">
+          <span className="request-complete-eyebrow">NEXT STEPS</span>
+          <h3 id="request-next-title">What happens next?</h3>
+          <ol className="request-complete-timeline">
+            <li className="is-complete"><span className="request-complete-timeline-mark"><Check className="size-4" /></span>
+              <div><strong>Request submitted</strong><p>Your equipment list and borrowing details were received.</p></div>
+            </li>
+            <li><span className="request-complete-timeline-mark">2</span>
+              <div><strong>Review and processing</strong><p>Any required academic approvals will appear in your request status.</p></div>
+            </li>
+            <li><span className="request-complete-timeline-mark">3</span>
+              <div><strong>Ready for collection</strong><p>Check the request status before collecting equipment.</p></div>
+            </li>
+          </ol>
+          <div className="request-complete-track"><ClipboardList className="size-5" aria-hidden="true" />
+            <p>Track the request in <strong>My Requests</strong>.</p></div>
+        </aside>
+      </div>
+      <div className="request-complete-actions">
+        <Button asChild className="request-complete-primary-action">
+          <Link href="/borrowing?view=requests"><ClipboardList className="size-4" /> View my requests <ArrowRight className="size-4" /></Link>
+        </Button>
+        {draft ? (
+          <Button asChild variant="outline"><Link href="/borrowing?view=new"><Plus className="size-4" /> Create another request</Link></Button>
+        ) : (
+          <Button type="button" variant="outline" onClick={reset}><Plus className="size-4" /> Create another request</Button>
         )}
-      </Header>
-      <Content>
-        {!choices.length &&
-          (student ? (
-            <StudentEmptyState kind="equipment" />
-          ) : (
-            <p role="status">
-              No current borrowing sources are available. You can still save an incomplete draft and
-              add equipment when sources are available.
-            </p>
-          ))}
-        <p>Save your work as a draft, then review and submit. Saving does not reserve equipment.</p>
-        {draft?.predecessorId && (
-          <p>
-            Correction of {draft.predecessorId}. Original decisions and quantities remain in
-            history.
-          </p>
-        )}
-        {message && <p role="status">{message}</p>}
-        {uncertainPath === 'submit' && (
-          <Button disabled={busy} onClick={submit}>
-            Recover submission result
-          </Button>
-        )}
-        <form noValidate onSubmit={save} onChange={() => setReview(false)}>
-          <fieldset disabled={busy || Boolean(uncertainPath)} className="grid gap-4">
-            <div className="request-details">
-              <h3>Purpose & schedule</h3>
-              <label>
-                {student ? 'Academic purpose' : 'Borrowing purpose'}
-                <Purpose
-                  maxLength={1000}
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="Explain how the selected equipment will be used"
-                />
-              </label>
-              <label>
-                Collection date and time
-                <Input
-                  type="datetime-local"
-                  value={collectAt}
-                  onChange={(e) => setCollectAt(e.target.value)}
-                />
-              </label>
-              <label>
-                Expected Return Date
-                <Input
-                  type="datetime-local"
-                  value={returnAt}
-                  onChange={(e) => setReturnAt(e.target.value)}
-                />
-              </label>
-            </div>
-            {lines.map((line, index) => {
-              const labs = Array.from(
-                new Map(
-                  choices
-                    .filter((source) => source.itemId === line.itemId)
-                    .map((source) => [source.labId, source])
-                ).values()
-              );
-              const locations = choices.filter(
-                (source) => source.itemId === line.itemId && source.labId === line.labId
-              );
-              const source = sourceFor(line);
-              return (
-                <fieldset key={line.key} className="request-line border p-4 grid gap-3">
-                  <legend>Item {index + 1}</legend>
-                  <label>
-                    Catalogue item
-                    <SelectControl
-                      className={selectClass}
-                      value={line.itemId}
-                      onChange={(event) =>
-                        update(line.key, {
-                          itemId: event.target.value,
-                          labId: '',
-                          locationId: '',
-                          quantity: 1,
-                        })
-                      }
-                    >
-                      <option value="">Select item</option>
-                      {items.map((item) => (
-                        <option key={item.itemId} value={item.itemId}>
-                          {item.item} / {item.kind} / {item.uom}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  <label>
-                    Laboratory
-                    <SelectControl
-                      className={selectClass}
-                      disabled={!line.itemId}
-                      value={line.labId}
-                      onChange={(event) =>
-                        update(line.key, { labId: event.target.value, locationId: '', quantity: 1 })
-                      }
-                    >
-                      <option value="">Select laboratory</option>
-                      {labs.map((lab) => (
-                        <option key={lab.labId} value={lab.labId}>
-                          {lab.lab}
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  <label>
-                    Stock location
-                    <SelectControl
-                      className={selectClass}
-                      disabled={!line.labId}
-                      value={line.locationId}
-                      onChange={(event) =>
-                        update(line.key, { locationId: event.target.value, quantity: 1 })
-                      }
-                    >
-                      <option value="">Select location</option>
-                      {locations.map((location) => (
-                        <option key={location.locationId} value={location.locationId}>
-                          {location.location} / {location.availableQuantity} {location.uom}{' '}
-                          available
-                        </option>
-                      ))}
-                    </SelectControl>
-                  </label>
-                  {source && (
-                    <p id={'source-' + line.key}>
-                      {source.lab} / {source.location}: {source.availableQuantity} {source.uom}{' '}
-                      available. Approval: {source.policy}. Request limit: {quantityLimit(source)}{' '}
-                      {source.uom}.
-                    </p>
-                  )}
-                  <label>
-                    Quantity {source ? `(${source.uom})` : ''}
-                    <Input
-                      type="number"
-                      min={1}
-                      max={source ? quantityLimit(source) : 1}
-                      step={1}
-                      disabled={!source}
-                      aria-describedby={source ? 'source-' + line.key : undefined}
-                      value={line.quantity}
-                      onChange={(event) =>
-                        update(line.key, { quantity: Number(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length === 1}
-                    onClick={() => {
-                      setReview(false);
-                      setLines((current) => current.filter((row) => row.key !== line.key));
-                    }}
-                  >
-                    Remove item {index + 1}
-                  </Button>
-                </fieldset>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={lines.length >= 20}
-              onClick={() => {
-                setReview(false);
-                setLines((current) => [...current, blankLine(nextKey)]);
-                setNextKey((key) => key + 1);
-              }}
-            >
-              Add item ({lines.length}/20)
-            </Button>
-            {needsLecturer ? (
-              <>
-                <label>
-                  Eligible lecturer (required)
-                  <SelectControl
-                    name="lecturerId"
-                    className={selectClass}
-                    value={chosenLecturer}
-                    onChange={(event) => setLecturerId(event.target.value)}
-                    aria-describedby="lecturer-help"
-                  >
-                    <option value="">Select lecturer</option>
-                    {eligible.map((lecturer) => (
-                      <option key={lecturer.id} value={lecturer.id}>
-                        {lecturer.displayName}
-                      </option>
-                    ))}
-                  </SelectControl>
-                </label>
-                <p id="lecturer-help" role="status">
-                  {!labsChosen
-                    ? 'Choose a laboratory for every item to see eligible lecturers.'
-                    : eligible.length
-                      ? 'Only lecturers assigned to every requested laboratory are listed.'
-                      : 'No lecturer is eligible for every requested laboratory. Change the selected laboratories or submit separate requests.'}
-                </p>
-              </>
-            ) : (
-              <p>No lecturer selection is required by the selected sources.</p>
-            )}
-            <p className="muted">
-              Availability is current stock, not a future booking guarantee. The server rechecks
-              stock, approval policy and lecturer eligibility. Consumables do not require a return.
-            </p>
-          </fieldset>
-          <Footer>
-            <Button disabled={busy || uncertainPath === 'submit'} type="submit">
-              {busy ? 'Saving...' : 'Save draft and review'}
-            </Button>
-          </Footer>
-        </form>
-        {review && saved && (
-          <section className="records p-4">
-            <h3>Review saved draft</h3>
-            {(!purpose.trim() ||
-              !collectAt ||
-              !returnAt ||
-              new Date(returnAt).getTime() <= now ||
-              (needsLecturer && !chosenLecturer) ||
-              lines.some((line) => !sourceFor(line))) && (
-              <Alert>
-                <AlertTitle>Complete the saved request before submitting</AlertTitle>
-                <AlertDescription>
-                  <ul>
-                    {!purpose.trim() && <li>Add an academic purpose.</li>}
-                    {(!collectAt || !returnAt) && (
-                      <li>Choose collection and expected return dates.</li>
-                    )}
-                    {returnAt && new Date(returnAt).getTime() <= now && (
-                      <li>Expected return must be in the future.</li>
-                    )}
-                    {needsLecturer && !chosenLecturer && (
-                      <li>Select an eligible lecturer for the requested laboratories.</li>
-                    )}
-                    {lines.some((line) => !sourceFor(line)) && (
-                      <li>
-                        Choose a currently authorized item, laboratory and location for every line.
-                      </li>
-                    )}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-            <p>
-              Submission requires a purpose, distinct current sources, quantities within each policy
-              limit, an eligible lecturer when required, and a future return after collection.
-              Correct any missing details and save again.
-            </p>
-            <p>
-              {purpose} / {lines.length} items / Collection {collectAt || 'missing'} / Expected
-              return {returnAt || 'missing'}
-            </p>
-            <p>
-              Submitting sends this saved version for current policy and source validation. Approval
-              can reserve stock; physical handover happens separately.
-            </p>
-            <Button
-              disabled={
-                busy ||
-                !purpose.trim() ||
-                !collectAt ||
-                !returnAt ||
-                lines.some(
-                  (line) =>
-                    !sourceFor(line) ||
-                    !Number.isInteger(line.quantity) ||
-                    line.quantity < 1 ||
-                    line.quantity > quantityLimit(sourceFor(line)!)
-                ) ||
-                new Date(returnAt) <= new Date(collectAt) ||
-                new Date(returnAt).getTime() <= now ||
-                new Set(lines.map((line) => [line.itemId, line.labId, line.locationId].join(':')))
-                  .size !== lines.length ||
-                (needsLecturer && !chosenLecturer)
-              }
-              onClick={submit}
-            >
-              Confirm and submit saved draft
-            </Button>
-          </section>
-        )}
-      </Content>
-    </Container>
+      </div>
+    </section>
   );
+
+  return <Card className={'request-wizard request-wizard-full '+(student?'request-wizard-student':'')}>
+    <CardHeader className="request-wizard-heading">
+      <p className="request-wizard-eyebrow">BORROWING REQUEST</p>
+      <div className="request-wizard-title-row">
+        <div>
+          <CardTitle>{draft?.predecessorId ? 'Revise borrowing request' : 'New borrowing request'}</CardTitle>
+          <CardDescription>Complete the steps below to submit your equipment request.</CardDescription>
+        </div>
+        <span className="request-wizard-step-count">Step {step + 1} of 3</span>
+      </div>
+      <RequestProgress current={step} />
+    </CardHeader>
+    <CardContent className="request-wizard-content">
+       {draft?.predecessorId && <p className="request-wizard-context">This corrects an earlier request. Its previous decisions remain in the history.</p>}
+      {message && <Alert variant="destructive" className="mb-4"><AlertTitle>Request not completed</AlertTitle>
+        <AlertDescription>{message}</AlertDescription></Alert>}
+      {uncertain && <Alert className="mb-4"><AlertTitle>Checking an uncertain result</AlertTitle>
+        <AlertDescription>Do not change the request details. Use Retry submission to recover the result with the same command.</AlertDescription>
+      </Alert>}
+
+      {step===0 && <section aria-labelledby="wizard-equipment-heading" className="request-wizard-panel">
+        <div className="request-wizard-panel-title">
+          <div>
+            <h3 id="wizard-equipment-heading">Select equipment</h3>
+            <p>Find equipment, choose a quantity, and review your selection. The laboratory is assigned after availability and approval checks.</p>
+          </div>
+          <span className="borrow-section-count">{selected.length} of 20 types selected</span>
+        </div>
+        <EquipmentBrowser selected={selected.map(line => ({ ...line, ...resolved?.lines.find(source => source.itemId === line.itemId) }))} knownSources={resolved?.lines ?? []} revision={revision} disabled={busy || Boolean(uncertain)}
+          onQuantity={(source, quantity) => {
+            setSelected(current => editEquipmentSelection(current, { itemId: source.itemId, quantity }, row => row.itemId, Math.min(source.availableQuantity, quantityLimit(source))));
+            setSubmissionDraft(null); setMessage('');
+          }} onContinue={() => { if (resolved) setStep(1); else setMessage('Check availability and approval coverage before continuing.'); }}/>
+        {selected.length > 0 && !resolved && <Alert variant="destructive" className="mt-4">
+          <AlertTitle>Selection needs attention</AlertTitle>
+          <AlertDescription>Check available quantities and lecturer coverage for the selected equipment.</AlertDescription>
+        </Alert>}
+      </section>}
+
+      {step===1 && <section aria-labelledby="wizard-details-heading" className="request-wizard-panel request-wizard-details">
+        <div className="request-wizard-panel-title">
+          <div><h3 id="wizard-details-heading">Borrowing details</h3>
+            <p>Enter the intended use and borrowing period.</p></div>
+        </div>
+        <div className="request-details-layout">
+          <div className="request-details-form">
+            <div className="request-details-field">
+              <label htmlFor="wizard-purpose">{student ? 'Academic purpose' : 'Borrowing purpose'} <span aria-hidden="true">*</span></label>
+              <Textarea id="wizard-purpose" maxLength={1000} rows={4} value={purpose}
+                placeholder="Describe the experiment, project, or intended use"
+                onChange={e => { setPurpose(e.target.value); setSubmissionDraft(null); }}/>
+            </div>
+            <div className="request-wizard-date-grid">
+              <div><label htmlFor="wizard-collect">Collection date & time</label>
+                <Input id="wizard-collect" type="datetime-local" value={collectAt}
+                  onChange={e => { setCollectAt(e.target.value); setSubmissionDraft(null); }}/></div>
+              <div><label htmlFor="wizard-return">Expected return date & time</label>
+                <Input id="wizard-return" type="datetime-local" value={returnAt}
+                  onChange={e => { setReturnAt(e.target.value); setSubmissionDraft(null); }}/></div>
+            </div>
+            {needsLecturer && <div className="request-wizard-lecturer">
+              <label htmlFor="wizard-lecturer">Approving lecturer</label>
+              <select id="wizard-lecturer" value={chosenLecturer}
+                onChange={e => { setLecturerId(e.target.value); setSubmissionDraft(null); }}>
+                <option value="">Select a lecturer</option>
+                {resolved?.eligible.map(person => <option key={person.id} value={person.id}>{person.displayName}</option>)}
+              </select>
+            </div>}
+            {!resolved && <Alert variant="destructive">
+              <AlertTitle>Review equipment selection</AlertTitle>
+              <AlertDescription>Return to Equipment to adjust quantities or items.</AlertDescription>
+            </Alert>}
+            {resolved && !detailsValid && <p className="request-wizard-validation">
+              Enter a purpose, a future collection date, a later return date{needsLecturer ? ', and a lecturer' : ''}.
+            </p>}
+          </div>
+          <aside className="request-details-aside" aria-label="Request overview">
+            <h4>Request overview</h4>
+            <div className="request-details-summary-number">{selected.length} <small>equipment {selected.length === 1 ? 'type' : 'types'}</small></div>
+            <ul>{selectedRows.map(({itemId, item, quantity}) =>
+              <li key={itemId}><span>{item?.title ?? 'Equipment'}</span><strong>{quantity} {item?.uom ?? 'units'}</strong></li>)}</ul>
+            <div className="request-details-summary-foot"><span>Required approval</span><strong>{approvalRequirement}</strong></div>
+          </aside>
+        </div>
+      </section>}
+
+      {step===2 && <section aria-labelledby="wizard-review-heading" className="request-wizard-panel request-wizard-review">
+        <div className="request-wizard-panel-title">
+          <div><h3 id="wizard-review-heading">Review your request</h3>
+            <p>Confirm the equipment, purpose and dates before submission.</p></div>
+          <span className="borrow-review-ready"><Check className="size-4" /> Ready to submit</span>
+        </div>
+        <div className="borrow-review-sheet">
+          <div className="borrow-review-sheet-head">
+            <h4>Request information</h4>
+            <Button type="button" variant="ghost" onClick={() => setStep(1)}>Edit details</Button>
+          </div>
+          <dl className="borrow-review-facts">
+            <div className="is-purpose"><dt>Purpose</dt><dd>{purpose}</dd></div>
+            <div><dt>Collection</dt><dd>{new Date(dateStart).toLocaleString()}</dd></div>
+            <div><dt>Expected return</dt><dd>{new Date(dateEnd).toLocaleString()}</dd></div>
+            <div><dt>Required approval</dt><dd>{approvalRequirement}</dd></div>
+            {needsLecturer && <div><dt>Approving lecturer</dt>
+              <dd>{resolved?.eligible.find(person => person.id === chosenLecturer)?.displayName ?? 'Not selected'}</dd>
+            </div>}
+          </dl>
+          <div className="borrow-review-sheet-head borrow-review-equipment-head">
+            <h4>Equipment <span>({selected.length} {selected.length === 1 ? 'type' : 'types'})</span></h4>
+            <Button type="button" variant="ghost" onClick={() => setStep(0)}>Edit equipment</Button>
+          </div>
+          <div className="borrow-review-table" role="table" aria-label="Requested equipment">
+            <div className="borrow-review-table-head" role="row"><span role="columnheader">Equipment</span>
+              <span role="columnheader">Type</span><span role="columnheader">Quantity</span></div>
+            {selectedRows.map(({itemId, item, quantity}) =>
+              <div className="borrow-review-item" role="row" key={itemId}>
+                <strong role="cell">{item?.title ?? 'Equipment'}</strong>
+                <span role="cell">{item?.kind === 'RETURNABLE' ? 'Returnable' : 'Consumable'}</span>
+                <span role="cell">{quantity} {item?.uom ?? 'units'}</span>
+              </div>)}
+            <div className="borrow-review-total"><span>Total requested</span><strong>{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</strong></div>
+          </div>
+        </div>
+      </section>}
+    </CardContent>
+    <CardFooter className="request-wizard-footer">
+      <div className="request-wizard-footer-caption">{'Step '+(step+1)+' of 3'}</div>
+      <div className="request-wizard-footer-actions">
+        {step>0 && <Button variant="outline" type="button" disabled={busy||Boolean(uncertain)}
+          onClick={()=>setStep(step-1)}><ArrowLeft className="size-4"/>Back</Button>}
+        {step===0 && <Button variant="ghost" type="button" disabled={busy||Boolean(uncertain)}
+          onClick={reset}>Clear selection</Button>}
+        {step<2 ? <Button type="button" disabled={busy||Boolean(uncertain)||!selected.length||(step===0&&!resolved)||(step===1&&(!resolved||!detailsValid))}
+          onClick={()=>{setMessage('');setStep(step+1);}}>
+          {step===0?'Continue to details':'Review request'}<ArrowRight className="size-4"/>
+        </Button>:
+        <Button type="button" disabled={busy||(!uncertain&&(!resolved||!detailsValid))}
+          onClick={submitRequest}>
+          <CheckCircle2 className="size-4"/>{busy?'Submitting…':uncertain?'Retry submission':'Submit request'}
+        </Button>}
+      </div>
+    </CardFooter>
+  </Card>;
 }

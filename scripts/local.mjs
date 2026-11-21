@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runtimeConfig } from './runtime-config.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const envFile = resolve(root, '.verification', 'm2.env');
@@ -22,6 +23,10 @@ function requireConfig() {
   if (!existsSync(envFile))
     throw new Error('Local configuration is missing. Run: npm run local:config');
   process.loadEnvFile(envFile);
+  // Older local configurations predate the dedicated ORM role. Upgrade
+  // in place without changing their existing credentials.
+  node('scripts/upgrade-orm-config.mjs');
+  process.loadEnvFile(envFile);
 }
 function node(script, ...args) {
   run(process.execPath, [resolve(root, script), ...args]);
@@ -29,6 +34,19 @@ function node(script, ...args) {
 function docker(...args) {
   run('docker', [...compose, ...args]);
 }
+function prismaDeploy() {
+  // Run migrations from source against the migration-owner connection.
+  // No historical SQL bootstrap or synthetic test fixtures are involved.
+  run(process.execPath, [
+    resolve(root, 'node_modules', 'prisma', 'build', 'index.js'),
+    'migrate', 'deploy', '--config', 'prisma7.config.ts',
+  ]);
+}
+function legacyBootstrap() {
+  node('scripts/database.mjs', 'migrate');
+  node('scripts/prisma-migrations.mjs');
+}
+
 
 const command = process.argv[2];
 switch (command) {
@@ -47,20 +65,47 @@ switch (command) {
     requireConfig();
     docker('up', '-d', '--wait');
     node('scripts/provision-runtime.mjs');
-    node('scripts/database.mjs', 'migrate');
-    node('scripts/provision-verifier.mjs');
-    node('scripts/database.mjs', 'seed');
-    node('scripts/verify-local.mjs');
+    prismaDeploy();
+    // Intentionally leave the database empty. Seed data is opt-in and will be designed separately.
+    break;
+  case 'db:reset-empty':
+    requireConfig();
+    if (process.env.CONFIRM_LOCAL_DB_RESET !== 'DELETE_LOCAL_DATA') {
+      throw new Error('Set CONFIRM_LOCAL_DB_RESET=DELETE_LOCAL_DATA to explicitly erase the local Docker database');
+    }
+    docker('down', '--volumes');
+    docker('up', '-d', '--wait');
+    node('scripts/provision-runtime.mjs');
+    prismaDeploy();
+    node('scripts/verify-empty.mjs');
     break;
   case 'db:migrate':
     requireConfig();
-    node('scripts/database.mjs', 'migrate');
+    node('scripts/provision-runtime.mjs');
+    prismaDeploy();
     break;
-  case 'db:seed':
+  case 'db:setup:legacy':
     requireConfig();
-    node('scripts/database.mjs', 'seed');
+    docker('up', '-d', '--wait');
+    node('scripts/provision-runtime.mjs', '--legacy');
+    legacyBootstrap();
+    node('scripts/provision-verifier.mjs');
+    break;
+  case 'db:migrate:legacy':
+    requireConfig();
+    node('scripts/provision-runtime.mjs', '--legacy');
+    legacyBootstrap();
+    break;
+  case 'prisma:deploy':
+    requireConfig();
+    node('scripts/provision-runtime.mjs');
+    prismaDeploy();
     break;
   case 'db:verify':
+    requireConfig();
+    node('scripts/prisma-verify-native.mjs');
+    break;
+  case 'db:verify:legacy':
     requireConfig();
     node('scripts/verify-local.mjs');
     break;
@@ -69,20 +114,22 @@ switch (command) {
     docker('exec', 'postgres', 'psql', '-U', 'lab_migration', '-d', 'lab_m2_test_identity');
     break;
   case 'dev':
-    requireConfig();
-    run(process.execPath, [nextBin, 'dev', '--hostname', '127.0.0.1']);
+    run(process.execPath, [nextBin, 'dev', '--hostname', '127.0.0.1', ...process.argv.slice(3)], {
+      env: runtimeConfig(process.env, envFile),
+    });
     break;
   case 'build':
     requireConfig();
     run(process.execPath, [nextBin, 'build']);
     break;
   case 'start':
-    requireConfig();
-    run(process.execPath, [nextBin, 'start', '--hostname', '127.0.0.1']);
+    run(process.execPath, [nextBin, 'start', ...process.argv.slice(3)], {
+      env: runtimeConfig(process.env, envFile),
+    });
     break;
   default:
     console.error(
-      'Use config, db:up, db:down, db:setup, db:migrate, db:seed, db:verify, db:shell, dev, build, or start.'
+      'Use config, db:up, db:down, db:setup, db:setup:legacy, db:reset-empty, db:migrate, db:migrate:legacy, db:verify, db:verify:legacy, db:shell, prisma:deploy, dev, build, or start.'
     );
     process.exit(2);
 }

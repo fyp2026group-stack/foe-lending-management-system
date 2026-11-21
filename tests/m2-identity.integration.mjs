@@ -132,6 +132,148 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
       for (const resource of ['users', 'batches', 'laboratories'])
         assert.equal((await request(`admin/${resource}`, { actor: admin })).status, 200);
     });
+    await t.test('Prisma reference catalogues enforce admin access and accurate counts', async () => {
+      for (const [resource, table, referenceId] of [
+        ['batches', 'user_batch_memberships', batch],
+        ['laboratories', 'staff_labs', lab],
+      ]) {
+        const response = await request('admin/' + resource, { actor: admin });
+        assert.equal(response.status, 200, resource);
+        assert.ok(Array.isArray(response.data.items), 'Expected catalogue items');
+        const row = response.data.items.find((item) => item.id === referenceId);
+        assert.ok(row, 'Created synthetic catalogue record must be visible');
+        if (table === 'user_batch_memberships') {
+          const expected = await db.query(
+            'SELECT count(*)::int AS n FROM lab.user_batch_memberships WHERE batch_id=$1 AND ended_at IS NULL',
+            [referenceId]
+          );
+          assert.equal(row.membershipCount, expected.rows[0].n);
+        } else {
+          const expected = await db.query(
+            'SELECT count(*)::int AS n FROM lab.staff_labs WHERE laboratory_id=$1',
+            [referenceId]
+          );
+          assert.equal(row.staffCount, expected.rows[0].n);
+          assert.equal(typeof row.locationCount, 'number');
+        }
+        assert.equal((await request('admin/' + resource, { actor: actors.student })).status, 403);
+        assert.equal((await request('admin/' + resource)).status, 401);
+      }
+    });
+    await t.test('typed Prisma equipment-policy listings preserve read contract', async () => {
+      const anonymous = await request('lending/policies');
+      assert.equal(anonymous.status, 401);
+      const asStudent = await request('lending/policies', { actor: actors.student });
+      assert.equal(asStudent.status, 200);
+      assert.ok(Array.isArray(asStudent.data.items));
+      assert.equal(asStudent.data.limit, 50);
+      assert.equal(asStudent.data.offset, 0);
+      const item = asStudent.data.items.find((entry) => entry.name === 'Synthetic Multimeter');
+      assert.ok(item, 'Synthetic equipment must be in the policy listing');
+      const actual = (await db.query(
+        "SELECT q.policy,q.hod_id FROM lab.inv_items i LEFT JOIN lab.lend_policies q ON q.item_id=i.id WHERE i.id=$1",
+        [item.itemId]
+      )).rows[0];
+      assert.equal(item.policy, actual.policy ?? 'UNCONFIGURED');
+      assert.equal(item.hodId, actual.hod_id ?? null);
+      const firstPage = await request('lending/policies?limit=1&offset=0', { actor: actors.student });
+      assert.equal(firstPage.status, 200);
+      assert.equal(firstPage.data.items.length, 1);
+      assert.equal(firstPage.data.limit, 1);
+      assert.equal((await request('lending/policies?limit=101', { actor: actors.student })).status, 422);
+      assert.equal((await request('lending/policies?status=active', { actor: actors.student })).status, 422);
+    });
+    await t.test('typed Prisma category listings preserve scoped catalogue contract', async () => {
+      assert.equal((await request('inventory/categories')).status,401);
+      const all = await request('inventory/categories', { actor: actors.student });
+      assert.equal(all.status,200);
+      assert.ok(Array.isArray(all.data.items));
+      const category = all.data.items.find(c => c.name === 'Synthetic Instruments');
+      assert.ok(category);
+      assert.equal(typeof category.version, 'number');
+      assert.equal(typeof category.active, 'boolean');
+      const filtered = await request(
+        'inventory/categories?limit=1&sort=name&active=true&q=Synthetic',
+        { actor: actors.student }
+      );
+      assert.equal(filtered.status,200);
+      assert.equal(filtered.data.items.length,1);
+      assert.equal(filtered.data.items[0].id,category.id);
+      assert.equal(filtered.data.limit,1);
+      assert.equal((await request('inventory/categories?active=invalid', { actor: actors.student })).status,422);
+      assert.equal((await request('inventory/categories?limit=101', { actor: actors.student })).status,422);
+      assert.equal((await request('inventory/categories?unexpected=value', { actor: actors.student })).status,422);
+    });
+    await t.test('native Prisma lecturer directory exposes scoped names and laboratory IDs only', async () => {
+      const anonymous = await request('lending/lecturers');
+      assert.equal(anonymous.status, 401);
+      const student = await request('lending/lecturers', { actor: actors.student });
+      assert.equal(student.status, 200);
+      assert.ok(Array.isArray(student.data.items));
+      const eligible = student.data.items.find(row => row.id === accounts.lecturer.id);
+      assert.ok(eligible, 'assigned lecturer must appear to the borrower');
+      assert.deepEqual(eligible.labIds, [lab]);
+      assert.equal(eligible.displayName, 'Synthetic QA lecturer');
+      assert.equal(eligible.email, undefined);
+      assert.equal(student.data.limit, 50);
+      assert.equal(student.data.offset, 0);
+      const own = await request('lending/lecturers', { actor: actors.lecturer });
+      assert.equal(own.status, 200);
+      assert.ok(!own.data.items.some(row => row.id === accounts.lecturer.id));
+      const byLab = await request('lending/lecturers?labId=' + lab, { actor: actors.student });
+      assert.equal(byLab.status, 200);
+      assert.ok(byLab.data.items.some(row => row.id === accounts.lecturer.id));
+      const empty = await request('lending/lecturers?labId=' + randomUUID(), { actor: actors.student });
+      assert.equal(empty.status, 200);
+      assert.equal(empty.data.items.length, 0);
+      assert.equal((await request('lending/lecturers?labId=invalid', { actor: actors.student })).status, 422);
+      assert.equal((await request('lending/lecturers?limit=101', { actor: actors.student })).status, 422);
+    });
+    await t.test('native inventory location directory restricts locations to active staff coverage', async () => {
+      assert.equal((await request('inventory/locations')).status,401);
+      const asAdmin=await request('inventory/locations',{actor:admin});
+      assert.equal(asAdmin.status,200);
+      assert.ok(asAdmin.data.items.some(row=>row.name==='Synthetic Store'));
+      const asStudent=await request('inventory/locations',{actor:actors.student});
+      assert.equal(asStudent.status,200);
+      assert.deepEqual(asStudent.data.items,[]);
+      const asLecturer=await request('inventory/locations',{actor:actors.lecturer});
+      assert.equal(asLecturer.status,200);
+      assert.deepEqual(asLecturer.data.items,[]);
+      const outsideLab=await request('inventory/locations?labId=10000000-0000-4000-8000-000000000002',{actor:actors.officer});
+      assert.equal(outsideLab.status,200);
+      assert.deepEqual(outsideLab.data.items,[]);
+      const currentLab=await request('inventory/locations?labId='+lab,{actor:actors.officer});
+      assert.equal(currentLab.status,200);
+      assert.ok(Array.isArray(currentLab.data.items));
+      assert.equal((await request('inventory/locations?labId=invalid',{actor:actors.officer})).status,422);
+    });
+    await t.test('direct URL navigation enforces server roles, not sidebar visibility', async () => {
+      const page = (route, actor) => fetch(cfg.origin + route, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+        headers: actor ? { Cookie: actor.cookie } : {},
+      });
+      const anonymous = await page('/admin/users');
+      assert.ok([307, 308].includes(anonymous.status), 'anonymous admin URL must redirect');
+      assert.equal(new URL(anonymous.headers.get('location'), cfg.origin).pathname, '/login');
+      const noWorkspace = await page('/workspace');
+      assert.ok([307, 308].includes(noWorkspace.status), 'anonymous workspace must redirect');
+      for (const actor of [actors.student, actors.lecturer, actors.officer]) {
+        assert.equal((await page('/admin/users', actor)).status, 404, 'admin URL must not render');
+        assert.equal((await page('/admin/reports', actor)).status, 404);
+      }
+      assert.equal((await page('/operations?view=handovers', actors.student)).status, 404);
+      assert.equal((await page('/operations?view=returns', actors.lecturer)).status, 404);
+      assert.equal((await page('/operations?view=handovers', actors.officer)).status, 200);
+      assert.equal((await page('/borrowing?view=approvals', actors.student)).status, 404);
+      assert.equal((await page('/borrowing?view=collection', actors.student)).status, 404);
+      assert.equal((await page('/borrowing?view=approvals', actors.lecturer)).status, 200);
+      assert.equal((await page('/inventory', actors.student)).status, 200);
+      assert.equal((await page('/admin/users', admin)).status, 200);
+      assert.equal((await page('/design-system', admin)).status, 404);
+    });
+
     await t.test('origin and CSRF protect administrative writes', async () => {
       const body = { name: `Rejected ${run}` };
       assert.equal(
@@ -345,7 +487,7 @@ test('M2 real PostgreSQL + HTTP identity contract', async (t) => {
             await request(`admin/users/${target.id}`, {
               method: 'PATCH',
               actor: admin,
-              body: { roles: ['LECTURER'], disabled: false, laboratoryIds: [lab] },
+              body: { roles: ['LECTURER'], disabled: false, laboratoryIds: [lab], batchIds: [] },
             })
           ).status,
           200

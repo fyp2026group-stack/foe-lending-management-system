@@ -62,8 +62,12 @@ export function ActionForm({
   children,
   onSaved,
   confirmationContext,
+  compact = false,
+  requireAcknowledgement = true,
 }: {
   confirmationContext?: ReactNode;
+  compact?: boolean;
+  requireAcknowledgement?: boolean;
   title: string;
   path: string;
   session: Session;
@@ -107,7 +111,7 @@ export function ActionForm({
     }
   }
   return (
-    <Card className="operation-form">
+    <Card className={compact ? "operation-form operation-form-compact" : "operation-form"}>
       <h2>{title}</h2>
       {error && <ErrorNotice message={error} />}
       <p role="status">{message}</p>
@@ -119,16 +123,16 @@ export function ActionForm({
       >
         <fieldset disabled={busy} className="grid gap-4 mt-4">
           {children}
-          <label className="flex items-center gap-3 min-h-11">
-            <input type="checkbox" required />I have reviewed the details and confirm this action.
-          </label>
+          {requireAcknowledgement && <label className="flex items-center gap-3 min-h-11">
+            <input type="checkbox" required />{compact ? 'Confirm this action' : 'I have reviewed the details and confirm this action.'}
+          </label>}
           <Button type="submit">{busy ? 'Checking result...' : title}</Button>
         </fieldset>
       </ConfirmedForm>
-      <p className="muted mt-3">
+      {!compact && <p className="muted mt-3">
         Current permissions are checked by the server. If the result is uncertain, check history
         before retrying.
-      </p>
+      </p>}
     </Card>
   );
 }

@@ -191,16 +191,12 @@ test('application reads, comments, multi-line validation and reserve authorizati
     const approvalLine = (
       await call('lecturer', 'read_requests', { requestId: approvalRequest.id })
     ).items[0].lines[0];
-    assert.equal(
-      (
-        await write('lecturer', 'decisions', {
-          lineId: approvalLine.id,
-          decision: 'APPROVE',
-          remarks: 'Historical remarks retained',
-        })
-      ).stage,
-      'APPROVED'
-    );
+    const approvalOutcome = await write('lecturer', 'decisions', {
+      lineId: approvalLine.id,
+      decision: 'APPROVE',
+      remarks: 'Historical remarks retained',
+    });
+    assert.equal(approvalOutcome.stage, 'APPROVED', JSON.stringify(approvalOutcome));
     const pastDecision = (
       await call('lecturer', 'read_requests', { requestId: approvalRequest.id })
     ).items[0].lines[0];

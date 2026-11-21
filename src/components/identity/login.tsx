@@ -4,8 +4,15 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { api, readSession, type Session } from './api';
-export function Login() {
+import { api, ApiError, readSession, type Session } from './api';
+import { loginErrorMessage } from './login-errors';
+const googleMessages: Record<string, string> = {
+  unavailable: 'Google sign-in is currently unavailable. Use your assigned account or contact the laboratory administrator.',
+  account: 'This Google account could not access the system. Contact the laboratory administrator to check your account.',
+  denied: 'Google sign-in could not be completed. Try again and allow access with your intended Google account.',
+  expired: 'Your Google registration session expired. Continue with Google again to restart registration.',
+};
+export function Login({ googleStatus }: { googleStatus?: string } = {}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -25,8 +32,8 @@ export function Login() {
       form.reset();
       router.replace('/workspace');
       router.refresh();
-    } catch {
-      setError('We could not sign you in. Check the email and password, then try again.');
+    } catch (error) {
+      setError(loginErrorMessage(error instanceof ApiError ? error.status : undefined));
       requestAnimationFrame(() => errorRef.current?.focus());
     } finally {
       const password = form.elements.namedItem('password');
@@ -64,7 +71,13 @@ export function Login() {
             <h2>Sign in</h2>
             <p>Use your assigned university account to continue.</p>
           </div>
-          <form onSubmit={submit} className="login-form" aria-busy={busy}>
+          <form action="/login" method="post" onSubmit={submit} className="login-form" aria-busy={busy}>
+            {googleStatus && Object.hasOwn(googleMessages, googleStatus) && (
+              <div role="alert" className="login-error">
+                <strong>Google sign-in unsuccessful</strong>
+                <span>{googleMessages[googleStatus]}</span>
+              </div>
+            )}
             {error && (
               <div
                 ref={errorRef}
@@ -110,6 +123,22 @@ export function Login() {
               {busy ? 'Verifying account…' : 'Sign in'}
             </Button>
           </form>
+          <div className="border-t border-border/70 pt-5 mt-5">
+            <p className="text-sm font-semibold mb-2">New student?</p>
+            <p className="text-xs text-muted-foreground mb-4">Use your university Google account to create or access a student account.</p>
+            <Button variant="outline" className="w-full" asChild>
+              <button type="button" onClick={() => window.location.assign('/api/google/start')}
+                aria-label="Continue with university Google account">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <path fill="#4285F4" d="M21.6 12.22c0-.71-.06-1.39-.18-2.04H12v3.86h5.38a4.6 4.6 0 0 1-2 3.03v2.52h3.23c1.89-1.74 2.99-4.3 2.99-7.37Z"/>
+                  <path fill="#34A853" d="M12 22c2.7 0 4.96-.89 6.61-2.41l-3.23-2.52c-.9.6-2.05.96-3.38.96-2.6 0-4.79-1.76-5.58-4.12H3.09v2.6A10 10 0 0 0 12 22Z"/>
+                  <path fill="#FBBC05" d="M6.42 13.91A6 6 0 0 1 6.1 12c0-.66.12-1.3.32-1.91V7.48H3.09A10 10 0 0 0 2 12c0 1.62.39 3.15 1.09 4.52l3.33-2.61Z"/>
+                  <path fill="#EA4335" d="M12 5.97c1.47 0 2.79.5 3.83 1.5l2.87-2.87C16.95 2.94 14.69 2 12 2a10 10 0 0 0-8.91 5.48l3.33 2.61C7.21 7.73 9.4 5.97 12 5.97Z"/>
+                </svg>
+                Continue with Google
+              </button>
+            </Button>
+          </div>
           <div className="login-support">
             <strong>Having trouble signing in?</strong>
             <p>Contact your laboratory administrator to confirm that your account is active.</p>

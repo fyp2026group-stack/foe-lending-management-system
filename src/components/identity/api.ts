@@ -1,3 +1,4 @@
+import { personLabel } from '../display-labels';
 export const roleLabels = {
   STUDENT: 'Student',
   LECTURER: 'Lecturer',
@@ -60,6 +61,11 @@ export async function api<T>(
   });
   const data: unknown = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
+    // An expired authenticated session is a navigation event, not a full-page
+    // error state. A login failure must remain on the login form instead.
+    if (response.status === 401 && path !== '/api/auth/login' && typeof window !== 'undefined') {
+      if (window.location.pathname !== '/login') window.location.replace('/login');
+    }
     const fallback =
       response.status === 401
         ? 'Your session has ended. Sign in again.'
@@ -78,7 +84,7 @@ export function readSession(value: Session): Session {
     !value.csrfToken
   )
     throw new Error('The session response is incomplete. Please sign in again.');
-  return value;
+  return { ...value, user: { ...value.user, displayName: personLabel(value.user) } };
 }
 export function readRows(value: unknown): RecordRow[] {
   const rows =

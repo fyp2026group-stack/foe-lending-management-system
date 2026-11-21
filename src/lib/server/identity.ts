@@ -1,7 +1,13 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { derive, boundedBody } from './work';
-import { transaction } from './db';
 import { runAdmitted } from './admission';
+import { readAdminReferences } from './services/admin-references';
+import { currentIdentity, logoutIdentity } from './services/identity-session';
+import { loginIdentity } from './services/identity-login';
+import { readAdminUsers } from './services/admin-users';
+import { changeAdminReference } from './services/admin-reference-mutations';
+import { admitAdminHash, changeAdminUser } from './services/admin-user-mutations';
+import { recordNativeDenial } from './services/denial-audit';
 async function verify(p: string, encoded: string) {
   const [kind, salt, key] = encoded.split('$');
   const valid =
@@ -28,9 +34,7 @@ const fail = (status: number, code: string): never => {
   throw new ApiError(status, code);
 };
 export async function recordDenial(r: Request, code: string) {
-  await transaction(async (c) => {
-    await c.query('SELECT lab.denial($1,$2)', [cookie(r), code]);
-  });
+  await recordNativeDenial(cookie(r), code);
 }
 export async function handle(
   r: Request,
@@ -164,68 +168,25 @@ export async function handle(
       !body.roles.some((role: string) => ['LECTURER', 'TECHNICAL_OFFICER'].includes(role)))
   )
     fail(422, 'STAFF_ROLE_REQUIRED');
-  const call = async (op: string, target: string | null, p: unknown) =>
-    transaction(
-      async (c) =>
-        (
-          await c.query('SELECT lab.identity_call($1,$2,$3,$4,$5) AS result', [
-            cookie(r),
-            r.headers.get('x-csrf-token') ?? '',
-            op,
-            target,
-            p,
-          ])
-        ).rows[0].result
-    );
-  const governance = async (op: string, target: string | null, p: unknown) =>
-    transaction(
-      async (c) =>
-        (
-          await c.query('SELECT lab.admin_governance($1,$2,$3,$4,$5) AS result', [
-            cookie(r),
-            r.headers.get('x-csrf-token') ?? '',
-            op,
-            target,
-            p,
-          ])
-        ).rows[0].result
-    );
   const resultResponse = (result: Record<string, unknown>) => {
     if (typeof result.status === 'number')
       return { status: result.status, data: { code: result.code } };
     return { data: result };
   };
   if (login) {
-    const started = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.login_start($1) AS result', [body.email.trim().toLowerCase()]))
-          .rows[0].result
-    );
-    if (started.status) return resultResponse(started);
-    const valid = await verify(body.password, started.passwordHash);
-    const secret = process.env.LOGIN_VERIFIER_SECRET;
-    if (!secret || secret.length < 32) fail(503, 'VERIFIER_UNAVAILABLE');
-    const proof = valid
-      ? createHmac('sha256', secret!).update(started.challengeId).digest('hex')
-      : 'invalid';
-    const result = await transaction(
-      async (c) =>
-        (await c.query('SELECT lab.login_finish($1,$2) AS result', [started.challengeId, proof]))
-          .rows[0].result
-    );
-    if (result.status) return resultResponse(result);
+    const result = await loginIdentity(body.email, body.password);
+    if ('status' in result) return resultResponse(result);
     return {
       data: { csrfToken: result.csrfToken },
       cookie:
-        'lab_session=' +
-        result.token +
+        'lab_session=' + result.token +
         '; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800' +
         (process.env.NODE_ENV === 'production' ? '; Secure' : ''),
     };
   }
-  if (route === 'auth/me') return resultResponse(await call('me', null, {}));
+  if (route === 'auth/me') return resultResponse(await currentIdentity(cookie(r)));
   if (route === 'auth/logout') {
-    const result = await call('logout', null, {});
+    const result = await logoutIdentity(cookie(r), r.headers.get('x-csrf-token') ?? '');
     return {
       ...resultResponse(result),
       ...(result.status
@@ -233,45 +194,57 @@ export async function handle(
         : { cookie: 'lab_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' }),
     };
   }
-  let op = path[1];
-  if (r.method === 'POST') {
-    op = { users: 'create_user', batches: 'create_batch', laboratories: 'create_laboratory' }[
-      path[1]
-    ]!;
-    if (path[1] === 'users') {
-      const admitted = await runAdmitted(
-        async () =>
-          transaction(
-            async (c) =>
-              (
-                await c.query('SELECT lab.admin_hash_admit($1,$2) AS result', [
-                  cookie(r),
-                  r.headers.get('x-csrf-token') ?? '',
-                ])
-              ).rows[0].result
-          ),
-        async () => {
-          const salt = randomBytes(16).toString('hex');
-          body.passwordHash =
-            'scrypt$' + salt + '$' + (await derive(body.password, salt)).toString('hex');
-          delete body.password;
-          return { admitted: true, status: undefined, code: undefined };
-        }
-      );
-      if (admitted.status) {
-        await recordDenial(r, admitted.code ?? 'DENIED');
-        return resultResponse(admitted);
+  if (collection && r.method === 'GET' && path[1] === 'users') {
+    return resultResponse(await readAdminUsers(cookie(r)));
+  }
+  // Migrated reference-data reads: authorized via the existing session
+  // authority, then retrieved through Prisma with restricted SELECT grants.
+  if (
+    collection &&
+    r.method === 'GET' &&
+    (path[1] === 'batches' || path[1] === 'laboratories')
+  ) {
+    return resultResponse(await readAdminReferences(cookie(r), path[1]));
+  }
+  if ((collection || patch) &&
+      (path[1] === 'batches' || path[1] === 'laboratories') &&
+      r.method !== 'GET') {
+    const result = await changeAdminReference(
+      cookie(r), r.headers.get('x-csrf-token') ?? '',
+      path[1], patch ? path[2] : null, body
+    );
+    return {
+      ...resultResponse(result),
+      ...(!('status' in result) && r.method === 'POST' ? { status: 201 } : {}),
+    };
+  }
+  if (patch && path[1] === 'users') {
+    return resultResponse(await changeAdminUser(
+      cookie(r), r.headers.get('x-csrf-token') ?? '', path[2], body
+    ));
+  }
+  if (collection && path[1] === 'users' && r.method === 'POST') {
+    const admitted = await runAdmitted(
+      () => admitAdminHash(cookie(r), r.headers.get('x-csrf-token') ?? ''),
+      async () => {
+        const salt = randomBytes(16).toString('hex');
+        body.passwordHash =
+          'scrypt$' + salt + '$' + (await derive(body.password, salt)).toString('hex');
+        delete body.password;
+        return { admitted: true };
       }
+    );
+    if ('status' in admitted && admitted.status) {
+      await recordDenial(r, admitted.code ?? 'DENIED');
+      return resultResponse(admitted as Record<string, unknown>);
     }
-  } else if (patch)
-    op = { users: 'patch_user', batches: 'patch_batch', laboratories: 'patch_laboratory' }[
-      path[1]
-    ]!;
-  if (collection && r.method === 'GET') op = 'read_' + path[1];
-  const result = await governance(op, patch ? path[2] : null, body);
-  if (result.status === 401 || result.code === 'CSRF_DENIED') await recordDenial(r, result.code);
-  return {
-    ...resultResponse(result),
-    ...(!result.status && r.method === 'POST' ? { status: 201 } : {}),
-  };
+    const result = await changeAdminUser(
+      cookie(r), r.headers.get('x-csrf-token') ?? '', null, body
+    );
+    return {
+      ...resultResponse(result),
+      ...(!('status' in result) ? { status: 201 } : {}),
+    };
+  }
+  return { status: 404, data: { code: 'NOT_FOUND' } };
 }

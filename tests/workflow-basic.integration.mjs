@@ -116,17 +116,13 @@ test('request through return preserves authorization, idempotency, history and i
       ).code,
       'DENIED'
     );
-    assert.equal(
-      (
-        await call('lecturer', 'decisions', {
-          commandId: command(),
-          lineId: line.id,
-          decision: 'APPROVE',
-          remarks: 'Lecturer approval',
-        })
-      ).stage,
-      'HOD'
-    );
+    const lecturerApproval = await call('lecturer', 'decisions', {
+      commandId: command(),
+      lineId: line.id,
+      decision: 'APPROVE',
+      remarks: 'Lecturer approval',
+    });
+    assert.equal(lecturerApproval.stage, 'HOD', JSON.stringify(lecturerApproval));
     assert.equal(
       (
         await call('lecturer', 'decisions', {

@@ -182,7 +182,7 @@ test('student policies route uses the prototype Help hierarchy and six-step work
   assert.match(html, /Item approval requirements appear/);
   assert.doesNotMatch(html, /UNCONFIGURED|Synthetic|<table|Rows per page/);
   const route = readFileSync(resolve('src/components/lending/workflow.tsx'), 'utf8');
-  assert.match(route, /if\(student&&view==='policies'\)return <StudentGuidance\/>/);
+  assert.match(route, /if\s*\(\s*student\s*&&\s*view\s*===\s*['"]policies['"]\s*\)\s*return\s*<StudentGuidance\s*\/>/);
 });
 test('prototype quick actions render four descriptive icon tiles with the borrowed-items destination', () => {
   const html = renderToStaticMarkup(createElement(StudentQuickActions));

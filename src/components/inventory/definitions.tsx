@@ -342,6 +342,7 @@ export function Definitions({
   labs,
   onSaved,
   revision,
+  mode = 'all',
 }: {
   session: Session;
   categories: Named[];
@@ -349,8 +350,9 @@ export function Definitions({
   labs: Named[];
   onSaved: () => void;
   revision: number;
+  mode?: 'all' | 'categoriesAndLocations';
 }) {
-  const [resource, setResource] = useState<Resource>('items');
+  const [resource, setResource] = useState<Resource>(mode === 'categoriesAndLocations' ? 'categories' : 'items');
   const [query, setQuery] = useState('');
   const [editor, setEditor] = useState<{ resource: Resource; record?: Named | Item } | null>(null);
   const items = useInventoryLookup<Item>('items', revision);
@@ -367,10 +369,12 @@ export function Definitions({
     <section className="records">
       <div className="section-heading">
         <div>
-          <h2>Catalogue setup</h2>
-          <p className="muted">Maintain items, categories and physical stock locations.</p>
+          <h2>{mode === 'categoriesAndLocations' ? 'Categories & storage locations' : 'Catalogue setup'}</h2>
+          <p className="muted">{mode === 'categoriesAndLocations'
+            ? 'Organize equipment categories and the places where items are stored.'
+            : 'Maintain items, categories and physical stock locations.'}</p>
         </div>
-        <Button onClick={() => setEditor({ resource })}>Create {labels[resource]}</Button>
+        <Button onClick={() => setEditor({ resource })}>Add {labels[resource]}</Button>
       </div>
       <Tabs
         value={resource}
@@ -379,11 +383,9 @@ export function Definitions({
           setQuery('');
         }}
         label="Catalogue definitions"
-        items={[
-          { value: 'items', label: 'Items' },
-          { value: 'categories', label: 'Categories' },
-          { value: 'locations', label: 'Locations' },
-        ]}
+        items={mode === 'categoriesAndLocations'
+          ? [{ value: 'categories', label: 'Categories' }, { value: 'locations', label: 'Locations' }]
+          : [{ value: 'items', label: 'Items' }, { value: 'categories', label: 'Categories' }, { value: 'locations', label: 'Locations' }]}
       >
         <label className="record-search">
           Search {labels[resource]} records

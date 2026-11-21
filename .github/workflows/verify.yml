@@ -1,0 +1,71 @@
+name: Application source checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Generate ephemeral synthetic local-only config
+        run: npm run local:config
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    needs: checks
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Generate Prisma Client for authenticated API runtime
+        run: |
+          npm run prisma:generate
+          test -f node_modules/.prisma/client/default.js
+      - name: Generate isolated synthetic environment
+        run: npm run local:config
+      - name: Provision and verify local PostgreSQL
+        run: npm run db:setup:legacy
+      - name: Provision disposable synthetic integration fixtures
+        run: node --env-file=.verification/m2.env scripts/test-fixtures.mjs
+      - name: Verify Google student registration and duplicate identifier rejection
+        run: node --env-file=.verification/m2.env --test tests/google-student-registration.integration.mjs
+      - name: Run isolated rollback-protected PostgreSQL cases
+        run: |
+          node --env-file=.verification/m2.env --test --test-concurrency=1 \
+            tests/application-lending.integration.mjs \
+            tests/catalogue.integration.mjs \
+            tests/hod-admin-governance.integration.mjs \
+            tests/google-student-registration.integration.mjs \
+            tests/hod-admin-reports.integration.mjs \
+            tests/lending-authority.integration.mjs \
+            tests/lending-lifecycle.integration.mjs \
+            tests/lending-sources.integration.mjs \
+            tests/officer-operations.integration.mjs \
+            tests/physical-lifecycle.integration.mjs \
+            tests/workflow-basic.integration.mjs
+      - name: Run authenticated HTTP identity, inventory and lending flow
+        if: success() || failure()
+        run: node --env-file=.verification/m2.env tests/workflow-run.integration.mjs
+      - name: Stop isolated PostgreSQL
+        if: always()
+        run: npm run db:down

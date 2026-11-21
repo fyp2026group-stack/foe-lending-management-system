@@ -92,7 +92,7 @@ test('M3 inventory PostgreSQL HTTP contract', async (t) => {
     }
     const command = (body) => ({ ...body, commandId: randomUUID() });
     const success = (result) => {
-      assert.ok([200, 201].includes(result.status), `Inventory mutation returned ${result.status}`);
+      assert.ok([200, 201].includes(result.status), `Inventory mutation returned ${result.status}: ${JSON.stringify(result.data)}`);
       return result.data;
     };
     await t.test('all four roles read catalogue', async () => {
@@ -102,6 +102,56 @@ test('M3 inventory PostgreSQL HTTP contract', async (t) => {
     const category = success(
       await api('categories', actors.admin, command({ name: `QA category ${run}` }))
     );
+    await t.test('native Prisma category mutation retains replay, version and audit contracts', async () => {
+      const patch = {
+        commandId: randomUUID(), expectedVersion: 0,
+        name: `QA native category ${run}`, active: true,
+      };
+      async function patchCategory(actor, body, includeCsrf = true) {
+        const response = await fetch(`${cfg.origin}/api/inventory/categories/${category.id}`, {
+          method: 'PATCH',
+          signal: AbortSignal.timeout(10000),
+          headers: {
+            Cookie: actor.cookie,
+            Origin: cfg.origin,
+            ...(includeCsrf ? { 'X-CSRF-Token': actor.csrf } : {}),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+        return { status: response.status, data: await response.json() };
+      }
+      const denial = await patchCategory(actors.student, patch);
+      assert.equal(denial.status, 403);
+      assert.equal((await patchCategory(actors.admin, patch, false)).status, 403);
+      const first = await patchCategory(actors.admin, patch);
+      assert.equal(first.status, 200, JSON.stringify(first));
+      assert.equal(first.data.version, 1);
+      assert.equal(first.data.active, true);
+      const replay = await patchCategory(actors.admin, patch);
+      assert.deepEqual(replay, first);
+      assert.equal((await patchCategory(actors.admin, {
+        ...patch, name: `different ${run}`,
+      })).status, 409);
+      assert.equal((await patchCategory(actors.admin, {
+        commandId: randomUUID(), expectedVersion: 0, name: `stale ${run}`,
+      })).status, 409);
+      const stored = (await db.query(
+        'SELECT name,version FROM lab.inv_categories WHERE id=$1', [category.id]
+      )).rows[0];
+      assert.equal(stored.name, patch.name);
+      assert.equal(stored.version, 1);
+      const commands = await db.query(
+        "SELECT count(*)::int n FROM lab.inv_commands WHERE actor_id=$1 AND command_id=$2",
+        [actors.admin.id, patch.commandId]
+      );
+      assert.equal(commands.rows[0].n, 1);
+      const audits = await db.query(
+        "SELECT count(*)::int n FROM lab.audit WHERE actor_id=$1 AND target_id=$2 AND action='INVENTORY_UPDATE_CATEGORIES'",
+        [actors.admin.id, category.id]
+      );
+      assert.equal(audits.rows[0].n, 1);
+    });
     const item = success(
       await api(
         'items',

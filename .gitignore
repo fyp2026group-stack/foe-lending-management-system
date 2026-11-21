@@ -7,3 +7,6 @@ coverage/
 !.env.example
 .cache/
 .verification/
+
+# Generated Prisma client (regenerate using npm run prisma:generate)
+src/generated/prisma/

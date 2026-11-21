@@ -5,6 +5,7 @@ import ts from 'typescript';
 import {
   catalogueRows,
   itemBalances,
+  balanceTotal,
   stockLabel,
   definitionPayload,
 } from '../src/components/inventory/catalogue-model.ts';
@@ -143,7 +144,7 @@ const moduleUrl = (source) =>
     }).outputText
   ).toString('base64');
 const identityUrl = moduleUrl(
-  readFileSync(new URL('../src/components/identity/api.ts', import.meta.url), 'utf8')
+  readFileSync(new URL('../src/components/identity/api.ts', import.meta.url), 'utf8').replace('../display-labels', 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(readFileSync(new URL('../src/components/display-labels.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText).toString('base64'))
 );
 const inventorySource = readFileSync(
   new URL('../src/components/inventory/api.ts', import.meta.url),
@@ -205,4 +206,22 @@ test('catalogue conflicts stay failures; read normalization retains new DTO fiel
   } finally {
     globalThis.fetch = original;
   }
+});
+
+
+test('authorized stock cells replace availability-only catalogue fields without false missing-state zeros', () => {
+  const catalogue = [{ id: 'meter', name: 'Meter', kind: 'RETURNABLE', available: 19 }];
+  assert.equal(balanceTotal(catalogue, undefined, 'reserved'), undefined);
+  const stock = [
+    { itemId: 'meter', labId: 'assigned', state: 'AVAILABLE', quantity: 18 },
+    { itemId: 'meter', labId: 'assigned', state: 'AVAILABLE', quantity: 1 },
+    { itemId: 'meter', labId: 'assigned', state: 'RESERVED', quantity: 3 },
+    { itemId: 'other', labId: 'assigned', state: 'RESERVED', quantity: 100 },
+  ];
+  assert.equal(balanceTotal(catalogue, stock, 'reserved'), 3);
+  assert.equal(balanceTotal(catalogue, stock, 'available'), 19);
+  assert.equal(balanceTotal(catalogue, stock, 'borrowed'), 0);
+  assert.equal(balanceTotal(undefined, stock, 'reserved'), undefined);
+  assert.equal(balanceTotal(catalogue, [], 'reserved'), 0);
+  assert.equal(catalogueRows(catalogue, stock, 'reserved', 'name', false)[0].balance.reserved, 3);
 });

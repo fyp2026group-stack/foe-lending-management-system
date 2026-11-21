@@ -1,0 +1,40 @@
+name: Baseline PostgreSQL comparison
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-branch-sql-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out unmodified source branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/report-exports-and-workflow-tests-20261114
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run local:config
+      - run: npm run db:setup:legacy
+      - name: Original-branch SQL integration baseline
+        run: |
+          node --env-file=.verification/m2.env --test --test-concurrency=1 \
+            tests/application-lending.integration.mjs \
+            tests/catalogue.integration.mjs \
+            tests/hod-admin-governance.integration.mjs \
+            tests/google-student-registration.integration.mjs \
+            tests/hod-admin-reports.integration.mjs \
+            tests/lending-authority.integration.mjs \
+            tests/lending-lifecycle.integration.mjs \
+            tests/lending-sources.integration.mjs \
+            tests/officer-operations.integration.mjs \
+            tests/physical-lifecycle.integration.mjs \
+            tests/workflow-basic.integration.mjs
+      - name: Shut down isolated baseline database
+        if: always()
+        run: npm run db:down

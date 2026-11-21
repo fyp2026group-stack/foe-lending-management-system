@@ -32,7 +32,7 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import type { Session } from '@/components/identity/api';
-import type { Page, Policy, Allocation, Loan, HistoryEvent } from './api';
+import type { Page, Policy, Allocation, Loan, HistoryEvent, BorrowDraft } from './api';
 const sections = [
   'requests',
   'new',
@@ -57,11 +57,13 @@ const labels: Record<Section, string> = {
 const date = (value: string | null) =>
   value ? new Date(value).toLocaleString() : 'Not applicable';
 const selectClass = 'min-h-11 border rounded-md bg-white px-3 w-full';
-export function LendingWorkflow({ initialView = 'requests' }: { initialView?: string }) {
+export function LendingWorkflow({ initialView = 'requests', draftId }: { initialView?: string; draftId?: string }) {
   return (
     <Authenticated>
       {(session) =>
-        session.user.roles.includes('TECHNICAL_OFFICER') && initialView !== 'approvals' ? (
+        draftId && initialView === 'new' ? (
+          <DraftRequestPage session={session} draftId={draftId} />
+        ) : session.user.roles.includes('TECHNICAL_OFFICER') && initialView !== 'approvals' ? (
           <OfficerWorkspace
             key={initialView}
             session={session}
@@ -93,6 +95,62 @@ export function LendingWorkflow({ initialView = 'requests' }: { initialView?: st
     </Authenticated>
   );
 }
+function DraftRequestPage({ session, draftId }: { session: Session; draftId: string }) {
+  // The existing drafts API is borrower-scoped; never accept draft contents from the URL.
+  const drafts = useLendingChoices<BorrowDraft>('drafts', 0);
+  const draft = drafts.data?.items.find(
+    (item) => item.id === draftId && !item.cancelled && !item.submittedId
+  );
+  const title = session.user.roles.includes('STUDENT')
+    ? 'Student workspace'
+    : session.user.roles.includes('LECTURER')
+      ? 'Lecturer workspace'
+      : session.user.roles.includes('TECHNICAL_OFFICER')
+        ? 'Technical officer workspace'
+        : 'Borrowing operations';
+
+  return (
+    <div className="student-page student-request-page">
+      <PageHeader
+        eyebrow={title}
+        title="Edit borrowing request"
+        description="Your previously entered equipment and borrowing details are ready to edit."
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/borrowing?view=requests">Back to My Requests</Link>
+          </Button>
+        }
+      />
+      {drafts.error && <ErrorNotice message={drafts.error} />}
+      {!drafts.data && !drafts.error && (
+        <div role="status" className="grid gap-3">
+          <p>Loading your request…</p>
+          <Skeleton className="h-60 w-full rounded-xl" />
+        </div>
+      )}
+      {drafts.data && !draft && (
+        <Card className="p-6">
+          <h2>Draft unavailable</h2>
+          <p>This draft is no longer editable or is not in your authorized requests.</p>
+          <Button asChild variant="outline">
+            <Link href="/borrowing?view=requests">Return to My Requests</Link>
+          </Button>
+        </Card>
+      )}
+      {draft && (
+        <RequestBuilder
+          key={draft.id}
+          draft={draft}
+          session={session}
+          revision={0}
+          // Preserve the local success screen after the server marks a draft submitted.
+          refresh={() => undefined}
+        />
+      )}
+    </div>
+  );
+}
+
 function Workflow({ session, initialView }: { session: Session; initialView: string }) {
   const router = useRouter();
   const student = isStudent(session.user.roles);
@@ -119,12 +177,7 @@ function Workflow({ session, initialView }: { session: Session; initialView: str
         <PageHeader
           eyebrow="Student workspace"
           title="New Borrowing Request"
-          description="Select equipment, complete the academic purpose and schedule, then review your saved draft."
-          actions={
-            <Button asChild variant="outline">
-              <Link href="/inventory">Browse Equipment</Link>
-            </Button>
-          }
+          description="Choose equipment, enter borrowing details and submit your request."
         />
         <RequestBuilder session={session} revision={revision} refresh={saved} />
       </div>

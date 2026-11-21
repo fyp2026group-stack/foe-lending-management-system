@@ -1,0 +1,113 @@
+name: Prisma migration readiness
+
+on:
+  push:
+    branches: [prisma]
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'prisma/**'
+      - 'scripts/prisma-readiness.mjs'
+      - 'prisma7.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/prisma-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install reproducibly
+        run: npm ci
+      - name: Generate ephemeral local-only test configuration
+        run: npm run local:config
+      - name: Validate Prisma schema
+        run: npm run prisma:validate
+      - name: Generate Prisma client and typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build production application
+        run: npm run build
+      - name: Unit tests (includes production-server smoke tests)
+        run: npm test
+      - name: Require complete native Prisma migration
+        run: npm run prisma:readiness:enforce
+
+  fresh-schema:
+    name: Clean PostgreSQL Prisma migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lab_m2_test_native
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lab_m2_test_native"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATION_DATABASE_URL: postgresql://postgres:disposable-ci-only@127.0.0.1:5432/lab_m2_test_native?schema=lab
+      ORM_DATABASE_URL: postgresql://lab_orm:disposable-orm-ci-only@127.0.0.1:5432/lab_m2_test_native?schema=lab
+      M2_TEST_DATABASE_URL: postgresql://postgres:disposable-ci-only@127.0.0.1:5432/lab_m2_test_native
+      M2_TEST_APP_ORIGIN: http://127.0.0.1:3000
+      M2_TEST_ENABLE: synthetic-only
+      APP_ORIGIN: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Apply clean Prisma migration chain (without legacy schema)
+        run: npx prisma migrate deploy --config prisma7.config.ts
+      - name: Check migration history
+        run: npx prisma migrate status --config prisma7.config.ts
+      - name: Provision and verify disposable restricted ORM login
+        run: |
+          PGPASSWORD=disposable-ci-only psql -h 127.0.0.1 -U postgres -d lab_m2_test_native -v ON_ERROR_STOP=1 -c "ALTER ROLE lab_orm LOGIN PASSWORD 'disposable-orm-ci-only'"
+          node scripts/prisma-verify-native.mjs
+      - name: Build production application for clean-schema HTTP integration
+        run: npm run build
+      - name: Run native HTTP lending and inventory integration on a clean Prisma database
+        run: |
+          set -euo pipefail
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 >/tmp/prisma-http.log 2>&1 &
+          server_pid=$!
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "Native application diagnostics (CI ephemeral test database):"
+              tail -80 /tmp/prisma-http.log || true
+            fi
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 45); do
+            if curl --silent --fail http://127.0.0.1:3000/login >/dev/null; then break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then cat /tmp/prisma-http.log; exit 1; fi
+            sleep 1
+          done
+          curl --silent --fail http://127.0.0.1:3000/login >/dev/null
+          node --test --test-concurrency=1 tests/prisma-native-lifecycle-http.integration.mjs tests/prisma-native-admin-report-http.integration.mjs
