@@ -10,3 +10,6 @@ coverage/
 
 # Generated Prisma client (regenerate using npm run prisma:generate)
 src/generated/prisma/
+
+# Generated local tooling and build logs
+*.log
