@@ -114,7 +114,7 @@ switch (command) {
     docker('exec', 'postgres', 'psql', '-U', 'lab_migration', '-d', 'lab_m2_test_identity');
     break;
   case 'dev':
-    run(process.execPath, [nextBin, 'dev', ...process.argv.slice(3)], {
+    run(process.execPath, [nextBin, 'dev', '--hostname', '127.0.0.1', ...process.argv.slice(3)], {
       env: runtimeConfig(process.env, envFile),
     });
     break;
