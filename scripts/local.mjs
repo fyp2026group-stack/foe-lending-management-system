@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { runtimeConfig } from './runtime-config.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const envFile = resolve(root, '.verification', 'm2.env');
@@ -113,16 +114,18 @@ switch (command) {
     docker('exec', 'postgres', 'psql', '-U', 'lab_migration', '-d', 'lab_m2_test_identity');
     break;
   case 'dev':
-    requireConfig();
-    run(process.execPath, [nextBin, 'dev', '--hostname', '127.0.0.1']);
+    run(process.execPath, [nextBin, 'dev', ...process.argv.slice(3)], {
+      env: runtimeConfig(process.env, envFile),
+    });
     break;
   case 'build':
     requireConfig();
     run(process.execPath, [nextBin, 'build']);
     break;
   case 'start':
-    requireConfig();
-    run(process.execPath, [nextBin, 'start', '--hostname', '127.0.0.1']);
+    run(process.execPath, [nextBin, 'start', ...process.argv.slice(3)], {
+      env: runtimeConfig(process.env, envFile),
+    });
     break;
   default:
     console.error(

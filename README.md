@@ -18,6 +18,8 @@ npm run prisma:readiness:enforce
 npm run dev
 ```
 
+`npm run dev` and `npm start` validate the restricted `ORM_DATABASE_URL` before starting Next.js. In a local shell without an injected connection they load `.verification/m2.env` (loopback database only). They never provision accounts, change credentials or migrate data. Missing or invalid configuration stops startup with a sanitized error. Existing environment values take precedence. With `NODE_ENV=production`, local files are never used: inject `ORM_DATABASE_URL` through the hosting environment. `npm run build` retains Prisma client generation.
+
 `db:setup` provisions the restricted database login and applies the complete Prisma migration chain against an empty Docker PostgreSQL database. It does **not** create administrators, students, laboratories, items, stocks, or example records. The first administrator needs a protected bootstrap process before real usage.
 
 To apply subsequent migrations without clearing data:
