@@ -5,18 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { inventoryRead, type Item, type Page } from './api';
 export function useInventoryLookup<T>(
-  resource: string,
+  resource: string | null,
   revision: number
 ): { data?: { items: T[] }; error?: string } {
   const [state, setState] = useState<{ key: string; data?: { items: T[] }; error?: string }>();
   const key = resource + ':' + revision;
   useEffect(() => {
+    if (resource === null) return;
+    const activeResource = resource;
     const controller = new AbortController();
     async function load() {
       const items: T[] = [];
       for (let offset = 0; offset <= 10000; offset += 100) {
         const page = await inventoryRead<Page<T>>(
-          `${resource}${resource.includes('?') ? '&' : '?'}limit=100&offset=${offset}`,
+          `${activeResource}${activeResource.includes('?') ? '&' : '?'}limit=100&offset=${offset}`,
           controller.signal
         );
         items.push(...page.items);

@@ -87,7 +87,7 @@ const moduleUrl = (source) =>
     }).outputText
   ).toString('base64');
 const identityUrl = moduleUrl(
-  readFileSync(new URL('../src/components/identity/api.ts', import.meta.url), 'utf8')
+  readFileSync(new URL('../src/components/identity/api.ts', import.meta.url), 'utf8').replace('../display-labels', 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(readFileSync(new URL('../src/components/display-labels.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText).toString('base64'))
 );
 const source = readFileSync(
   new URL('../src/components/lending/api.ts', import.meta.url),

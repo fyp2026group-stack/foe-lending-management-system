@@ -7,6 +7,10 @@ on:
       - 'src/**'
       - 'prisma/**'
       - 'tests/prisma-native-lifecycle-http.integration.mjs'
+      - 'tests/prisma-native-admin-report-http.integration.mjs'
+      - 'tests/prisma-native-reuse-http.integration.mjs'
+      - 'tests/m2-guard.mjs'
+      - 'scripts/qa-disposable-http.mjs'
       - '.github/workflows/prisma-clean-http.yml'
   workflow_dispatch:
 
@@ -85,7 +89,7 @@ jobs:
             sleep 1
           done
           curl --silent --fail http://127.0.0.1:3000/login >/dev/null
-          node --test --test-concurrency=1 tests/prisma-native-lifecycle-http.integration.mjs tests/prisma-native-admin-report-http.integration.mjs
+          node --test --test-concurrency=1 tests/prisma-native-lifecycle-http.integration.mjs tests/prisma-native-admin-report-http.integration.mjs tests/prisma-native-reuse-http.integration.mjs
       - name: Verify balanced ledger and permissions
         if: success()
         run: |

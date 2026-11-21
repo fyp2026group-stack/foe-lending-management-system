@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { api, readSession, type Session } from './api';
+import { api, ApiError, readSession, type Session } from './api';
+import { loginErrorMessage } from './login-errors';
 const googleMessages: Record<string, string> = {
   unavailable: 'Google sign-in is currently unavailable. Use your assigned account or contact the laboratory administrator.',
   account: 'This Google account could not access the system. Contact the laboratory administrator to check your account.',
@@ -31,8 +32,8 @@ export function Login({ googleStatus }: { googleStatus?: string } = {}) {
       form.reset();
       router.replace('/workspace');
       router.refresh();
-    } catch {
-      setError('We could not sign you in. Check the email and password, then try again.');
+    } catch (error) {
+      setError(loginErrorMessage(error instanceof ApiError ? error.status : undefined));
       requestAnimationFrame(() => errorRef.current?.focus());
     } finally {
       const password = form.elements.namedItem('password');
@@ -70,7 +71,7 @@ export function Login({ googleStatus }: { googleStatus?: string } = {}) {
             <h2>Sign in</h2>
             <p>Use your assigned university account to continue.</p>
           </div>
-          <form onSubmit={submit} className="login-form" aria-busy={busy}>
+          <form action="/login" method="post" onSubmit={submit} className="login-form" aria-busy={busy}>
             {googleStatus && Object.hasOwn(googleMessages, googleStatus) && (
               <div role="alert" className="login-error">
                 <strong>Google sign-in unsuccessful</strong>

@@ -126,6 +126,32 @@ test('native HTTP: request-wide approvals through return and inspection', async 
       commandId:c(),lineId:line.id,
     });
     assert.equal(reserved.status,200,'reserve '+JSON.stringify(reserved.data));
+    // Race two approved requests for stock already held by this request.
+    const competitors=[];
+    for(let i=0;i<2;i++){
+      const made=await call('lending/requests',actors.student,{
+        commandId:c(),purpose:'Synthetic competing reservation '+i,
+        collectAt:new Date(Date.now()+3600_000).toISOString(),
+        returnAt:new Date(Date.now()+3*86400_000).toISOString(),
+        lines:[{itemId:freeItem,labId:lab,locationId:location,quantity:1}],
+      });
+      assert.equal(made.status,200,JSON.stringify(made.data));
+      competitors.push((await db.query('SELECT id FROM lab.lend_lines WHERE request_id=$1',[made.data.id])).rows[0].id);
+    }
+    const freeVersion=(await db.query('SELECT version FROM lab.lend_lines WHERE id=$1',[freeLine.id])).rows[0].version;
+    const cancelBody={commandId:c(),lineId:freeLine.id,quantity:1,expectedVersion:freeVersion,reason:'Release for synthetic contention test'};
+    const cancelled=await call('lending/cancel',actors.student,cancelBody);
+    assert.equal(cancelled.status,200,JSON.stringify(cancelled.data));
+    assert.deepEqual((await call('lending/cancel',actors.student,cancelBody)).data,cancelled.data);
+    const races=await Promise.all(competitors.map(lineId=>call('lending/reserve',actors.student,{commandId:c(),lineId})));
+    assert.deepEqual(races.map(x=>x.status).sort(),[200,409],'exactly one competing reservation wins');
+    assert.equal((await db.query("SELECT sum(quantity)::int n FROM lab.inv_cells WHERE item_id=$1 AND state='RESERVED'",[freeItem])).rows[0].n,1);
+    for(const role of ['student','lecturer','admin']){
+      const denied=await call('lending/issues',actors[role],{
+        commandId:c(),allocationId:reserved.data.allocationId,quantity:1,serial:'DENIED-'+suffix,
+      });
+      assert.equal(denied.status,403,role+' cannot hand over equipment');
+    }
     const issued=await call('lending/issues',actors.officer,{
       commandId:c(),allocationId:reserved.data.allocationId,quantity:1,
       serial:'NATIVE-'+suffix,
@@ -152,6 +178,14 @@ test('native HTTP: request-wide approvals through return and inspection', async 
     const replay=await call('lending/returns',actors.officer,returnBody);
     assert.equal(replay.status,200,'return replay');
     assert.deepEqual(replay.data,returned.data);
+    assert.equal((await db.query("SELECT sum(quantity)::int n FROM lab.inv_cells WHERE item_id=$1 AND state='INSPECTION'",[item])).rows[0].n,1);
+    for(const role of ['student','lecturer','admin']){
+      const denied=await call('lending/inspections',actors[role],{
+        commandId:c(),inspectionId:returned.data.inspectionId,expectedVersion:0,
+        outcome:'CLEAR_AVAILABLE',condition:'Synthetic',notes:'Denied role check',
+      });
+      assert.equal(denied.status,403,role+' cannot clear inspections');
+    }
     const inspection=await call('lending/inspections',actors.officer,{
       commandId:c(),inspectionId:returned.data.inspectionId,expectedVersion:0,
       outcome:'CLEAR_AVAILABLE',condition:'Functionally sound',notes:'Inspection passed',
@@ -171,6 +205,55 @@ test('native HTTP: request-wide approvals through return and inspection', async 
     assert.ok(ledger.rows.length>=4);
     assert.ok(ledger.rows.every(x=>x.balance===0&&x.entries===2),
       'each physical movement must have balanced double-entry accounting');
+    assert.equal((await db.query('SELECT status FROM lab.lend_inspections WHERE id=$1',[returned.data.inspectionId])).rows[0].status,'CLEAR_AVAILABLE');
+    const cell=(await db.query("SELECT version FROM lab.inv_cells WHERE item_id=$1 AND state='AVAILABLE' AND asset_id IS NULL",[freeItem])).rows[0];
+    const proposal=await call('inventory/adjustments',actors.officer,{
+      commandId:c(),itemId:freeItem,labId:lab,locationId:location,
+      expectedVersion:cell.version,quantity:2,direction:'ADD',reason:'Synthetic independent adjustment',
+    });
+    assert.equal(proposal.status,200,JSON.stringify(proposal.data));
+    const deniedAdjustment=await call('inventory/adjustments/'+proposal.data.id+'/approve',actors.officer,{commandId:c()});
+    assert.equal(deniedAdjustment.status,403);
+    const adjusted=await call('inventory/adjustments/'+proposal.data.id+'/approve',actors.admin,{commandId:c()});
+    assert.equal(adjusted.status,200,JSON.stringify(adjusted.data));
+    assert.equal((await db.query("SELECT sum(quantity)::int n FROM lab.inv_cells WHERE item_id=$1 AND state NOT IN ('EXTERNAL','RETIRED')",[freeItem])).rows[0].n,3);
+    const revisionSource=await call('lending/requests',actors.student,{
+      commandId:c(),purpose:'Synthetic rejected request for revision',
+      collectAt:new Date(Date.now()+3600_000).toISOString(),
+      returnAt:new Date(Date.now()+3*86400_000).toISOString(),lecturerId:accounts.lecturer.id,
+      lines:[{itemId:item,labId:lab,locationId:location,quantity:1}],
+    });
+    assert.equal(revisionSource.status,200,JSON.stringify(revisionSource.data));
+    const rejectedLine=(await db.query('SELECT id FROM lab.lend_lines WHERE request_id=$1',[revisionSource.data.id])).rows[0].id;
+    assert.equal((await call('lending/decisions',actors.lecturer,{commandId:c(),lineId:rejectedLine,decision:'REJECT',remarks:'Revise synthetic purpose'})).status,200);
+    const requestVersion=(await db.query('SELECT version FROM lab.lend_requests WHERE id=$1',[revisionSource.data.id])).rows[0].version;
+    const revision=await call('lending/revisions',actors.student,{commandId:c(),requestId:revisionSource.data.id,expectedVersion:requestVersion});
+    assert.equal(revision.status,200,JSON.stringify(revision.data));
+    const resubmitted=await call('lending/submit',actors.student,{commandId:c(),draftId:revision.data.id,expectedVersion:revision.data.version});
+    assert.equal(resubmitted.status,200,JSON.stringify(resubmitted.data));
+    assert.equal((await db.query('SELECT stage FROM lab.lend_lines WHERE request_id=$1',[revisionSource.data.id])).rows[0].stage,'REJECTED','revision preserves historical rejection');
+    const selfRequest={commandId:c(),purpose:'Synthetic self-approval prevention',
+      collectAt:new Date(Date.now()+3600_000).toISOString(),
+      returnAt:new Date(Date.now()+3*86400_000).toISOString(),lecturerId:accounts.lecturer.id,
+      lines:[{itemId:item,labId:lab,locationId:location,quantity:1}]};
+    assert.equal((await call('lending/requests',actors.lecturer,selfRequest)).status,422,'own lecturer designation rejected');
+    assert.equal((await call('lending/requests',actors.admin,{...selfRequest,commandId:c()})).status,422,'own HOD designation rejected');
+    const selfLoanRequest=await call('lending/requests',actors.officer,{
+      ...selfRequest,commandId:c(),lines:[{itemId:freeItem,labId:lab,locationId:location,quantity:1}],
+    });
+    assert.equal(selfLoanRequest.status,200,JSON.stringify(selfLoanRequest.data));
+    const selfLine=(await db.query('SELECT id FROM lab.lend_lines WHERE request_id=$1',[selfLoanRequest.data.id])).rows[0].id;
+    const selfReserved=await call('lending/reserve',actors.officer,{commandId:c(),lineId:selfLine});
+    assert.equal(selfReserved.status,200,JSON.stringify(selfReserved.data));
+    assert.equal((await call('lending/issues',actors.officer,{commandId:c(),allocationId:selfReserved.data.allocationId,quantity:1,serial:'SELF-'+suffix})).status,403,'assigned officer cannot issue to self');
+    // A dual-role proposer still cannot approve their own stock adjustment.
+    await db.query("INSERT INTO lab.user_roles(user_id,role) VALUES($1,'ADMIN')",[accounts.officer.id]);
+    const versionAfter=(await db.query("SELECT version FROM lab.inv_cells WHERE item_id=$1 AND state='AVAILABLE' AND asset_id IS NULL",[freeItem])).rows[0].version;
+    const selfProposal=await call('inventory/adjustments',actors.officer,{commandId:c(),itemId:freeItem,labId:lab,locationId:location,expectedVersion:versionAfter,quantity:1,direction:'ADD',reason:'Synthetic dual role check'});
+    assert.equal(selfProposal.status,200,JSON.stringify(selfProposal.data));
+    const selfApproval=await call('inventory/adjustments/'+selfProposal.data.id+'/approve',actors.officer,{commandId:c()});
+    assert.equal(selfApproval.status,403);
+    assert.equal(selfApproval.data.code,'SELF_APPROVAL');
   } finally {
     await db.end();
   }

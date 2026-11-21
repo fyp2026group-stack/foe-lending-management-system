@@ -12,8 +12,14 @@ export async function readOfficerOperations(token:string,body:Record<string,unkn
   if(!Number.isFinite(from.getTime())||!Number.isFinite(to.getTime())||
     from>=to||to.getTime()-from.getTime()>31*86400_000)
     return {status:422,code:'INVALID'};
+  const activity=await nativeOrmTransaction(tx=>authorizePrismaSession(tx,token,{
+    requiredRoles:['TECHNICAL_OFFICER'],
+  }));
+  if(isAuthFailure(activity))return activity;
   return nativeOrmTransaction(async tx=>{
-    const auth=await authorizePrismaSession(tx,token,{requiredRoles:['TECHNICAL_OFFICER']});
+    const auth=await authorizePrismaSession(tx,token,{
+      requiredRoles:['TECHNICAL_OFFICER'],activityAlreadyTouched:true,
+    });
     if(isAuthFailure(auth))return auth;
     const covered=await tx.staff_labs.findMany({
       where:{user_id:auth.userId,...(body.labId?{laboratory_id:body.labId as string}:{})},

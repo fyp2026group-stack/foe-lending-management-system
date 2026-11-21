@@ -74,6 +74,7 @@ export async function lending(request: Request, path: string[]) {
     if (!reads.has(name)) return { status: 404, code: 'NOT_FOUND' };
     const params = new URL(request.url).searchParams;
     const allowed = new Set([
+      ...(name === 'sources' ? ['q', 'categoryId', 'itemId', 'kind', 'policy', 'availableOnly'] : []),
       'loanId',
       'allocationId',
       'requestId',

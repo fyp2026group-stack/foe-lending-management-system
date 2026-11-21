@@ -34,12 +34,15 @@
     "db:verify:legacy": "node scripts/local.mjs db:verify:legacy"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "@radix-ui/react-dialog": "1.3.1",
     "@radix-ui/react-separator": "1.2.0",
     "@radix-ui/react-slot": "1.5.0",
     "@tanstack/react-table": "9.3.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "cmdk": "1.1.1",
     "fflate": "0.8.3",
     "lucide-react": "1.70.0",
     "next": "16.4.5",
@@ -51,9 +54,7 @@
     "sonner": "2.0.8",
     "tailwind-merge": "3.7.0",
     "unzipper-esm": "0.13.3",
-    "vaul": "1.1.2",
-    "@prisma/client": "7.10.1",
-    "@prisma/adapter-pg": "7.10.1"
+    "vaul": "1.1.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.5",
@@ -64,9 +65,9 @@
     "eslint-config-next": "16.4.5",
     "postcss": "8.5.32",
     "prettier": "3.9.10",
+    "prisma": "7.10.1",
     "tailwindcss": "4.3.5",
-    "typescript": "6.0.3",
-    "prisma": "7.10.1"
+    "typescript": "6.0.3"
   },
   "overrides": {
     "minimatch@>=7 <11.0.1": "11.0.1"

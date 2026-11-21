@@ -73,8 +73,13 @@ export async function readAdminReport(
 ): Promise<ReportResponse | { status: number; code: string }> {
   const p = parse(body, all);
   if (!p) return { status: 422, code: 'INVALID' };
+  const activity = await nativeOrmTransaction(tx =>
+    authorizePrismaSession(tx, token, { requiredRoles: ['ADMIN'] }));
+  if (isAuthFailure(activity)) return activity;
   return nativeOrmTransaction(async tx => {
-    const auth = await authorizePrismaSession(tx, token, { requiredRoles: ['ADMIN'] });
+    const auth = await authorizePrismaSession(tx, token, {
+      requiredRoles: ['ADMIN'], activityAlreadyTouched: true,
+    });
     if (isAuthFailure(auth)) return auth;
     const now = new Date();
     let rows: ReportItem[] = [];

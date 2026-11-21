@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2,
-  ClipboardList, Clock3, Minus, Package, Plus,
-  Search, ShieldCheck, Trash2 } from 'lucide-react';
+  ClipboardList, Clock3, Package, Plus,
+  ShieldCheck } from 'lucide-react';
 import type { Session } from '@/components/identity/api';
 import { ApiError } from '@/components/identity/api';
 import { ErrorNotice } from '@/components/identity/session';
@@ -14,11 +14,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { editEquipmentSelection } from './equipment-selection';
+import { displayLabel } from '../display-labels';
+import { EquipmentBrowser } from './equipment-browser';
+import { useSelectedSources } from './selected-sources';
+import { quantityLimit } from './request-options';
 import { useStudentClock } from './student-clock';
 import { useLendingChoices } from './shared';
-import { lendingWrite, type BorrowDraft, type Lecturer, type LendingSource, type DraftPayload } from './api';
+import { lendingWrite, type BorrowDraft, type Lecturer, type DraftPayload } from './api';
 import { draftSavePayload, draftSubmitPayload, CommandReplay } from './lifecycle-model';
-import { isStudent, readSelection, basketKey, approvalPath } from './student-model';
+import { isStudent, readSelection, basketKey, persistStudentSelection } from './student-model';
 import { availablePerEquipment, resolveBorrowingSources, type BorrowSelection } from './request-source-selector';
 
 const stepNames = ['Equipment', 'Request details', 'Review', 'Complete'] as const;
@@ -27,7 +32,7 @@ function RequestProgress({ current }: { current: number }) {
     <ol>{stepNames.map((label, index) =>
       <li key={label} className={index < current ? 'is-done' : index === current ? 'is-current' : 'is-upcoming'}
         aria-current={index === current ? 'step' : undefined}>
-        <span className="borrowing-progress-dot" aria-hidden="true">{index < current || current === 3 ? <Check className="size-5" /> : index + 1}</span>
+        <span className="borrowing-progress-dot" aria-hidden="true">{index < current || current === 3 ? <Check className="size-5" /> : index === 3 ? <Check className="size-5" /> : index + 1}</span>
         <span className="borrowing-progress-label">{label}</span>
       </li>
     )}</ol>
@@ -45,7 +50,6 @@ export function RequestBuilder({
 }) {
   const student = isStudent(session.user.roles);
   const now = useStudentClock(revision);
-  const sources = useLendingChoices<LendingSource>('sources', revision);
   const lecturers = useLendingChoices<Lecturer>('lecturers', revision);
   const [selected, setSelected] = useState<BorrowSelection[]>(() => {
     if (draft) return Array.from(new Map(draft.payload.lines.map(line =>
@@ -55,9 +59,8 @@ export function RequestBuilder({
         .map(line => [line.itemId, { itemId: line.itemId, quantity: line.quantity }] as const)).values());
     } catch { return []; }
   });
+  const sources = useSelectedSources(selected.map(line => line.itemId), revision);
   const [step, setStep] = useState(draft ? 1 : 0);
-  const [search, setSearch] = useState('');
-  const [kind, setKind] = useState('ALL');
   const [purpose, setPurpose] = useState(draft?.payload.purpose ?? '');
   const [collectAt, setCollectAt] = useState(toLocal(draft?.payload.collectAt));
   const [returnAt, setReturnAt] = useState(toLocal(draft?.payload.returnAt));
@@ -72,12 +75,13 @@ export function RequestBuilder({
   const [submissionDraft, setSubmissionDraft] = useState<BorrowDraft | null>(null);
   const replay = useRef(new CommandReplay());
 
-  const choices = sources.data?.items ?? [];
+  const choices = useMemo(() => sources.data?.items ?? [], [sources.data]);
   const inventory = useMemo(() => Array.from(new Map(choices.map(source =>
     [source.itemId, source] as const)).values()).map(source => ({
-      id: source.itemId, title: source.item, kind: source.kind, uom: source.uom,
+      id: source.itemId, title: displayLabel(source.item, 'Equipment name unavailable'), kind: source.kind, uom: source.uom,
       available: availablePerEquipment(choices, source.itemId),
       policy: source.policy,
+      stores: choices.filter(row => row.itemId === source.itemId),
     })).sort((a,b) => a.title.localeCompare(b.title)), [choices]);
   const resolved = useMemo(() =>
     resolveBorrowingSources(selected, choices, lecturers.data?.items ?? [], session.user.id),
@@ -93,33 +97,23 @@ export function RequestBuilder({
     Number.isFinite(dateStart) && Number.isFinite(dateEnd) &&
     dateStart > now && dateEnd > dateStart &&
     (!needsLecturer || chosenLecturer));
-  const matching = inventory.filter(item =>
-    item.title.toLowerCase().includes(search.trim().toLowerCase()) &&
-    (kind === 'ALL' || item.kind === kind));
   const selectedRows = selected.map(line => ({
     ...line, item: inventory.find(item => item.id === line.itemId),
   }));
   const selectedQuantity = selected.reduce((sum,line) => sum + line.quantity, 0);
 
-  function updateSelection(itemId: string, quantity: number) {
-    if (busy || uncertain) return;
-    const item = inventory.find(row => row.id === itemId);
-    if (!item) return;
-    const limit = Math.min(item.available, 1000);
-    setSelected(current => quantity <= 0 ? current.filter(row => row.itemId !== itemId) :
-      current.some(row => row.itemId === itemId)
-        ? current.map(row => row.itemId === itemId
-          ? { ...row, quantity: Math.min(Math.max(1,quantity),limit) } : row)
-        : current.length < 20 && limit > 0
-          ? [...current, { itemId, quantity: Math.min(quantity,limit) }]
-          : current);
-    setSubmissionDraft(null);
-    setMessage('');
-  }
+  useEffect(() => {
+    if (draft || success || !sources.data || !lecturers.data) return;
+    try {
+      if (!selected.length) persistStudentSelection(sessionStorage, session.user.id, []);
+      else if (resolved) persistStudentSelection(sessionStorage, session.user.id, resolved.lines);
+    } catch { /* The current selection remains usable when browser storage is disabled. */ }
+  }, [selected, resolved, draft, success, sources.data, lecturers.data, session.user.id]);
+
   function reset() {
     setStep(0); setSelected([]); setPurpose(''); setCollectAt(''); setReturnAt('');
     setLecturerId(''); setInternalDraft(undefined); setSubmissionDraft(null);
-    setSuccess(false); setMessage(''); setSearch(''); setKind('ALL');
+    setSuccess(false); setMessage('');
   }
   async function act(path: string, payload: Record<string, unknown>) {
     const command = replay.current.prepare(path,payload);
@@ -179,7 +173,7 @@ export function RequestBuilder({
       {lecturers.error && <ErrorNotice message={lecturers.error}/>}
       <p>Refresh the page to load authorized equipment and approval options again.</p>
     </section>;
-  if (!sources.data || !lecturers.data) return <div role="status" className="grid gap-3">
+  if (!lecturers.data) return <div role="status" className="grid gap-3">
     <p>Loading available equipment…</p><Skeleton className="h-80 w-full rounded-xl"/>
   </div>;
 
@@ -276,89 +270,15 @@ export function RequestBuilder({
         <div className="request-wizard-panel-title">
           <div>
             <h3 id="wizard-equipment-heading">Select equipment</h3>
-            <p>Find equipment, choose a quantity, and review your selection.</p>
+            <p>Find equipment, choose a quantity, and review your selection. The laboratory is assigned after availability and approval checks.</p>
           </div>
           <span className="borrow-section-count">{selected.length} of 20 types selected</span>
         </div>
-        <div className="request-wizard-layout">
-          <section className="request-wizard-list-panel" aria-label="Available equipment">
-            <div className="request-wizard-search">
-              <div className="request-wizard-search-field">
-                <Search className="size-4" aria-hidden="true"/>
-                <Input aria-label="Search equipment" placeholder="Search equipment by name"
-                  value={search} onChange={e => setSearch(e.target.value)}/>
-              </div>
-              <select aria-label="Equipment type" value={kind} onChange={e => setKind(e.target.value)}>
-                <option value="ALL">All equipment</option>
-                <option value="RETURNABLE">Returnable</option>
-                <option value="CONSUMABLE">Consumables</option>
-              </select>
-            </div>
-            <div className="borrow-equipment-table-head" aria-hidden="true">
-              <span>Equipment</span><span>Availability</span><span>Approval</span><span>Quantity</span>
-            </div>
-            <div className="request-wizard-item-list">
-              {matching.map(item => {
-                const chosen = selected.find(row => row.itemId === item.id);
-                return <article className={'request-wizard-item ' + (chosen ? 'is-selected' : '')} key={item.id}>
-                  <div className="request-wizard-item-main">
-                    <strong>{item.title}</strong>
-                    <span className="borrow-equipment-kind">{item.kind === 'RETURNABLE' ? 'Returnable equipment' : 'Consumable'}</span>
-                  </div>
-                  <div className="borrow-equipment-availability">
-                    <span className={'borrow-equipment-stock ' + (item.available > 0 ? 'is-in-stock' : 'is-out-of-stock')}>
-                      {item.available > 0 ? 'Available' : 'Unavailable'}
-                    </span>
-                    <small>{item.available > 0 ? 'Up to ' + item.available + ' ' + item.uom : 'No units available'}</small>
-                  </div>
-                  <div className="borrow-equipment-approval">{approvalPath(item.policy)}</div>
-                  <div className="borrow-equipment-control">
-                    {chosen ?
-                      <div className="request-wizard-quantity" aria-label={item.title + ' quantity'}>
-                        <Button type="button" variant="outline" size="icon" aria-label={'Decrease ' + item.title + ' quantity'}
-                          disabled={busy || Boolean(uncertain)} onClick={() => updateSelection(item.id, chosen.quantity - 1)}>
-                          <Minus className="size-4"/>
-                        </Button>
-                        <output aria-live="polite">{chosen.quantity}</output>
-                        <Button type="button" variant="outline" size="icon" aria-label={'Increase ' + item.title + ' quantity'}
-                          disabled={busy || Boolean(uncertain) || chosen.quantity >= item.available}
-                          onClick={() => updateSelection(item.id, chosen.quantity + 1)}>
-                          <Plus className="size-4"/>
-                        </Button>
-                      </div> :
-                      <Button type="button" variant="outline" className="request-wizard-add-button"
-                        disabled={busy || Boolean(uncertain) || item.available <= 0 || selected.length >= 20}
-                        onClick={() => updateSelection(item.id, 1)}>
-                        Add
-                      </Button>
-                    }
-                  </div>
-                </article>;
-              })}
-              {!matching.length && <div className="request-wizard-empty">
-                No equipment matches your search.
-              </div>}
-            </div>
-          </section>
-          <aside className="request-wizard-cart" aria-label="Selected equipment">
-            <div className="request-wizard-cart-title">
-              <div><h4>Selected equipment</h4><span>{selected.length} {selected.length === 1 ? 'type' : 'types'}</span></div>
-              <span className="borrow-cart-unit-count">{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</span>
-            </div>
-            {selectedRows.length ? <ul>{selectedRows.map(({itemId, quantity, item}) =>
-              <li key={itemId}>
-                <div><strong>{item?.title ?? 'Equipment'}</strong><span>{quantity} {item?.uom ?? 'units'}</span></div>
-                <Button type="button" size="icon" variant="ghost" aria-label={'Remove ' + (item?.title ?? 'equipment')}
-                  disabled={busy || Boolean(uncertain)} onClick={() => updateSelection(itemId, 0)}>
-                  <Trash2 className="size-4"/>
-                </Button>
-              </li>
-            )}</ul> :
-              <div className="request-wizard-cart-empty"><strong>No equipment selected</strong>
-                <span>Use Add in the equipment list to begin.</span></div>}
-            <div className="borrow-cart-footer"><span>Total requested</span><strong>{selectedQuantity} {selectedQuantity === 1 ? 'unit' : 'units'}</strong></div>
-          </aside>
-        </div>
+        <EquipmentBrowser selected={selected.map(line => ({ ...line, ...resolved?.lines.find(source => source.itemId === line.itemId) }))} knownSources={resolved?.lines ?? []} revision={revision} disabled={busy || Boolean(uncertain)}
+          onQuantity={(source, quantity) => {
+            setSelected(current => editEquipmentSelection(current, { itemId: source.itemId, quantity }, row => row.itemId, Math.min(source.availableQuantity, quantityLimit(source))));
+            setSubmissionDraft(null); setMessage('');
+          }} onContinue={() => { if (resolved) setStep(1); else setMessage('Check availability and approval coverage before continuing.'); }}/>
         {selected.length > 0 && !resolved && <Alert variant="destructive" className="mt-4">
           <AlertTitle>Selection needs attention</AlertTitle>
           <AlertDescription>Check available quantities and lecturer coverage for the selected equipment.</AlertDescription>
@@ -457,7 +377,7 @@ export function RequestBuilder({
           onClick={()=>setStep(step-1)}><ArrowLeft className="size-4"/>Back</Button>}
         {step===0 && <Button variant="ghost" type="button" disabled={busy||Boolean(uncertain)}
           onClick={reset}>Clear selection</Button>}
-        {step<2 ? <Button type="button" disabled={busy||Boolean(uncertain)||!selected.length||(step===1&&(!resolved||!detailsValid))}
+        {step<2 ? <Button type="button" disabled={busy||Boolean(uncertain)||!selected.length||(step===0&&!resolved)||(step===1&&(!resolved||!detailsValid))}
           onClick={()=>{setMessage('');setStep(step+1);}}>
           {step===0?'Continue to details':'Review request'}<ArrowRight className="size-4"/>
         </Button>:

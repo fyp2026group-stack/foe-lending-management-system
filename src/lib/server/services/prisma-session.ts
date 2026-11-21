@@ -19,7 +19,7 @@ const sha256 = (value: string) => createHash('sha256').update(value).digest('hex
 export async function authorizePrismaSession(
   tx: Prisma.TransactionClient,
   token: string,
-  options: { csrf?: string; requiredRoles?: readonly ApplicationRole[] } = {},
+  options: { csrf?: string; requiredRoles?: readonly ApplicationRole[]; activityAlreadyTouched?: boolean } = {},
 ): Promise<AuthResult> {
   if (!/^[a-f0-9]{64}$/i.test(token)) return { status: 401, code: 'UNAUTHENTICATED' };
   // Hold the identity read lock through the caller's protected operation.
@@ -65,7 +65,11 @@ export async function authorizePrismaSession(
   if (!roles.some(role => allowed.includes(role))) {
     return { status: 403, code: 'DENIED' };
   }
-  // Keep sliding-session expiry checks and activity touch atomic with the read.
+  // Snapshot readers first touch activity in a short ReadCommitted transaction,
+  // then revalidate expiry, revocation, user and roles here under the identity lock.
+  // They must not write this shared row from their RepeatableRead snapshot.
+  if (options.activityAlreadyTouched) return { userId: session.user_id, roles };
+  // Keep sliding-session expiry checks and activity touch atomic with ordinary reads/writes.
   const touched = await tx.sessions.updateMany({
     where: {
       token_hash: hash,

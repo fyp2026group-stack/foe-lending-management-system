@@ -24,6 +24,7 @@ import {
   type RecordRow,
   type Session,
 } from './api';
+import { personLabel } from '../display-labels';
 import { Authenticated, ErrorNotice } from './session';
 const labels: Record<Resource, string> = {
   users: 'Users & Access',
@@ -180,7 +181,7 @@ function Management({ resource, session }: { resource: Resource; session: Sessio
   }
   const filteredRows = rows.filter(
     (row) =>
-      (row.displayName ?? row.name ?? '').toLowerCase().includes(query.toLowerCase()) ||
+      personLabel(row).toLowerCase().includes(query.toLowerCase()) ||
       (row.email ?? '').toLowerCase().includes(query.toLowerCase())
   );
   const student = roles.includes('STUDENT');
@@ -254,7 +255,7 @@ function Management({ resource, session }: { resource: Resource; session: Sessio
               <TableBody>
                 {filteredRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>{row.displayName ?? row.name ?? row.id}</TableCell>
+                    <TableCell>{personLabel(row)}</TableCell>
                     <TableCell>
                       {row.email ?? (
                         <details>
@@ -281,7 +282,7 @@ function Management({ resource, session }: { resource: Resource; session: Sessio
                             variant="outline"
                             disabled={saving || row.id === session.user.id}
                             onClick={() => edit(row)}
-                            aria-label={`Edit ${row.displayName ?? row.email ?? row.id}`}
+                            aria-label={`Edit ${personLabel(row)}`}
                           >
                             {row.id === session.user.id ? 'Self-change unavailable' : 'Edit'}
                           </Button>
@@ -323,7 +324,7 @@ function Management({ resource, session }: { resource: Resource; session: Sessio
         </h2>
         {editing && (
           <p className="my-4">
-            {editing.displayName} / {editing.email}. Identity fields are read only. Saving revokes
+            {personLabel(editing)} / {editing.email}. Identity fields are read only. Saving revokes
             this user’s existing sessions.
           </p>
         )}

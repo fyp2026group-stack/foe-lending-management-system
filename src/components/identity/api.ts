@@ -1,3 +1,4 @@
+import { personLabel } from '../display-labels';
 export const roleLabels = {
   STUDENT: 'Student',
   LECTURER: 'Lecturer',
@@ -83,7 +84,7 @@ export function readSession(value: Session): Session {
     !value.csrfToken
   )
     throw new Error('The session response is incomplete. Please sign in again.');
-  return value;
+  return { ...value, user: { ...value.user, displayName: personLabel(value.user) } };
 }
 export function readRows(value: unknown): RecordRow[] {
   const rows =

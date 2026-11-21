@@ -178,7 +178,7 @@ function OfficerNavigation({
     { label: 'Personal borrowing', views: ['requests'] },
   ] as const;
   return (
-    <nav aria-label="Primary navigation">
+    <nav aria-label="Primary navigation"><SidebarGroup><SidebarMenu><SidebarMenuItem><SidebarMenuButton asChild isActive={pathname === "/equipment"}><Link href="/equipment" onClick={() => setOpenMobile(false)}><Package/><span>Browse Equipment</span></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarGroup>
       {groups.map((group) => (
         <SidebarGroup key={group.label}>
           <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -264,7 +264,7 @@ function LecturerNavigation({ pathname, currentView }: { pathname: string; curre
 function AdminNavigation({ pathname }: { pathname: string }) {
   const { setOpenMobile } = useSidebar();
   return (
-    <nav aria-label="HOD and administrator navigation">
+    <nav aria-label="HOD and administrator navigation"><SidebarGroup><SidebarMenu><SidebarMenuItem><SidebarMenuButton asChild isActive={pathname === "/equipment"}><Link href="/equipment" onClick={() => setOpenMobile(false)}><Package/><span>Browse Equipment</span></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarGroup>
       {[
         { label: 'Department', views: ['overview', 'reports', 'inventory'] as AdminView[] },
         { label: 'Approvals', views: ['approvals'] as AdminView[] },
@@ -450,7 +450,7 @@ function WorkspaceBreadcrumb({
   const path = usePathname();
   const query = useSearchParams();
   const area =
-    path === '/operations'
+    path === '/equipment' ? 'Browse Equipment' : path === '/operations'
       ? (officerLabels[(query.get('view') ?? 'dashboard') as OfficerView] ?? 'Operations')
       : student
         ? path === '/inventory'

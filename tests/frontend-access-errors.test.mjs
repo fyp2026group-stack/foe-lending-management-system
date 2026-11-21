@@ -9,7 +9,7 @@ const moduleUrl = (source) => 'data:text/javascript;base64,' + Buffer.from(
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText
 ).toString('base64');
-const identityUrl = moduleUrl(read('../src/components/identity/api.ts'));
+const identityUrl = moduleUrl(read('../src/components/identity/api.ts').replace('../display-labels', moduleUrl(read('../src/components/display-labels.ts'))));
 const { inventoryWrite, InventoryError } = await import(moduleUrl(
   read('../src/components/inventory/api.ts').replace('@/components/identity/api', identityUrl)
 ));

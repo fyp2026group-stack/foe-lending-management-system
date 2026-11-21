@@ -1,86 +1,54 @@
 import { nativeOrmTransaction } from '../db';
 import { authorizePrismaSession, isAuthFailure } from './prisma-session';
-import { isUuid } from './uuid';
+import { parseSourceQuery } from './lending-source-query';
 
-/** Borrowing wizard sources: no serial number, asset identity or unrestricted stock listing. */
-export async function readBorrowingSources(token:string, p:Record<string,unknown>) {
-  if (Object.keys(p).some(k=>!['labId','limit','offset'].includes(k)) ||
-    (p.labId!==undefined&&!isUuid(p.labId))) return {status:422,code:'INVALID'};
-  const numeric=(v:unknown,d:number)=>v===undefined?d:
-    typeof v==='number'&&Number.isSafeInteger(v)?v:
-    typeof v==='string'&&/^\d+$/.test(v)?Number(v):NaN;
-  const limit=numeric(p.limit,100),offset=numeric(p.offset,0);
-  if(!Number.isSafeInteger(limit)||limit<1||limit>100||
-    !Number.isSafeInteger(offset)||offset<0||offset>100000)
-    return {status:422,code:'INVALID'};
-  return nativeOrmTransaction(async tx=>{
-    const auth=await authorizePrismaSession(tx,token);
-    if(isAuthFailure(auth))return auth;
-    const cells=await tx.inv_cells.findMany({
-      where:{
-        state:'AVAILABLE',asset_id:null,quantity:{gt:0},
-        ...(p.labId?{lab_id:p.labId as string}:{}),
-        inv_items:{active:true,inv_categories:{active:true}},
-        laboratories:{active:true},inv_locations:{active:true},
-      },
-      select:{
-        item_id:true,lab_id:true,location_id:true,quantity:true,
-        inv_items:{select:{
-          name:true,kind:true,uom:true,
-          lend_policies:{select:{policy:true,hod_id:true}},
-        }},
-        laboratories:{select:{name:true}},
-        inv_locations:{select:{name:true}},
-      },
-      take:10001,
-    });
-    const labIds=[...new Set(cells.map(x=>x.lab_id))];
-    const lecturers=await tx.users.findMany({
-      where:{
-        disabled:false,id:{not:auth.userId},
-        user_roles:{some:{role:'LECTURER'}},
-        staff_labs:{some:{laboratory_id:{in:labIds}}},
-      },
-      select:{id:true,staff_labs:{select:{laboratory_id:true}}},
-    });
-    const coverage=new Map(labIds.map(id=>[
-      id,new Set(lecturers.filter(l=>l.staff_labs.some(s=>s.laboratory_id===id))
-        .map(x=>x.id)),
-    ]));
-    const hodIds=[...new Set(cells.map(x=>x.inv_items.lend_policies?.hod_id)
-      .filter((x):x is string=>Boolean(x)))];
-    const hodUsers=await tx.users.findMany({
-      where:{id:{in:hodIds},disabled:false,user_roles:{some:{role:'ADMIN'}}},
-      select:{id:true},
-    });
-    const activeHods=new Set(hodUsers.map(x=>x.id));
-    const grouped=new Map<string,{
-      itemId:string;item:string;kind:string;uom:string;
-      labId:string;lab:string;locationId:string;location:string;
-      availableQuantity:number;policy:string;
-    }>();
-    for(const c of cells){
-      const policy=c.inv_items.lend_policies;
-      if(!policy)continue;
-      const hodNeeded=['HOD','BOTH'].includes(policy.policy);
-      const lecturerNeeded=['LECTURER','BOTH'].includes(policy.policy);
-      if(hodNeeded&&(!policy.hod_id||policy.hod_id===auth.userId||
-        !activeHods.has(policy.hod_id)))continue;
-      if(lecturerNeeded&&!Array.from(coverage.get(c.lab_id)??[]).some(x=>
-        x!==policy.hod_id))continue;
-      const key=[c.item_id,c.lab_id,c.location_id].join('/');
-      const previous=grouped.get(key);
-      if(previous){previous.availableQuantity+=c.quantity;continue;}
-      grouped.set(key,{
-        itemId:c.item_id,item:c.inv_items.name,kind:c.inv_items.kind,
-        uom:c.inv_items.uom,labId:c.lab_id,lab:c.laboratories.name,
-        locationId:c.location_id,location:c.inv_locations.name,
-        availableQuantity:c.quantity,policy:policy.policy,
-      });
-    }
-    const items=[...grouped.values()].sort((a,b)=>
-      a.item.localeCompare(b.item)||a['lab'].localeCompare(b['lab'])||
-      a.location.localeCompare(b.location));
-    return {items:items.slice(offset,offset+limit),limit,offset};
+/** Available bulk sources with feasible non-self approval; never asset identities. */
+export async function readBorrowingSources(token: string, payload: Record<string, unknown>) {
+  const p = parseSourceQuery(payload);
+  if (!p) return { status: 422, code: 'INVALID' };
+  return nativeOrmTransaction(async tx => {
+    const auth = await authorizePrismaSession(tx, token);
+    if (isAuthFailure(auth)) return auth;
+    // One statement counts and pages the same snapshot; EXISTS cannot multiply stock.
+    const [result] = await tx.$queryRaw<Array<{ items: unknown[]; total: number }>>`
+      WITH eligible AS (
+        SELECT i.id AS "itemId", i.name AS item, i.kind, i.uom,
+          cat.id AS "categoryId", cat.name AS category, i.specifications,
+          l.id AS "labId", l.name AS lab, loc.id AS "locationId", loc.name AS location,
+          sum(c.quantity)::bigint AS "availableQuantity", pol.policy
+        FROM lab.inv_cells c
+        JOIN lab.inv_items i ON i.id = c.item_id AND i.active
+        JOIN lab.inv_categories cat ON cat.id = i.category_id AND cat.active
+        JOIN lab.laboratories l ON l.id = c.lab_id AND l.active
+        JOIN lab.inv_locations loc ON loc.id = c.location_id AND loc.lab_id = c.lab_id AND loc.active
+        JOIN lab.lend_policies pol ON pol.item_id = i.id
+        WHERE c.state = 'AVAILABLE' AND c.asset_id IS NULL AND c.quantity > 0
+          AND (${p.labId}::uuid IS NULL OR l.id = ${p.labId}::uuid)
+          AND (${p.categoryId}::uuid IS NULL OR cat.id = ${p.categoryId}::uuid)
+          AND (${p.itemId}::uuid IS NULL OR i.id = ${p.itemId}::uuid)
+          AND (${p.kind}::text IS NULL OR i.kind = ${p.kind})
+          AND (${p.policy}::text IS NULL OR pol.policy = ${p.policy})
+          AND (${p.q} = '' OR strpos(lower(concat_ws(' ', i.name, cat.name, l.name, loc.name,
+            i.id::text, cat.id::text, l.id::text, loc.id::text)), lower(${p.q})) > 0)
+          AND (pol.policy NOT IN ('HOD', 'BOTH') OR (
+            pol.hod_id <> ${auth.userId}::uuid AND EXISTS (
+              SELECT 1 FROM lab.users h JOIN lab.user_roles hr ON hr.user_id = h.id
+              WHERE h.id = pol.hod_id AND NOT h.disabled AND hr.role = 'ADMIN')))
+          AND (pol.policy NOT IN ('LECTURER', 'BOTH') OR EXISTS (
+            SELECT 1 FROM lab.users u
+            JOIN lab.user_roles ur ON ur.user_id = u.id AND ur.role = 'LECTURER'
+            JOIN lab.staff_labs sl ON sl.user_id = u.id AND sl.laboratory_id = l.id
+            WHERE NOT u.disabled AND u.id <> ${auth.userId}::uuid
+              AND (pol.hod_id IS NULL OR u.id <> pol.hod_id)))
+        GROUP BY i.id, cat.id, l.id, loc.id, pol.item_id
+      ), page AS (
+        SELECT * FROM eligible ORDER BY item, lab, location, "itemId", "labId", "locationId"
+        LIMIT ${p.limit} OFFSET ${p.offset}
+      )
+      SELECT (SELECT count(*)::int FROM eligible) AS total,
+        COALESCE((SELECT jsonb_agg(to_jsonb(page) ORDER BY item, lab, location,
+          "itemId", "labId", "locationId") FROM page), '[]'::jsonb) AS items
+    `;
+    return { ...result, limit: p.limit, offset: p.offset };
   });
 }

@@ -18,7 +18,7 @@ import {
   TableCell,
   TableCaption,
 } from '@/components/ui/table';
-import type { Item, Named } from './api';
+import type { Item, Named, Stock } from './api';
 import { useInventoryLookup } from './lookups';
 import { useInventory, ItemDetail, StockOperations, ImportPanel } from './inventory';
 import { Definitions, DefinitionEditor } from './definitions';
@@ -77,8 +77,11 @@ export function CatalogueWorkspace({
           .map((l) => l.name)
           .join(' / '),
       }));
-  const cells = undefined;
-  const ready = Boolean(items.data);
+  const stock = useInventoryLookup<Stock>(
+    physical ? 'stock' + (filters.labId ? '?labId=' + encodeURIComponent(filters.labId) : '') : null, revision
+  );
+  const cells = physical ? stock.data?.items : undefined;
+  const ready = Boolean(items.data && (!physical || stock.data));
   const rows = catalogueRows(items.data?.items ?? [], cells, filters.status, sort, descending);
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -98,6 +101,7 @@ export function CatalogueWorkspace({
     );
   const errors = [
     items.error,
+    stock.error,
     categories.error,
     locations.error,
     admin ? adminLabs.error : undefined,
@@ -206,7 +210,7 @@ export function CatalogueWorkspace({
                 </dl>
                 <p className="muted inventory-scope">
                   {physical
-                    ? 'Balances reflect stock in your authorized laboratories and current filters.'
+                    ? 'Physical balances cover your authorized laboratories and current filters. A dash means the balance has not loaded or is unavailable.'
                     : 'Availability is supplied by the catalogue. A dash means this balance is not disclosed to your role.'}{' '}
                   Quantities use each item’s unit of measure.
                 </p>
@@ -411,7 +415,7 @@ export function CatalogueWorkspace({
                                     {item.active === false ? ' · Inactive' : ''}
                                   </span>
                                 </TableCell>
-                                <TableCell className="quantity-cell">{balance.available}</TableCell>
+                                <TableCell className="quantity-cell">{physical && !stock.data ? '\u2014' : balance.available}</TableCell>
                                 <TableCell className="quantity-cell">
                                   {balance.reserved ?? '—'}
                                 </TableCell>

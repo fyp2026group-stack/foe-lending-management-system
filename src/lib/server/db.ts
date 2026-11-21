@@ -1,5 +1,6 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { retrySnapshot } from './transaction-retry';
 
 /**
  * Server-only, least-privilege Prisma Client. Browser code must never import
@@ -36,9 +37,23 @@ export async function nativeOrmTransaction<T>(
   work: (tx: Prisma.TransactionClient) => Promise<T>,
   options: { isolationLevel?: Prisma.TransactionIsolationLevel } = {},
 ): Promise<T> {
-  return restrictedConnection().$transaction(work, {
+  const transaction = () => restrictedConnection().$transaction(work, {
     isolationLevel: options.isolationLevel ?? 'ReadCommitted',
     maxWait: 3000,
     timeout: 30000,
   });
+  // Snapshot reads touch session activity and may race other dashboard reads.
+  // Retain snapshot isolation; retry only transactions rolled back by PostgreSQL.
+  try {
+    return await (options.isolationLevel === 'RepeatableRead'
+      ? retrySnapshot(transaction) : transaction());
+  } catch (error) {
+    // Safe metadata only: no query text, connection details or session values.
+    console.error('DB_TRANSACTION_FAILED', JSON.stringify({
+      at: new Date().toISOString(), isolation: options.isolationLevel ?? 'ReadCommitted',
+      code: typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code) : 'UNKNOWN',
+    }));
+    throw error;
+  }
 }

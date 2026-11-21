@@ -8,7 +8,7 @@ export function canOpenBorrowingView(view: string, assigned: readonly AppRole[])
 }
 export function canOpenRoute(pathname: string, view: string | null, assigned: readonly AppRole[]): boolean {
   if (!assigned.length) return false;
-  if (pathname === '/workspace' || pathname === '/inventory') return true;
+  if (pathname === '/workspace' || pathname === '/inventory' || pathname === '/equipment') return true;
   if (pathname.startsWith('/admin/')) return assigned.includes('ADMIN');
   if (pathname === '/operations') return assigned.includes('TECHNICAL_OFFICER');
   if (pathname === '/borrowing') return canOpenBorrowingView(view ?? 'requests', assigned);

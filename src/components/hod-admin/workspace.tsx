@@ -8,7 +8,7 @@ import { ErrorNotice } from '@/components/identity/session';
 import { AdminResourceWorkspace } from '@/components/identity/admin-management';
 import { CatalogueWorkspace } from '@/components/inventory/catalogue-workspace';
 import { useInventoryLookup } from '@/components/inventory/lookups';
-import type { Item } from '@/components/inventory/api';
+import type { Item, Stock } from '@/components/inventory/api';
 import { Requests } from '@/components/lending/request-workspace';
 import { RequestBuilder } from '@/components/lending/request-builder';
 import { StudentBorrowed, StudentHistory } from '@/components/lending/student-borrowed';
@@ -32,6 +32,7 @@ import { ReviewSheet } from '@/components/ui/review-sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { adminHref, adminLabels, type AdminView } from './model';
 import { ReportFilters } from './report-filters';
+import { balanceTotal, type Balances } from '@/components/inventory/catalogue-model';
 import { formatReportValue } from './report-format';
 
 type ReportName = 'borrowing' | 'overdue' | 'inventory' | 'approvals' | 'audit';
@@ -175,6 +176,7 @@ function Overview({ session, revision }: { session: Session; revision: number })
   const history = useLendingChoices<HistoryEvent>('history', revision);
   const inspections = useLendingChoices<Loan>('inspections', revision);
   const items = useInventoryLookup<Item>('items', revision);
+  const stock = useInventoryLookup<Stock>('stock', revision);
   const assigned =
     requests.data?.items.flatMap((request) =>
       request.borrowerId === session.user.id
@@ -198,7 +200,7 @@ function Overview({ session, revision }: { session: Session; revision: number })
       eyebrow="Department oversight"
       description={`Welcome, ${session.user.displayName}. Review departmental lending, inventory state and work requiring independent action.`}
     >
-      {[requests.error, department?.error, history.error, inspections.error, items.error]
+      {[requests.error, department?.error, history.error, inspections.error, items.error, stock.error]
         .filter(Boolean)
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
@@ -245,16 +247,15 @@ function Overview({ session, revision }: { session: Session; revision: number })
           <CardHeader>
             <CardTitle>Returnable stock state</CardTitle>
             <CardDescription>
-              Separate balances; consumables are not added to these counts.
+              Separate balances across authorized laboratories; consumables are excluded. A dash means the balance is unavailable.
             </CardDescription>
           </CardHeader>
           <CardContent className="admin-stock-summary">
             {['available', 'reserved', 'borrowed', 'inspection', 'maintenance'].map((key) => (
               <div key={key}>
                 <strong>
-                  {items.data?.items
-                    .filter((i) => i.kind === 'RETURNABLE')
-                    .reduce((n, i) => n + (Number(i[key as keyof Item]) || 0), 0) ?? '—'}
+                  {balanceTotal(items.data?.items.filter(item => item.kind === 'RETURNABLE'),
+                    stock.data?.items, key as keyof Balances) ?? '\u2014'}
                 </strong>
                 <span>{key}</span>
               </div>
@@ -404,10 +405,10 @@ function Reports({ audit = false }: { audit?: boolean }) {
                 <option value="security">Identity & Security</option>
               </select>
             )}
-            <Button variant="outline" onClick={() => void exportReport('csv')}>
+            <Button variant="outline" disabled={!result || Boolean(error)} onClick={() => void exportReport('csv')}>
               Export CSV
             </Button>
-            <Button variant="outline" onClick={() => void exportReport('xlsx')}>
+            <Button variant="outline" disabled={!result || Boolean(error)} onClick={() => void exportReport('xlsx')}>
               Export XLSX
             </Button>
           </div>
@@ -424,7 +425,9 @@ function Reports({ audit = false }: { audit?: boolean }) {
             key={report}
           />
           {(error || exportError) && <ErrorNotice message={error ?? exportError} />}{' '}
-          {!current && !error ? (
+          {error ? (
+            <Empty title="Report unavailable" detail="Records and totals could not be loaded. Try loading this report again." />
+          ) : !current ? (
             <div className="p-4">
               <Skeleton className="h-24 w-full" />
             </div>
@@ -458,10 +461,10 @@ function Reports({ audit = false }: { audit?: boolean }) {
             />
           )}
           <div className="admin-pagination">
-            <span>{result?.total ?? 0} total records</span>
+            <span>{result ? `${result.total} total records` : error ? 'Total unavailable' : 'Loading total...'}</span>
             <Button
               variant="outline"
-              disabled={offset === 0}
+              disabled={!result || offset === 0}
               onClick={() => setOffset(Math.max(0, offset - 20))}
             >
               Previous

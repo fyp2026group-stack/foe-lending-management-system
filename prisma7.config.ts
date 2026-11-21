@@ -11,9 +11,17 @@ if (!process.env.DATABASE_URL && existsSync('.verification/m2.env')) {
 const migrationUrl = process.env.MIGRATION_DATABASE_URL
   ?? process.env.DIRECT_URL
   ?? process.env.DATABASE_URL;
+// Older local URLs predate the schema parameter; their migration history
+// lives in lab. Preserve explicit schemas and remote connection behavior.
+const scopedMigrationUrl = migrationUrl ? new URL(migrationUrl) : undefined;
+if (scopedMigrationUrl &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(scopedMigrationUrl.hostname) &&
+    !scopedMigrationUrl.searchParams.has('schema')) {
+  scopedMigrationUrl.searchParams.set('schema', 'lab');
+}
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: { path: 'prisma/migrations' },
-  ...(migrationUrl ? { datasource: { url: migrationUrl } } : {}),
+  ...(scopedMigrationUrl ? { datasource: { url: scopedMigrationUrl.href } } : {}),
 });

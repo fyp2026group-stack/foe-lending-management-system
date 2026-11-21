@@ -86,3 +86,11 @@ export function definitionPayload(
   }
   return body;
 }
+
+/** A total is known only when every included item discloses that balance. */
+export function balanceTotal(items: Item[] | undefined, cells: Stock[] | undefined, key: keyof Balances): number | undefined {
+  if (!items) return undefined;
+  const values = items.map(item => itemBalances(item, cells)[key]);
+  return values.every(value => typeof value === 'number' && Number.isFinite(value))
+    ? values.reduce<number>((total, value) => total + value!, 0) : undefined;
+}

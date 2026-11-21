@@ -64,9 +64,10 @@ import type {
 import { useInventoryLookup } from '@/components/inventory/lookups';
 
 import { ImportPanel, ItemDetail, ReceiveItemsDialog } from '@/components/inventory/inventory';
+import { itemBalances } from '@/components/inventory/catalogue-model';
 import { OfficerStockActions } from '@/components/inventory/officer-stock-actions';
 
-import type { Item, Named, Movement } from '@/components/inventory/api';
+import type { Item, Named, Movement, Stock } from '@/components/inventory/api';
 
 import {
   officerViews,
@@ -1071,6 +1072,9 @@ function InventoryArea({
     'items' + (lab === 'all' ? '' : '?labId=' + encodeURIComponent(lab)),
     revision
   );
+  const stock = useInventoryLookup<Stock>(
+    'stock' + (lab === 'all' ? '' : '?labId=' + encodeURIComponent(lab)), revision
+  );
   const policies = useLendingChoices<Policy>('policies', revision);
   const now = useStudentClock(revision);
   const summary = useLending<OperationsSummary>(operationsSummaryQuery(new Date(now)), revision);
@@ -1098,7 +1102,7 @@ function InventoryArea({
         <Metric label="Returnable types" value={rows?.filter(i => i.kind === 'RETURNABLE').length} />
         <Metric label="Consumable types" value={rows?.filter(i => i.kind === 'CONSUMABLE').length} />
       </div>
-      {[locations.error, categories.error, policies.error, summary.error]
+      {[locations.error, categories.error, policies.error, summary.error, stock.error]
         .filter(Boolean)
         .map((e, i) => (
           <ErrorNotice key={i} message={e!} />
@@ -1179,7 +1183,7 @@ function InventoryArea({
             (key) => ({
               id: key,
               title: key.charAt(0).toUpperCase() + key.slice(1),
-              value: (i: Item) => i[key] ?? '—',
+              value: (i: Item) => stock.data ? itemBalances(i, stock.data.items)[key] ?? '\u2014' : '—',
             })
           ),
           {
