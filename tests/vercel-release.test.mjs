@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { verifyEnvironment, verifyTag } from '../scripts/vercel-release.mjs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { verifyEnvironment, verifyTag, restoreSensitiveOrm } from '../scripts/vercel-release.mjs';
+import { parseEnv } from 'node:util';
 
 test('release policy accepts only exact version tags checked out on production history', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'lab-release-'));
@@ -26,6 +28,52 @@ test('release policy accepts only exact version tags checked out on production h
     assert.throws(() => verifyTag(env, cwd));
     git('tag', 'v2.0.0');
     assert.throws(() => verifyTag({ ...env, GITHUB_REF: 'refs/tags/v2.0.0' }, cwd));
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('sensitive ORM replacement preserves multiline CA bytes and validates the protected URL', () => {
+  const secret = 'postgresql://lab_orm.project:fake%24value@db.example.invalid:6543/postgres?sslmode=verify-full';
+  const ca = 'DATABASE_CA_CERT="-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----"\r\n';
+  const original = '# pulled production settings\r\nORM_DATABASE_URL="[SENSITIVE]"\r\nAPP_ORIGIN="https://lab.example.invalid"\r\n' + ca;
+  const updated = restoreSensitiveOrm(original, secret);
+  assert.equal(parseEnv(updated).ORM_DATABASE_URL, secret);
+  assert.equal(parseEnv(updated).DATABASE_CA_CERT, parseEnv(original).DATABASE_CA_CERT);
+  assert.ok(updated.endsWith(ca));
+  assert.equal(updated, original.replace('"[SENSITIVE]"', `"${secret}"`));
+  assert.equal(restoreSensitiveOrm(updated, secret), updated);
+  for (const bad of [undefined, '', '[SENSITIVE]', secret.replace('lab_orm', 'postgres'), secret.replace('verify-full', 'disable'), secret + '\nAPP_ORIGIN=https://other.invalid', secret + '$EXPAND']) {
+    assert.throws(() => restoreSensitiveOrm(original, bad));
+  }
+  assert.throws(() => restoreSensitiveOrm(updated, secret.replace('fake', 'other')));
+  assert.throws(() => restoreSensitiveOrm(original + 'ORM_DATABASE_URL="[SENSITIVE]"\r\n', secret));
+  assert.throws(() => restoreSensitiveOrm(original.replace('ORM_DATABASE_URL', 'OTHER_URL'), secret));
+  assert.throws(() => restoreSensitiveOrm(original + 'GOOGLE_OAUTH_CLIENT_SECRET="[SENSITIVE]"\r\n', secret));
+});
+
+test('restore command writes only validated configuration and never logs secret-bearing errors', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'lab-sensitive-'));
+  const path = join(cwd, '.vercel', '.env.production.local');
+  const script = fileURLToPath(new URL('../scripts/vercel-release.mjs', import.meta.url));
+  const original = 'ORM_DATABASE_URL="[SENSITIVE]"\nAPP_ORIGIN="https://lab.example.invalid"\n';
+  const secret = 'postgresql://lab_orm.project:unique-test-value@db.example.invalid/postgres?sslmode=verify-full';
+  const run = value => spawnSync(process.execPath, [script, 'restore-sensitive'], {
+    cwd, env: { ...process.env, RELEASE_ORM_DATABASE_URL: value }, encoding: 'utf8',
+  });
+  try {
+    mkdirSync(join(cwd, '.vercel'));
+    writeFileSync(path, original);
+    for (const value of ['', 'invalid-unique-test-value']) {
+      const result = run(value);
+      assert.equal(result.status, 1);
+      assert.doesNotMatch(result.stdout + result.stderr, /unique-test-value|postgresql:\/\//);
+      assert.equal(readFileSync(path, 'utf8'), original);
+    }
+    const result = run(secret);
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout + result.stderr, /unique-test-value|postgresql:\/\//);
+    assert.equal(parseEnv(readFileSync(path, 'utf8')).ORM_DATABASE_URL, secret);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

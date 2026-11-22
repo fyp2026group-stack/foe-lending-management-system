@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
@@ -44,12 +44,41 @@ export function verifyEnvironment(env) {
   }
 }
 
+export function restoreSensitiveOrm(contents, secret) {
+  // Require an encoded, single-line URL: dotenv expansion must not reinterpret
+  // password characters, nor may a secret inject another environment entry.
+  if (!secret || /[\r\n\0"'`\\$]/.test(secret)) throw new Error('Protected ORM secret missing or unsafe');
+  const pulled = parseEnv(contents);
+  const assignments = contents.match(/^ORM_DATABASE_URL\s*=/gm) ?? [];
+  if (assignments.length !== 1 || !pulled.ORM_DATABASE_URL) throw new Error('Expected one pulled ORM entry');
+  if (pulled.ORM_DATABASE_URL !== '[SENSITIVE]' && pulled.ORM_DATABASE_URL !== secret) {
+    throw new Error('Pulled ORM configuration conflicts with protected secret');
+  }
+  for (const [key, value] of Object.entries(pulled)) {
+    if (key !== 'ORM_DATABASE_URL' && value.includes('[SENSITIVE]')) throw new Error('Unexpected sensitive placeholder');
+  }
+  verifyEnvironment({ ...pulled, ORM_DATABASE_URL: secret });
+  if (pulled.ORM_DATABASE_URL === secret) return contents;
+  const placeholder = /^ORM_DATABASE_URL=(?:"\[SENSITIVE\]"|'\[SENSITIVE\]'|\[SENSITIVE\])(?=\r?$)/gm;
+  if ((contents.match(placeholder) ?? []).length !== 1) throw new Error('Unexpected ORM placeholder format');
+  // Replace only this single entry, preserving other bytes (including CA PEM).
+  const updated = contents.replace(placeholder, () => `ORM_DATABASE_URL="${secret}"`);
+  if (parseEnv(updated).ORM_DATABASE_URL !== secret) throw new Error('ORM serialization mismatch');
+  return updated;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     if (process.argv[2] === 'tag') verifyTag();
+    else if (process.argv[2] === 'restore-sensitive') {
+      const path = '.vercel/.env.production.local';
+      const updated = restoreSensitiveOrm(readFileSync(path, 'utf8'), process.env.RELEASE_ORM_DATABASE_URL);
+      chmodSync(path, 0o600);
+      writeFileSync(path, updated, { mode: 0o600 });
+    }
     else if (process.argv[2] === 'env') {
       verifyEnvironment({ ...process.env, ...parseEnv(readFileSync('.vercel/.env.production.local', 'utf8')) });
-    } else throw new Error('Expected tag or env');
+    } else throw new Error('Expected tag, restore-sensitive or env');
     console.log('Release policy passed');
   } catch {
     // Configuration/command errors may contain credentials; never echo them.
