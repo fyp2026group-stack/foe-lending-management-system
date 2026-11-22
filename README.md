@@ -131,11 +131,11 @@ npm ci
 npm run prisma:validate
 npm run typecheck
 npm run lint
-npm test
 npm run prisma:readiness:enforce
 npm run prisma:deploy
 npm run prisma:status
 npm run build
+npm test
 npm start
 ```
 
@@ -194,11 +194,12 @@ Fast repository checks do not require account provisioning or database writes:
 npm run prisma:validate
 npm run typecheck
 npm run lint
-npm test
 npm run prisma:readiness:enforce
+npm run build
+npm test
 ```
 
-npm test uses Node's built-in test runner on tests/*.test.mjs. It does not automatically run *.integration.mjs. Some .test.mjs HTTP checks are explicitly gated and may skip without integration configuration; inspect pass/skip totals. Current tooling is Node test, not a configured Vitest or Playwright suite. npm run build is a separate production compilation check; do not run it concurrently with a dev server sharing .next.
+npm test uses Node's built-in test runner on tests/*.test.mjs, including foundation HTTP checks that start a production server. Run npm run build first on a clean checkout; the suite fails explicitly if .next/BUILD_ID is missing. It does not automatically run *.integration.mjs. Some .test.mjs HTTP checks are explicitly gated and may skip without integration configuration; inspect pass/skip totals. Current tooling is Node test, not a configured Vitest or Playwright suite. Do not run the build concurrently with a dev server sharing .next.
 
 npm run db:verify checks native migrations, schema and restricted grants against the configured local database. It is not a substitute for functional integration testing. Explicit legacy commands db:setup:legacy, db:migrate:legacy and db:verify:legacy exist for isolated compatibility testing only, not new production provisioning.
 

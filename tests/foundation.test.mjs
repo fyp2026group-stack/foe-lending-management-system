@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
+import { existsSync } from 'node:fs';
 import { after, before, test } from 'node:test';
 
 let child;
 let baseUrl;
 
 before(async () => {
+  assert.ok(existsSync('.next/BUILD_ID'),
+    'Foundation HTTP tests require a production build: run npm run build before npm test');
   const reservation = createServer();
   await new Promise((resolve, reject) => {
     reservation.once('error', reject);
@@ -26,31 +29,49 @@ before(async () => {
   );
   await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(
-      () => reject(new Error('Local server did not become ready: ' + output)),
-      25000
-    );
+    let settled = false;
+    let probe;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      clearTimeout(probe);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timeout = setTimeout(() => finish(new Error(
+      'Local server did not serve /login: ' + output)), 25000);
     const receive = (chunk) => {
-      output += chunk.toString();
-      if (/Ready in/.test(output)) {
-        clearTimeout(timeout);
-        resolve();
-      }
+      output = (output + chunk.toString()).slice(-8000);
     };
     child.stdout.on('data', receive);
     child.stderr.on('data', receive);
     child.once('error', (error) => {
-      clearTimeout(timeout);
-      reject(error);
+      finish(error);
     });
     child.once('exit', (code) => {
-      clearTimeout(timeout);
-      reject(new Error('Local server exited ' + code + ': ' + output));
+      finish(new Error('Local server exited ' + code + ': ' + output));
     });
+    // Next logs "Ready in" before loading the build/config. Require a real
+    // HTTP response so a startup crash cannot masquerade as test readiness.
+    const check = async () => {
+      try {
+        const response = await fetch(baseUrl + '/login', { signal: AbortSignal.timeout(2000) });
+        await response.arrayBuffer();
+        if (response.status === 200) return finish();
+      } catch { /* The socket may not be listening yet. */ }
+      if (!settled) probe = setTimeout(check, 100);
+    };
+    void check();
   });
 });
-after(() => {
-  child?.kill();
+after(async () => {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise(resolve => {
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 5000);
+    child.once('exit', () => { clearTimeout(timeout); resolve(); });
+    child.kill();
+  });
 });
 
 test('root redirects to the authenticated workspace; sign-in retains accessible entry', async () => {
