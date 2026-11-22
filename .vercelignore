@@ -1,5 +1,6 @@
 .verification
 .env*
+!.env.example
 .git
 .github
 .cache
