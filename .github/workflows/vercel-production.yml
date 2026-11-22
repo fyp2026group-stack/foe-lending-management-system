@@ -1,0 +1,74 @@
+name: Tag-only Vercel production release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+jobs:
+  release-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/vercel-release.mjs tag
+
+  verify:
+    needs: release-policy
+    uses: ./.github/workflows/prisma-clean-http.yml
+    # Deliberately no inherited secrets: fixtures only touch service PostgreSQL.
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Recheck release policy before accessing Vercel
+        run: node scripts/vercel-release.mjs tag
+      - run: npm ci
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@66.6.0 --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Pull production configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          test -n "$VERCEL_TOKEN" && test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID"
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Reject unsafe production configuration
+        run: node scripts/vercel-release.mjs env
+      - name: Build Vercel production artifact
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy prebuilt production artifact
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - name: Remove downloaded production configuration
+        if: always()
+        run: rm -f .vercel/.env.production.local

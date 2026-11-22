@@ -1,0 +1,10 @@
+.verification
+.env*
+.git
+.github
+.cache
+.next
+coverage
+*.log
+*.dump
+*.tsbuildinfo

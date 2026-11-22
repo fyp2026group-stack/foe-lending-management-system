@@ -91,6 +91,7 @@ Never copy real user records, session tokens or password hashes into issue repor
 | DATABASE_URL | Last CLI fallback and historical verification connection; not required by application requests |
 | APP_ORIGIN | Canonical origin used for write-origin validation and OAuth callbacks; local default http://127.0.0.1:3000, production must use HTTPS |
 | DATABASE_POOL_SIZE | Server connection pool size, default 5; budget across all application instances |
+| DATABASE_CA_CERT | Optional server-only PEM CA certificate for a provider such as Supabase; use actual multiline PEM, not a local filesystem path or literal backslash-n escapes. With this value, ORM_DATABASE_URL must use sslmode=verify-full; the driver explicitly verifies the certificate chain and hostname. |
 | GOOGLE_OAUTH_CLIENT_ID | Server configuration for Google student sign-in |
 | GOOGLE_OAUTH_CLIENT_SECRET | Server-only Google credential |
 | GOOGLE_OAUTH_COOKIE_SECRET | Server-only high-entropy secret of at least 32 characters, protects short-lived OAuth cookies |
@@ -102,6 +103,10 @@ Never copy real user records, session tokens or password hashes into issue repor
 | SYNTHETIC_ADMIN_PASSWORD | Local historical fixture secret, not an application default password |
 
 No application configuration here needs NEXT_PUBLIC_ variables. Prefixing a value with NEXT_PUBLIC_ makes it browser-visible and freezes it into the client build; never expose database URLs, passwords, cookie secrets or Google client secrets that way. APP_ORIGIN and the Google client ID are not confidential, but are read by server code.
+
+For Supabase on Vercel, set `DATABASE_CA_CERT` in the project's Production environment to the complete official Supabase CA PEM, including BEGIN/END CERTIFICATE lines and actual newlines. Keep `sslmode=verify-full` in `ORM_DATABASE_URL`. Do not add `ssl`, `sslcert`, `sslkey`, `sslrootcert`, `sslaccept`, `sslidentity`, `sslpassword`, `uselibpqcompat` or connection-identity override parameters when using this PEM setting. The runtime validates the mode, removes it from the driver URL, and passes the CA with `rejectUnauthorized=true` and the destination hostname explicitly, preventing pg URL parsing from discarding the CA. Do not set `NODE_TLS_REJECT_UNAUTHORIZED=0`. The optional PEM setting does not change local loopback connections or the default trust-store behavior when absent. The CA is a public trust anchor, not an owner credential; no private key belongs in it.
+
+Prisma migration CLI TLS configuration is separate from the runtime adapter. The installed schema engine supports the migration URL parameters `sslmode=require`, `sslaccept=strict` and `sslcert` pointing to the official CA file (use an absolute path in the protected release environment); verify these settings against the pinned Prisma version. These are migration-engine parameters, not the runtime URL format. Inject `DATABASE_URL` and `MIGRATION_DATABASE_URL` explicitly for that one process to prevent fallback to local configuration. Never copy an operator's local CA path into Vercel's serverless environment.
 
 The dev/start wrapper validates ORM_DATABASE_URL **before** Next.js starts. Existing process environment values win. Only when the runtime URL is absent and NODE_ENV is not production does the wrapper load missing values from .verification/m2.env, and that file must point at a loopback database. An invalid injected URL is rejected rather than silently replaced. With NODE_ENV=production the wrapper never consults that local file: inject configuration through the host's environment/secret manager before starting. Merely creating .env.local may not satisfy wrapper validation.
 
@@ -139,6 +144,33 @@ Run migration commands only in the authorized release environment against the ch
 For existing legacy installations, scripts/prisma-migrations.mjs contains guarded baseline reconciliation; it is not a general cloud upgrade command. Marking 0_init applied is valid only after checking that the existing schema matches the baseline. Never replay baseline table creation onto populated production data. Obtain a reviewed migration plan for that installation.
 
 Never use migrate reset, Docker volume removal, local reset helpers, legacy bootstrap or synthetic fixtures on shared/staging/production data. A failed migration needs diagnosis and an explicit recovery plan, not a blind reset. Roll back application artifacts only when the prior version is compatible with the new schema; database rollback requires a reviewed forward correction or restore plan.
+
+## Vercel releases from version tags
+
+The selected production target is Vercel with Supabase PostgreSQL. `.github/workflows/vercel-production.yml` runs only on pushed tags matching exactly `vMAJOR.MINOR.PATCH` (for example `v1.0.0`, no leading zeros, prerelease or build suffix). It rejects tags whose checked-out commit is outside `origin/production` history. A full checkout supplies that remote history. Ordinary branch pushes and pull requests do not deploy: `vercel.json` sets `git.deploymentEnabled=false`. Manual CLI deployments remain an operator capability; restrict project membership and token access accordingly.
+
+Before the first release, complete this external setup:
+
+1. Create/link the Vercel project with repository root as its root directory, Next.js framework and **Node.js 24.x** selected in project settings. Keep automatic Git deployments disabled; avoid an initial automatic import deployment before configuration is reviewed. Configure the production domain/HTTPS and set the project's production branch to `production`.
+2. Create a GitHub **production** environment with required reviewers, prevention of self-review where available, and deployment restrictions allowing release tags only. Add environment secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`; obtain IDs from the linked project and use a token scoped to the intended team/project as far as the account supports. Configure repository rulesets to restrict creation of `v*` tags to release maintainers and prohibit tag updates/deletion. Protect `production` and review changes to workflows and release guards. Availability of environment protection depends on the GitHub plan/repository visibility; verify protection is effective before adding credentials.
+3. In Vercel's **Production** environment set server-only `ORM_DATABASE_URL` to the restricted `lab_orm` Supabase connection with `sslmode=verify-full`, `APP_ORIGIN` to the exact canonical HTTPS origin (no trailing slash), and an appropriately budgeted `DATABASE_POOL_SIZE`. Certificate and hostname verification must remain enabled; supply the provider CA through approved deployment configuration if required. Configure all three Google variables only if enabling Google sign-in and register the canonical callback. Do not set `NEXT_PUBLIC_*`, `M2_TEST_*`, `LOCAL_*`, `DATABASE_URL`, `DIRECT_URL` or `MIGRATION_DATABASE_URL` there. The release guard rejects those values before building. `.verification` and local environment files are excluded from Vercel uploads; `.vercel` is Git-ignored. The runtime rejects URL query parameters that override its restricted database username.
+4. Have the database owner review and apply the authoritative migrations to the intended Supabase database separately, validate existing-data upgrade/baseline state, configure the restricted login/grants, verify migration status, and perform the staging/backup checks above. **This deployment workflow never migrates, seeds or resets Supabase and assumes its schema is already current.** Keep any migration-owner credential only in a separately reviewed GitHub protected environment/release process, never in Vercel runtime/build settings. Initial administrator provisioning remains a separate reviewed prerequisite.
+
+The release first runs the reusable clean-schema HTTP workflow with PostgreSQL 16 on the runner: schema validation, typecheck, readiness, lint, unit/contract tests, fresh migrations and status, restricted login, production build, then the real HTTP lifecycle/admin/report/reuse suites. It inherits no secrets and uses only disposable loopback credentials. The deployment job runs only after these pass and the protected production environment approves. It rechecks tag ancestry, installs pinned Vercel CLI **66.6.0**, pulls Production settings, validates them, builds with `vercel build --prod`, and uploads with `vercel deploy --prebuilt --prod`. No test fixtures run after production settings are fetched. Downloaded settings are removed at job completion and no production artifacts or environment files are uploaded as GitHub artifacts. Deployments share one concurrency group with cancellation disabled; GitHub can still replace an older pending run, so release one tag at a time and inspect its completed run before issuing another.
+
+After the reviewed changes are committed and pushed to `production`, an authorized maintainer releases an unused version explicitly:
+
+```powershell
+git fetch origin production --tags
+git switch production
+git pull --ff-only origin production
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+Use the next unused version, not necessarily the example. Approve the production environment only after confirming the intended Supabase schema is ready. Inspect the Actions run and Vercel deployment URL, then verify canonical-domain login, authorized writes and all four role workflows against the actual host. A successful artifact upload does not prove Supabase connectivity, TLS/pooling, authentication or OAuth. Roll back only to an artifact compatible with the current schema; never move a published version tag. No accounts, credentials, migrations, tags or deployments are created by adding these repository files.
+
+The command sequence and Git deployment disable switch follow [Vercel's GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) and [Git configuration reference](https://vercel.com/docs/project-configuration/git-configuration), checked on 21 November 2026; CLI version was checked against the npm registry. Local guard verification: `node --test tests/vercel-release.test.mjs`. Actual hosted Actions/Vercel builds require the external setup above.
 
 ## Backup, recovery and operations
 
